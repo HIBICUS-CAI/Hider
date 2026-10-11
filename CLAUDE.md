@@ -1,0 +1,73 @@
+# Hider v2 — 作業ガイド
+
+画面の一部を覆って隠す常駐ツール（トレイ常駐、複数エリア、塗りつぶし / モザイク / 生成パターン）。.NET 10 + Avalonia 12.1.4、対象は win-x64 / linux-x64 / linux-arm64。
+
+## 資料（判断の優先順位: 仕様書 > 作業指示書 > 設計書 > UI デザインキャンバス > 現行コード > 一般的な慣習）
+
+| 資料 | 場所 | 内容 |
+|---|---|---|
+| 仕様書（Hider v2 仕様書） | https://claude.ai/artifact/QT9Dn8x6r69bx6FxD87q8P | 挙動・FR / NFR・露出の意味論・決定履歴 |
+| 作業指示書（Hider v2 実装作業指示書） | https://claude.ai/artifact/Cf2T1HM3yg78c6s5N8Crh7 | Step 0〜9 の順序・契約（§3）・完了条件・報告形式。タブ: 設計書 / テスト項目 / GitHub Actions / 付録: 現行コード |
+| 設計書 | docs/v2-implementation-plan.md | 方式比較・性能見積・スパイク定義・決定 D-1〜D-12 |
+| UI デザインキャンバス | https://claude.ai/artifact/VKTc6PcAYtSMLHgfw5814y | 画面 8 枚。寸法・配色・項目名の正 |
+| 進捗報告 | docs/progress.md | Step ごとの報告（指示書 §5 の 8 項目） |
+
+矛盾を見つけたら勝手に解釈せず、docs/progress.md の「提案」（問題 / 選択肢 / 推奨 / 影響する FR・決定）に書き、推奨案で実装してコミットに `pending: <提案 ID>` を付ける。
+
+## 構成
+
+```
+src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mosaic / Capture / Scheduling / Persistence / Strings
+src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
+native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
+tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
+scripts/           build.py / install.py（標準ライブラリのみ）
+spikes/            スパイク（sln に含めない）
+```
+
+## コマンド
+
+```sh
+dotnet build -c Release -warnaserror
+dotnet test tests/Hider.Core.Tests
+dotnet test tests/Hider.App.Tests
+python scripts/build.py <rid>                 # bin/publish/<rid>/
+bin/publish/<rid>/Hider --selftest            # 終了コード 0
+```
+
+CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。`on: push` / `pull_request` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
+
+## 作業ルール（指示書 §2 の要約）
+
+- Step は順に進め、完了条件 + テスト緑 + 報告で閉じる。確認順: 実装 → テスト → `dotnet build -warnaserror` と `dotnet test` → `python scripts/build.py <rid>` → `--selftest`。
+- コミットは 1 コミット 1 つの内容。1 行目 `step<N>: <要約>`、本文に対応 FR と確認した RID（日本語）。
+- 生成物（bin/、obj/、publish 出力）はコミットしない。ゴールデン画像の更新は差分画像と理由を報告に添える（`HIDER_UPDATE_GOLDEN=1` で再生成）。
+
+### 禁止
+
+- 自ウィンドウをキャプチャから除外する API（`SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` 等）。NFR-01
+- リフレクション依存の JSON（型引数なしの `JsonSerializer` 呼び出し等）。必ず `HiderJsonContext`。NFR-06
+- ランタイムのアセンブリ読込（プラグイン）。D-12
+- `Avalonia.Wayland` の参照、`UseWayland()`。D-1
+- `BeginMoveDrag` / `BeginResizeDrag`（ドラッグは自前実装）
+- スナップショット画像のディスク保存、旧 `setting.txt` の読込。FR-53、FR-65
+- テストの無効化・スキップで CI を緑にすること
+- 許可リスト外の NuGet: Avalonia 12.1.x 系、SkiaSharp（Avalonia と同版）、Tmds.DBus.Protocol、xunit 系、Avalonia.Headless.XUnit、BenchmarkDotNet（bench のみ）。版は Directory.Packages.props で一元管理
+- 日本語以外の UI 文字列、Strings 以外に散らばる UI 文字列。FR-70
+
+### コーディング規約
+
+- Nullable / ImplicitUsings 有効、TreatWarningsAsErrors。src/ は IsTrimmable + EnableTrimAnalyzer。警告は抑制せず直す。
+- 命名: 引数は `_name`、private フィールドは接頭辞なし camelCase、他は .NET 標準。名前空間はブロック形式。
+- コード内コメントは英語、ドキュメントとコミット本文は日本語。
+- P/Invoke は `LibraryImport`（`DllImport` 不可）。OS 依存コードは `[SupportedOSPlatform]` と `OperatingSystem.IsWindows()` / `IsLinux()` で囲む。
+- SkSL は `src/Hider.Core/Mosaic/Methods/<id>.sksl`（埋め込みリソース）。先頭コメントに uniform と child の一覧。uniform 名 = `ParamSpec.Key`。
+- 取得・合成は専用スレッド、UI 更新は Dispatcher 経由。`async void` はイベントハンドラのみ。
+- ログは `--verbose` 時のみ標準エラーへ。テレメトリ・ネットワークアクセスなし。
+
+### 座標・露出
+
+- Core・取得・モザイクは物理 px のみ。DIP が現れるのは AreaWindow の Width / Height とポインタ座標だけで、変換は `IAreaWindowHost` の実装 1 箇所に閉じる。
+- 保存形式は x, y = 物理 px、width, height = DIP（指示書 §3.4）。
+- Windows はエリアを透明化しない。Linux は撮影中の帯だけ透明化する。
+- X11 前提のコードには `// XWAYLAND-ASSUMPTION:` を付け、docs/wayland-migration.md に一覧を維持する。
