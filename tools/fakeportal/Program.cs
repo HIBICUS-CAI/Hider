@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using Tmds.DBus.Protocol;
 
 // Fake xdg-desktop-portal for Xvfb (scripts/xvfb-strip-smoke.sh):
-//   FakePortal <screenshot dir> [ok|deny] [screencast node id]
+//   FakePortal <screenshot dir> [ok|deny|hang] [screencast node id]   (hang: ScreenCast Start never answers)
 // Screenshot shoots the root window with ImageMagick `import`. With a node id, ScreenCast is offered too: Start hands out
 // that PipeWire node (e.g. a GStreamer ximagesrc ! pipewiresink) and OpenPipeWireRemote a connection to $XDG_RUNTIME_DIR.
 var conn = new DBusConnection(DBusAddress.Session!);
@@ -35,6 +35,10 @@ sealed class Portal(DBusConnection conn, string dir, string mode, uint? node) : 
                 break;
             case "org.freedesktop.portal.ScreenCast" when node is not null:
                 ScreenCast(context, member);
+                break;
+            case "org.freedesktop.portal.Request" when member == "Close":
+                Console.WriteLine($"request closed {req.PathAsString}");
+                context.Reply(context.CreateReplyWriter(null).CreateMessage());
                 break;
             case "org.freedesktop.portal.Session" when member == "Close":
                 Console.WriteLine($"session closed {req.PathAsString}");
@@ -113,6 +117,10 @@ sealed class Portal(DBusConnection conn, string dir, string mode, uint? node) : 
                 string path = ReplyRequest(context, ReadOptions(ref reader));
                 int n = Interlocked.Increment(ref starts);
                 Console.WriteLine($"screencast start {n}");
+                if (mode == "hang")
+                {
+                    break; // the dialog stays open: no Response until the client closes the request
+                }
                 Respond(sender, path, 0, (ref MessageWriter w) =>
                 {
                     w.WriteDictionaryEntryStart();
