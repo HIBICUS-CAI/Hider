@@ -89,6 +89,19 @@ namespace Hider.Areas
             Window.RefreshPattern();
         }
 
+        /// <summary>Saves a settings change (FR-36): now for a typed or picked value, after 500 ms while a slider moves.</summary>
+        public void SaveSettings(bool _now)
+        {
+            if (_now)
+            {
+                owner.SaveNow();
+            }
+            else
+            {
+                owner.SaveSoon();
+            }
+        }
+
         public void EnterEdit()
         {
             if (Mode == AreaMode.Editing)

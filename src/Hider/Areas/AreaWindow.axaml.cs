@@ -2,9 +2,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Controls.Primitives;
 using Avalonia.Markup.Xaml;
 using Hider.Core.Model;
 using Hider.Platform;
+using Hider.Settings;
 
 namespace Hider.Areas
 {
@@ -18,6 +20,13 @@ namespace Hider.Areas
     {
         private AreaController controller = null!;
         private readonly EditChrome chrome = new();
+        private readonly Popup settingsPopup = new()
+        {
+            Placement = PlacementMode.BottomEdgeAlignedLeft,
+            IsLightDismissEnabled = true,
+            VerticalOffset = 4,
+        };
+        private SettingsPanel? settings;
         private bool closingAllowed;
 
         public AreaWindow()
@@ -33,7 +42,9 @@ namespace Hider.Areas
             chrome.Toolbar.DoneClicked += () => controller.ExitEdit();
             chrome.Toolbar.DeleteClicked += () => controller.Delete();
             chrome.Toolbar.RefreshClicked += () => RefreshRequested?.Invoke();
-            chrome.Toolbar.SettingsClicked += () => SettingsRequested?.Invoke();
+            chrome.Toolbar.SettingsClicked += ToggleSettings;
+            settingsPopup.PlacementTarget = chrome.Toolbar.SettingsButton;
+            Root.Children.Add(settingsPopup);
             Closing += (_, e) => e.Cancel = !closingAllowed;
         }
 
@@ -45,11 +56,24 @@ namespace Hider.Areas
             Pattern.Frames = _controller.Frames;
         }
 
-        /// <summary>↻ pressed (wired to the refresh scheduler from Step 5).</summary>
+        /// <summary>↻ pressed.</summary>
         public event Action? RefreshRequested;
 
-        /// <summary>⚙ pressed (settings popup from Step 5).</summary>
-        public event Action? SettingsRequested;
+        /// <summary>The settings popup content while it is open (FR-35 .. FR-37).</summary>
+        public SettingsPanel? Settings => settingsPopup.IsOpen ? settings : null;
+
+        /// <summary>Opens or closes the settings popup under ⚙.</summary>
+        public void ToggleSettings()
+        {
+            if (settingsPopup.IsOpen)
+            {
+                settingsPopup.IsOpen = false;
+                return;
+            }
+            settings = new SettingsPanel(controller);
+            settingsPopup.Child = settings;
+            settingsPopup.IsOpen = true;
+        }
 
         public EditChrome Chrome => chrome;
         public EditToolbar Toolbar => chrome.Toolbar;
@@ -70,6 +94,10 @@ namespace Hider.Areas
             Pattern.Height = area.Height;
 
             bool editing = controller.Mode == AreaMode.Editing;
+            if (!editing)
+            {
+                settingsPopup.IsOpen = false;
+            }
             if (editing && !ChromeAttached)
             {
                 Root.Children.Add(chrome);
@@ -96,6 +124,10 @@ namespace Hider.Areas
             Pattern.Opacity = editing ? alpha : 1.0;
             Pattern.InvalidateVisual();
             chrome.Toolbar.Update(model.Pattern, model.Rect, controller.CaptureFailed);
+            if (settings is not null && settingsPopup.IsOpen && settings.Pattern != model.Pattern)
+            {
+                settings.Rebuild();
+            }
         }
 
         public void CloseFromController()
