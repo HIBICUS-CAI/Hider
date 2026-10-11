@@ -186,7 +186,13 @@ namespace Hider.Areas
                 Log.Verbose("not saving: areas.json could not be read at start and is left untouched");
                 return;
             }
-            var state = new AppState { Areas = areas.Select(a => AreaState.FromArea(a.Model, a.Host.Scale)).ToList() };
+            // Same scale source as Restore (the screen at the area's top-left), not the window: on exit the windows are already
+            // closed, and in edit mode the enlarged window may start on the neighbouring monitor. A different source on mixed-DPI
+            // setups made areas grow or shrink with every exit and start.
+            var state = new AppState
+            {
+                Areas = areas.Select(a => AreaState.FromArea(a.Model, Screens.ScreenAt(a.Model.Rect.X, a.Model.Rect.Y)?.Scale ?? 1.0)).ToList(),
+            };
             try
             {
                 AreasFile.Save(areasPath, state);

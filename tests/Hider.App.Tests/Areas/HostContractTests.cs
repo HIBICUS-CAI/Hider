@@ -109,5 +109,35 @@ namespace Hider.App.Tests.Areas
             f.Manager.SaveNow();
             Assert.Equal(original, File.ReadAllText(f.AreasPath));
         }
+
+        [AvaloniaFact]
+        public void SaveAndRestore_UseTheSameScale_OnMixedDpi()
+        {
+            // Primary at 100 %, the area on a 150 % monitor; the fake window host reports 1.0 (as a closed window would).
+            var screens = new FakeScreenService(
+                new ScreenInfo(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true),
+                new ScreenInfo(new PhysicalRect(1920, 0, 2880, 1620), new PhysicalRect(1920, 0, 2880, 1580), 1.5, false));
+            var rect = new PhysicalRect(2000, 100, 600, 300);
+            string? json = null;
+            for (int round = 0; round < 3; round++)
+            {
+                using var f = new AreaFixture(1.0, screens);
+                if (json is null)
+                {
+                    f.Add(rect).ExitEdit();
+                }
+                else
+                {
+                    // Exit and start again: the area keeps its size.
+                    File.WriteAllText(f.AreasPath, json);
+                    f.Manager.Restore();
+                    Assert.Equal(rect, f.Manager.Areas.Single().Model.Rect);
+                }
+                f.Manager.SaveNow();
+                var stored = AreasFile.Load(f.AreasPath, out _).Areas.Single();
+                Assert.Equal((400.0, 200.0), (stored.Width, stored.Height));
+                json = File.ReadAllText(f.AreasPath);
+            }
+        }
     }
 }
