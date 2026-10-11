@@ -11,8 +11,10 @@ namespace Hider.Core.Scheduling
 
     /// <summary>
     /// Decides when an area's underlay is captured again (FR-50, FR-51, D-10). <see cref="Due"/> is raised immediately for
-    /// requests and periodically for the timer (on the timer's thread). While a capture runs (between <see cref="BeginRun"/>
-    /// and <see cref="EndRun"/>) further requests and ticks are merged into one, raised after <see cref="EndRun"/>.
+    /// requests and periodically for the timer (on the timer's thread). Raising <see cref="Due"/> starts a run: until the
+    /// handler's work calls <see cref="EndRun"/>, further requests and ticks are merged into one, raised after it. The run
+    /// starts when Due is raised, not when the handler gets to it (it may be posted to another thread), so two captures of
+    /// one area never overlap.
     /// </summary>
     public sealed class RefreshScheduler : IDisposable
     {
@@ -104,16 +106,10 @@ namespace Hider.Core.Scheduling
             Raise(_reason);
         }
 
-        /// <summary>Marks a capture as started; requests until <see cref="EndRun"/> are merged.</summary>
-        public void BeginRun()
-        {
-            lock (gate)
-            {
-                running = true;
-            }
-        }
-
-        /// <summary>Marks the capture as finished and raises the merged request, if any.</summary>
+        /// <summary>
+        /// Ends the run that the last <see cref="Due"/> started (also when the handler decided not to capture) and raises the
+        /// merged request, if any.
+        /// </summary>
         public void EndRun()
         {
             RefreshReason? next;
@@ -165,6 +161,7 @@ namespace Hider.Core.Scheduling
                     }
                     return;
                 }
+                running = Due is not null;
             }
             Due?.Invoke(_reason);
         }

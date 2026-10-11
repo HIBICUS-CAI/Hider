@@ -5,12 +5,20 @@ namespace Hider.Core.Tests.Scheduling
 {
     public class RefreshSchedulerTests
     {
-        private static (RefreshScheduler, FakeTimeProvider, List<(TimeSpan, RefreshReason)>) Create()
+        /// <param name="_endRunAtOnce">The handler ends each run right away, as a capture that finishes instantly.</param>
+        private static (RefreshScheduler, FakeTimeProvider, List<(TimeSpan, RefreshReason)>) Create(bool _endRunAtOnce = false)
         {
             var time = new FakeTimeProvider();
             var scheduler = new RefreshScheduler(time);
             var log = new List<(TimeSpan, RefreshReason)>();
-            scheduler.Due += r => log.Add((time.Elapsed, r));
+            scheduler.Due += r =>
+            {
+                log.Add((time.Elapsed, r));
+                if (_endRunAtOnce)
+                {
+                    scheduler.EndRun();
+                }
+            };
             return (scheduler, time, log);
         }
 
@@ -27,7 +35,7 @@ namespace Hider.Core.Tests.Scheduling
         [Fact]
         public void CT38_Interval100_TicksEvery100ms()
         {
-            var (scheduler, time, log) = Create();
+            var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
             time.Advance(TimeSpan.FromMilliseconds(1000));
             Assert.Equal(10, log.Count);
@@ -38,7 +46,7 @@ namespace Hider.Core.Tests.Scheduling
         [Fact]
         public void CT39_Requests_RaiseImmediately()
         {
-            var (scheduler, _, log) = Create();
+            var (scheduler, _, log) = Create(true);
             scheduler.Request(RefreshReason.Created);
             scheduler.Request(RefreshReason.Committed);
             scheduler.Request(RefreshReason.Manual);
@@ -51,9 +59,10 @@ namespace Hider.Core.Tests.Scheduling
         {
             var (scheduler, time, log) = Create();
 
-            // Requests while running merge into one, raised after EndRun; a request beats a timer tick.
+            // Raising Due starts a run; requests until EndRun merge into one, raised after it; a request beats a timer tick.
             scheduler.Configure(100);
-            scheduler.BeginRun();
+            scheduler.Request(RefreshReason.Created);
+            log.Clear();
             scheduler.Request(RefreshReason.Manual);
             time.Advance(TimeSpan.FromMilliseconds(250));
             scheduler.Request(RefreshReason.Committed);
@@ -63,15 +72,16 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.EndRun();
             Assert.Single(log);
 
-            // A timer-only backlog becomes one Timer request.
+            // A timer-only backlog becomes one Timer request (the tick at 300 ms starts a run, the next two merge).
             log.Clear();
-            scheduler.BeginRun();
             time.Advance(TimeSpan.FromMilliseconds(300));
+            Assert.Single(log);
             scheduler.EndRun();
-            Assert.Equal(new[] { RefreshReason.Timer }, log.Select(e => e.Item2));
+            Assert.Equal(new[] { RefreshReason.Timer, RefreshReason.Timer }, log.Select(e => e.Item2));
+            scheduler.EndRun();
 
             // Configure takes effect from the next period: the tick already scheduled stays, then the new interval.
-            var (s2, t2, log2) = Create();
+            var (s2, t2, log2) = Create(true);
             s2.Configure(100);
             t2.Advance(TimeSpan.FromMilliseconds(50));
             s2.Configure(300);
@@ -85,10 +95,25 @@ namespace Hider.Core.Tests.Scheduling
             time.Advance(TimeSpan.FromMilliseconds(900));
             scheduler.Request(RefreshReason.Committed);
             Assert.Equal(new[] { RefreshReason.Committed }, log.Select(e => e.Item2));
+            scheduler.EndRun();
             scheduler.TimerPaused = false;
             log.Clear();
-            time.Advance(TimeSpan.FromMilliseconds(300));
+            for (int i = 0; i < 3; i++)
+            {
+                time.Advance(TimeSpan.FromMilliseconds(100));
+                scheduler.EndRun();
+            }
             Assert.Equal(3, log.Count(e => e.Item2 == RefreshReason.Timer));
+
+            // Ticks while a run is outstanding (Due raised, the posted capture not started yet) do not raise Due again.
+            log.Clear();
+            time.Advance(TimeSpan.FromMilliseconds(100));
+            time.Advance(TimeSpan.FromMilliseconds(100));
+            time.Advance(TimeSpan.FromMilliseconds(100));
+            Assert.Single(log);
+            scheduler.EndRun();
+            Assert.Equal(2, log.Count);
+            scheduler.EndRun();
 
             // Nothing fires after Dispose.
             log.Clear();
