@@ -47,7 +47,16 @@ namespace Hider.Areas
             chrome.Toolbar.SettingsClicked += ToggleSettings;
             settingsPopup.PlacementTarget = chrome.Toolbar.SettingsButton;
             Root.Children.Add(settingsPopup);
-            Closing += (_, e) => e.Cancel = !closingAllowed;
+            Closing += (_, e) => e.Cancel = KeepOpen(closingAllowed, e.CloseReason);
+        }
+
+        /// <summary>
+        /// Whether a close is refused: only the user's or another window's attempt is (Alt+F4 must not lose an area). A sign-out
+        /// or shutdown must never be held up — cancelling it would make Windows report Hider as blocking the shutdown.
+        /// </summary>
+        public static bool KeepOpen(bool _closingAllowed, WindowCloseReason _reason)
+        {
+            return !_closingAllowed && _reason is not (WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown);
         }
 
         /// <summary>Connects the window to its controller (called once, right after construction).</summary>

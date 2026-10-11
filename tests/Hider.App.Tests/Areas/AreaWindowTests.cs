@@ -236,5 +236,16 @@ namespace Hider.App.Tests.Areas
             var second = f.Manager.AddNew();
             Assert.Equal(new PhysicalRect((2880 - 600) / 2, (1560 - 360) / 2, 600, 360), second.Model.Rect);
         }
+
+        [Theory]
+        [InlineData(false, WindowCloseReason.WindowClosing, true)]
+        [InlineData(false, WindowCloseReason.Undefined, true)]
+        [InlineData(false, WindowCloseReason.ApplicationShutdown, false)]
+        [InlineData(false, WindowCloseReason.OSShutdown, false)]
+        [InlineData(true, WindowCloseReason.WindowClosing, false)]
+        public void Close_RefusedOnlyForUserAttempts(bool _allowed, WindowCloseReason _reason, bool _keepOpen)
+        {
+            Assert.Equal(_keepOpen, AreaWindow.KeepOpen(_allowed, _reason));
+        }
     }
 }

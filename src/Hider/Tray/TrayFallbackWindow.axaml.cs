@@ -17,7 +17,7 @@ namespace Hider.Tray
             Items.CommandSelected += c => CommandSelected?.Invoke(c);
             Closing += (_, e) =>
             {
-                if (!closingAllowed)
+                if (Hider.Areas.AreaWindow.KeepOpen(closingAllowed, e.CloseReason))
                 {
                     e.Cancel = true;
                     WindowState = WindowState.Minimized;
