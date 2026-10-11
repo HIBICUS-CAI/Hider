@@ -14,11 +14,11 @@ namespace Hider.Core.Tests.Imaging
             get
             {
                 var dir = new DirectoryInfo(AppContext.BaseDirectory);
-                while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Hider.sln")))
+                while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Hider.slnx")))
                 {
                     dir = dir.Parent;
                 }
-                return dir?.FullName ?? throw new InvalidOperationException("Hider.sln not found above " + AppContext.BaseDirectory);
+                return dir?.FullName ?? throw new InvalidOperationException("Hider.slnx not found above " + AppContext.BaseDirectory);
             }
         }
 

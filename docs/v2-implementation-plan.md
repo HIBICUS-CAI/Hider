@@ -86,7 +86,7 @@ Qt 6（C++, Widgets）が唯一の現実的な代替。QSystemTrayIcon（SNI）�
 
 ```
 Hider/
-  Hider.sln
+  Hider.slnx
   src/Hider/              Avalonia アプリ（既存 csproj を移動・拡張）
   src/Hider.Core/         モデル・モザイク・取得抽象・永続化（Avalonia 非依存）
   native/hidercap/        C ヘルパ（Makefile、linux-x64 / linux-arm64）
