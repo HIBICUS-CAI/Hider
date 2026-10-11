@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Controls.Primitives;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Hider.Core.Model;
 using Hider.Platform;
 using Hider.Settings;
@@ -127,6 +128,65 @@ namespace Hider.Areas
             if (settings is not null && settingsPopup.IsOpen && settings.Pattern != model.Pattern)
             {
                 settings.Rebuild();
+            }
+        }
+
+        /// <summary>Frames to wait after making rows transparent: the frame that draws them, its presentation, one spare.</summary>
+        public const int StripFrames = 3;
+
+        /// <summary>Upper bound for that wait, for windows that render no frames (minimised, not mapped yet).</summary>
+        public static readonly TimeSpan StripFrameTimeout = TimeSpan.FromMilliseconds(250);
+
+        /// <summary>Rows that the strip capture currently needs see-through (area-local physical px), or null.</summary>
+        public (int Y0, int Y1)? TransparentRows { get; private set; }
+
+        /// <summary>
+        /// Linux strip capture (IStripHost, design §5.3): everything in the window — pattern and edit chrome alike — is clipped
+        /// away in rows [y0, y1) of the area, so those window pixels have alpha 0. Completes once the change has been shown.
+        /// </summary>
+        public async Task SetTransparentRowsAsync(int _y0, int _y1, CancellationToken _ct)
+        {
+            TransparentRows = (_y0, _y1);
+            var host = controller.Host;
+            int offset = controller.AreaOffsetInWindow.Y;
+            // One physical px more on each side: a clip edge that falls between pixels never leaves a covered row half drawn.
+            double top = host.PxToDip(offset + _y0 - 1), bottom = host.PxToDip(offset + _y1 + 1);
+            double width = Math.Max(Bounds.Width, ClientSize.Width) + 1, height = Math.Max(Bounds.Height, ClientSize.Height) + 1;
+            Root.Clip = new GeometryGroup
+            {
+                Children =
+                {
+                    new RectangleGeometry(new Rect(-1, -1, width + 2, Math.Max(0, top + 1))),
+                    new RectangleGeometry(new Rect(-1, bottom, width + 2, Math.Max(0, height - bottom + 1))),
+                },
+            };
+            await WaitFramesAsync(_ct);
+        }
+
+        /// <summary>Shows the whole window again (does not wait for the frame).</summary>
+        public Task RestoreRowsAsync()
+        {
+            TransparentRows = null;
+            Root.Clip = null;
+            return Task.CompletedTask;
+        }
+
+        private async Task WaitFramesAsync(CancellationToken _ct)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_ct);
+            timeout.CancelAfter(StripFrameTimeout);
+            try
+            {
+                for (int i = 0; i < StripFrames; i++)
+                {
+                    var frame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    RequestAnimationFrame(_ => frame.TrySetResult());
+                    await frame.Task.WaitAsync(timeout.Token);
+                }
+            }
+            catch (OperationCanceledException) when (!_ct.IsCancellationRequested)
+            {
+                Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameTimeout.TotalMilliseconds} ms, capturing anyway");
             }
         }
 
