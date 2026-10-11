@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Hider.Core.Mosaic.Methods;
 
 namespace Hider.Core.Mosaic
@@ -14,14 +15,19 @@ namespace Hider.Core.Mosaic
             new NoiseMethod(),
         };
 
+        // Looked up on every repaint: built once.
+        private static readonly FrozenDictionary<string, IMosaicMethod> byId = All.ToFrozenDictionary(m => m.Id, StringComparer.Ordinal);
+        private static readonly IMosaicMethod[] mosaic = All.Where(m => m.Kind == MethodKind.Mosaic).ToArray();
+        private static readonly IMosaicMethod[] generated = All.Where(m => m.Kind == MethodKind.Generated).ToArray();
+
         public static IMosaicMethod? Find(string _id)
         {
-            return All.FirstOrDefault(m => m.Id == _id);
+            return byId.GetValueOrDefault(_id);
         }
 
         public static IReadOnlyList<IMosaicMethod> OfKind(MethodKind _kind)
         {
-            return All.Where(m => m.Kind == _kind).ToArray();
+            return _kind == MethodKind.Mosaic ? mosaic : generated;
         }
 
         /// <summary>Methods usable on a platform.</summary>

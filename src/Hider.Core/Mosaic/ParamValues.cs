@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Hider.Core.Model;
 
 namespace Hider.Core.Mosaic
@@ -10,6 +12,7 @@ namespace Hider.Core.Mosaic
     {
         private readonly Dictionary<string, ParamSpec> specs = new();
         private readonly Dictionary<string, double> values = new();
+        private string? fingerprint;
 
         public ParamValues(IEnumerable<ParamSpec> _specs, IReadOnlyDictionary<string, double>? _values, double _opacity)
         {
@@ -47,11 +50,22 @@ namespace Hider.Core.Mosaic
             return specs.TryGetValue(_key, out var spec) ? spec.Effective(Raw(_key), Opacity) : Raw(_key);
         }
 
-        /// <summary>Every resolved value as "key=value" in key order, for cache keys.</summary>
+        /// <summary>Every resolved value as "key=value" in key order, for cache keys. Built once (the values never change).</summary>
         public string Fingerprint()
         {
-            var keys = specs.Keys.Union(values.Keys).Order(StringComparer.Ordinal);
-            return string.Join(";", keys.Select(k => $"{k}={Raw(k).ToString("R", System.Globalization.CultureInfo.InvariantCulture)}")) + $";a={Opacity.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}";
+            if (fingerprint is not null)
+            {
+                return fingerprint;
+            }
+            var keys = new SortedSet<string>(specs.Keys, StringComparer.Ordinal);
+            keys.UnionWith(values.Keys);
+            var text = new StringBuilder();
+            foreach (string key in keys)
+            {
+                text.Append(key).Append('=').Append(Raw(key).ToString("R", CultureInfo.InvariantCulture)).Append(';');
+            }
+            text.Append("a=").Append(Opacity.ToString("R", CultureInfo.InvariantCulture));
+            return fingerprint = text.ToString();
         }
 
         /// <summary>Values for drawing a mosaic method: its params, the mosaic common values and the area's opacity.</summary>

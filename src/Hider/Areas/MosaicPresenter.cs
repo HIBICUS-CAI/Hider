@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Hider.Core;
@@ -50,6 +51,8 @@ namespace Hider.Areas
 
         public int MosaicRenderCount { get; private set; }
 
+        private ImmutableSolidColorBrush? fillBrush;
+
         public override void Render(DrawingContext _context)
         {
             var model = Model;
@@ -61,7 +64,12 @@ namespace Hider.Areas
             if (model.Pattern == PatternKind.Fill)
             {
                 var (r, g, b) = ColorText.Parse(model.Fill.Color);
-                _context.FillRectangle(new SolidColorBrush(Color.FromRgb(r, g, b)), bounds);
+                var color = Color.FromRgb(r, g, b);
+                if (fillBrush?.Color != color)
+                {
+                    fillBrush = new ImmutableSolidColorBrush(color);
+                }
+                _context.FillRectangle(fillBrush, bounds);
                 return;
             }
             // Everything the render thread needs, captured now on the UI thread.

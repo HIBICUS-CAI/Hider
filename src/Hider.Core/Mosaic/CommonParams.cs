@@ -31,9 +31,10 @@ namespace Hider.Core.Mosaic
         /// <summary>Uniforms a shader of the kind declares besides its <see cref="IMosaicMethod.Params"/> keys.</summary>
         public static IReadOnlyList<string> FixedUniforms(MethodKind _kind)
         {
-            return _kind == MethodKind.Mosaic
-                ? new[] { AreaSizeUniform, AreaOriginUniform }
-                : new[] { AreaSizeUniform, AreaOriginUniform, BaseColorUniform, SeedUniform };
+            return _kind == MethodKind.Mosaic ? mosaicUniforms : generatedUniforms;
         }
+
+        private static readonly string[] mosaicUniforms = { AreaSizeUniform, AreaOriginUniform };
+        private static readonly string[] generatedUniforms = { AreaSizeUniform, AreaOriginUniform, BaseColorUniform, SeedUniform };
     }
 }

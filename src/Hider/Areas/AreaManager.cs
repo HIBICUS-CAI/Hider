@@ -126,7 +126,21 @@ namespace Hider.Areas
         }
 
         /// <summary>Native handles of every Hider window, left out of captures (spec §6.1).</summary>
-        public IReadOnlyList<nint> OwnWindows => areas.Select(a => a.Host.Handle).Where(h => h != 0).ToArray();
+        public IReadOnlyList<nint> OwnWindows
+        {
+            get
+            {
+                var handles = new List<nint>(areas.Count);
+                foreach (var area in areas)
+                {
+                    if (area.Host.Handle != 0)
+                    {
+                        handles.Add(area.Host.Handle);
+                    }
+                }
+                return handles;
+            }
+        }
 
         /// <summary>Areas as the Linux strip capture sees them: refreshed on the UI thread whenever a capture starts.</summary>
         public IReadOnlyList<StripArea> StripAreas => Volatile.Read(ref stripAreas);
