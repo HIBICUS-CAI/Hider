@@ -84,9 +84,13 @@ static void on_process(void *_data)
     struct spa_buffer *buf = latest->buffer;
     struct spa_data *d = &buf->datas[0];
     struct spa_meta_header *header = spa_buffer_find_meta_data(buf, SPA_META_Header, sizeof(*header));
-    g.pts_ns = now_ns();
+    int64_t now = now_ns();
+    g.pts_ns = now;
     g.pts_from_meta = 0;
-    if (header != NULL && header->pts > 0 && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) == 0) {
+    /* Mutter stamps frames with CLOCK_MONOTONIC; a producer with another clock (GStreamer's running time, for one) gives
+     * values far from now, which would make every frame look too old or too new: use the receive time then. */
+    if (header != NULL && header->pts > 0 && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) == 0
+        && header->pts <= now && now - header->pts < HIDERCAP_PTS_MAX_AGE_NS) {
         g.pts_ns = header->pts;
         g.pts_from_meta = 1;
     }

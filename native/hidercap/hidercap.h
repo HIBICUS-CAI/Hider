@@ -21,6 +21,9 @@
  * (two frames at 60 Hz): it may have been rendered that much earlier (design §5.3, "固定待ち"). */
 #define HIDERCAP_RECEIVE_MARGIN_NS 33333333LL
 
+/* A frame time from SPA_META_Header is trusted only when it lies in the last 500 ms by CLOCK_MONOTONIC. */
+#define HIDERCAP_PTS_MAX_AGE_NS 500000000LL
+
 typedef struct hidercap_frame {
     int32_t width;
     int32_t height;
