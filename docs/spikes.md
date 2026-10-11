@@ -58,11 +58,11 @@
 | 1 | PrintWindow(PW_RENDERFULLCONTENT) | S-4 | 参考実行のみ（実機待ち） |
 | 2 | Avalonia TrayIcon のクリック | S-1 | 未実施 |
 | 3 | BeginMoveDrag / BeginResizeDrag | — | 使用しない（指示書 §2.2 で禁止、自前ドラッグ） |
-| 4 | ピクセル単位アルファ（XWayland） | S-2 | 未実施 |
+| 4 | ピクセル単位アルファ（XWayland） | S-2 | 実機未実施。Xvfb + xcompmgr では帯の行がアルファ 0 になり下が写ることを確認（scripts/xvfb-strip-smoke.sh、CI） |
 | 5 | 最前面（Mutter / XWayland） | S-1, S-2 | 未実施 |
-| 6 | ポータル（Screenshot の許可、ScreenCast の restore_token） | S-5, S-6 | 未実施 |
-| 7 | PipeWire の PTS 判定と帯 1 本のフレーム数 | S-6 | 未実施 |
-| 8 | 座標系（分数スケーリング） | S-2, S-6 | 未実施 |
+| 6 | ポータル（Screenshot の許可、ScreenCast の restore_token） | S-5, S-6 | 実装済み（Step 7、8）。偽ポータルで呼び出し・restore_token の受け渡しを確認。GNOME の許可の記憶は実機待ち |
+| 7 | PipeWire の PTS 判定と帯 1 本のフレーム数 | S-6 | 実装済み（Step 8）。専用 PipeWire + GStreamer で通し確認（PTS 無しの受信時刻判定で 2 フレーム）。Mutter の PTS は実機待ち |
+| 8 | 座標系（分数スケーリング） | S-2, S-6 | 倍率・オフセットの写像は実装・テスト済み（CT-88、MapStream）。実機の座標は未確認 |
 | 9 | トリミング（System.Text.Json source-gen、ColorPicker） | S-7 | 検証済み |
 | 10 | 性能（PrintWindow、生成パターンの再生成時間） | S-3, S-4, S-8 | CPU 側のみ測定済み（GPU・実機待ち） |
-| 11 | セッション終了時の保存 | PT-08 | 未実施（都度保存で代替する前提、Step 3 で実装） |
+| 11 | セッション終了時の保存 | PT-08 | 都度保存（FR-61）と終了時保存を実装済み（Step 3）。実機の PT-08 待ち |
