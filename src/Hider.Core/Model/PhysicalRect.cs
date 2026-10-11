@@ -35,6 +35,12 @@ namespace Hider.Core.Model
             return right <= left || bottom <= top ? default : new PhysicalRect(left, top, right - left, bottom - top);
         }
 
+        /// <summary>The smallest rectangle containing both.</summary>
+        public PhysicalRect Union(PhysicalRect _other)
+        {
+            return FromEdges(Math.Min(X, _other.X), Math.Min(Y, _other.Y), Math.Max(Right, _other.Right), Math.Max(Bottom, _other.Bottom));
+        }
+
         public PhysicalRect Offset(int _dx, int _dy)
         {
             return this with { X = X + _dx, Y = Y + _dy };

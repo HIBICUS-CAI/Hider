@@ -100,7 +100,7 @@ namespace Hider.Core.Persistence
 
         /// <summary>
         /// Repairs a loaded state: duplicate or malformed ids are replaced, colors that are not "#RRGGBB" fall back to the
-        /// default, opacity is clamped, sizes below the minimum are raised, and every registered method gets all of its
+        /// default, opacity is clamped, sizes are clamped to [min, max], an unknown pattern becomes mosaic, and every registered method gets all of its
         /// parameters (missing ones = default). Parameters of unknown method ids are kept as they are (§3.4).
         /// </summary>
         public static void Normalize(AppState _state)
@@ -114,8 +114,12 @@ namespace Hider.Core.Persistence
                     ids.Add(area.Id);
                 }
                 area.Opacity = double.IsNaN(area.Opacity) ? 1.0 : Math.Clamp(area.Opacity, 0.0, 1.0);
-                area.Width = double.IsFinite(area.Width) ? Math.Max(area.Width, AreaDefaults.MinSizeDip) : AreaDefaults.NewAreaWidthDip;
-                area.Height = double.IsFinite(area.Height) ? Math.Max(area.Height, AreaDefaults.MinSizeDip) : AreaDefaults.NewAreaHeightDip;
+                area.Width = double.IsFinite(area.Width) ? Math.Clamp(area.Width, AreaDefaults.MinSizeDip, AreaDefaults.MaxSizeDip) : AreaDefaults.NewAreaWidthDip;
+                area.Height = double.IsFinite(area.Height) ? Math.Clamp(area.Height, AreaDefaults.MinSizeDip, AreaDefaults.MaxSizeDip) : AreaDefaults.NewAreaHeightDip;
+                if (!Enum.IsDefined(area.Pattern))
+                {
+                    area.Pattern = PatternKind.Mosaic; // the converter also takes integers ("pattern": 7)
+                }
                 area.Fill ??= new FillSettings();
                 area.Fill.Color = ColorText.OrDefault(area.Fill.Color);
                 area.Mosaic ??= new MethodSettings<MosaicCommon> { Method = AreaDefaults.MosaicMethod };

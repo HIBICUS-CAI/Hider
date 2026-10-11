@@ -56,5 +56,15 @@ namespace Hider.Core.Tests.Model
             var beyondLeft = new PhysicalRect(-3000, 100, 400, 240);
             Assert.Equal(new PhysicalRect(760, 420, 400, 240), Placement.Fit(beyondLeft, new[] { Left, Primary }, 1));
         }
+    
+        [Fact]
+        public void Fit_LargerThanAllScreens_CutToTheirBoundingBox()
+        {
+            // A hand-edited 40000 px area touches a screen but would need multi-gigabyte pixel buffers.
+            var huge = new PhysicalRect(-5000, 100, 40000, 40000);
+            Assert.Equal(new PhysicalRect(-2560, 100, 4480, 1140), Placement.Fit(huge, new[] { Left, Primary }, 1));
+            var wide = new PhysicalRect(100, 100, 5000, 200);
+            Assert.Equal(new PhysicalRect(100, 100, 1820, 200), Placement.Fit(wide, new[] { Primary }, 0));
+        }
     }
 }

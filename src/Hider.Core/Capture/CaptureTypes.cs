@@ -37,13 +37,13 @@ namespace Hider.Core.Capture
 
         public static FrameBuffer Allocate(int _width, int _height)
         {
-            return new FrameBuffer { Width = _width, Height = _height, Stride = _width * 4, Bgra = new byte[_width * _height * 4] };
+            return new FrameBuffer { Width = _width, Height = _height, Stride = checked(_width * 4), Bgra = new byte[checked(_width * _height * 4)] };
         }
 
         /// <summary>Makes sure the buffer can hold a frame of this size, reusing the memory when it is large enough.</summary>
         public void Resize(int _width, int _height)
         {
-            int needed = _width * _height * 4;
+            int needed = checked(_width * _height * 4); // overflow throws instead of allocating a negative size
             if (Bgra.Length < needed)
             {
                 Bgra = new byte[needed];

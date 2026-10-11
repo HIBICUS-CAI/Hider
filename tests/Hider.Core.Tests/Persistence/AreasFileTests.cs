@@ -143,6 +143,16 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void Normalize_HugeSizeAndUnknownPattern()
+        {
+            File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "width": 40000, "height": 1e300, "pattern": 7 } ] }""");
+            var a = Assert.Single(AreasFile.Load(FilePath, out var status).Areas);
+            Assert.Equal(LoadStatus.Loaded, status);
+            Assert.Equal((AreaDefaults.MaxSizeDip, AreaDefaults.MaxSizeDip), (a.Width, a.Height));
+            Assert.Equal(PatternKind.Mosaic, a.Pattern);
+        }
+
+        [Fact]
         public void CT26_InvalidJson_RenamedAndEmpty()
         {
             File.WriteAllText(FilePath, "{ this is not json");

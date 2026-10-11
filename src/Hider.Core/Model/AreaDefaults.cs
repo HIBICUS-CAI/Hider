@@ -7,6 +7,9 @@ namespace Hider.Core.Model
         public const double NewAreaWidthDip = 400;
         public const double NewAreaHeightDip = 240;
         public const double MinSizeDip = 24;
+
+        /// <summary>Upper bound for a saved size (a hand edit): larger than any desktop, small enough for pixel buffers.</summary>
+        public const double MaxSizeDip = 16384;
         public const string MosaicMethod = "pixelate";
         public const string GeneratedMethod = "block";
         public const double MosaicBlur = 0;

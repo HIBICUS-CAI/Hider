@@ -4,16 +4,22 @@ namespace Hider.Core.Model
     public static class Placement
     {
         /// <summary>
-        /// Restore rule (FR-63): a rectangle that touches any screen stays as it is. One that touches none is moved to the
-        /// centre of the primary screen, shrunk to fit it first when it is larger.
+        /// Restore rule (FR-63): a rectangle that touches any screen stays where it is, cut to the screens' bounding box when
+        /// it is larger than that box. One that touches none is moved to the centre of the primary screen, shrunk to fit it
+        /// first when it is larger.
         /// </summary>
         // XWAYLAND-ASSUMPTION: relies on knowing absolute screen coordinates of every monitor.
         public static PhysicalRect Fit(PhysicalRect _rect, IReadOnlyList<PhysicalRect> _screens, int _primaryIndex)
         {
             var rect = _rect.Normalized();
-            if (_screens.Count == 0 || _screens.Any(s => s.Intersects(rect)))
+            if (_screens.Count == 0)
             {
                 return rect;
+            }
+            if (_screens.Any(s => s.Intersects(rect)))
+            {
+                var all = _screens.Aggregate((a, b) => a.Union(b));
+                return rect.Width > all.Width || rect.Height > all.Height ? rect.Intersect(all) : rect;
             }
             var primary = _screens[Math.Clamp(_primaryIndex, 0, _screens.Count - 1)];
             int width = Math.Min(rect.Width, primary.Width);
