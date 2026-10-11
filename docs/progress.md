@@ -443,3 +443,73 @@ CT-78（手法 1 つの追加で触ったファイル）:
 ### 8. 次 Step の前提
 
 Step 7（Linux 第 1 段階: Screenshot ポータル + 横帯）へ。
+
+## Step 7: Linux 第 1 段階（Screenshot ポータル + 横帯）（2026-10-11）
+
+### 1. 結果
+
+実装完了。完了条件（Ubuntu 26.04 実機での録画と許可ダイアログ）は人間待ち。実機の代わりに、Xvfb + コンポジタ + 偽ポータルで透明化から貼り合わせまでを実際の X11 描画で確認し、CI にも組み込んだ。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| Ubuntu 26.04 実機で 240 px 高のエリアが帯 8 px で撮れ、露出が帯 1 本分（録画） | 人間待ち（Xvfb では達成） | PT-17。Xvfb: 30 回の撮影で下の画像のモザイクになる（セル平均と ±1）。https://github.com/HIBICUS-CAI/Hider/actions/runs/38169013686 の test-gui（linux-x64 / linux-arm64）の `xvfb-strip-smoke.sh` |
+| 許可ダイアログは初回のみ | 人間待ち | PT-18、S-5 |
+| CT-79〜88 | 達成 | 同上の CI（3 ランナー） |
+| Denied / Unavailable → FR-52 | 達成 | CT-85。Xvfb で偽ポータルの拒否（応答 1）とポータル不在の両方で生成パターンへ切り替わることを確認 |
+| D-9 のフォールバック窓 | 達成 | D9_* テスト。Xvfb（トレイ無し）で表示とボタン動作を確認 |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| 7168513 | IScreenGrabber、IStripHost、StripArea、CaptureDeniedException |
+| 72b3052 | StripCoordinator と CT-79〜88（偽の Grabber / Host） |
+| 2df07b2 | AreaWindow の帯の透明化（Root のクリップ、描画完了待ち） |
+| 5828729 | AreaStripHost（取得スレッド → UI スレッド、エリア一覧のスナップショット） |
+| f8377f3 | Tmds.DBus.Protocol を直接参照（これまで推移的依存） |
+| 8386ec1 | PortalScreenshotGrabber |
+| 3f24842 | Linux の取得を StripCoordinator + ポータルに配線 |
+| c80d0d2 / e2f34d7 | TrayMenuPanel の切り出し、D-9 の常駐窓（StatusNotifierWatcher の有無で判定） |
+| ed22d8a / 7c618ca | 偽ポータル（tools/fakeportal）と scripts/xvfb-strip-smoke.sh、CI の Linux GUI ジョブで実行 |
+| 8ae2059 / 813d14f | PT-15〜20 の手順、XWAYLAND-ASSUMPTION と移行メモ |
+
+新規依存なし（Tmds.DBus.Protocol は Avalonia と同じ版を明示しただけ）。CI に apt の xvfb / xcompmgr / imagemagick / dbus を追加（Linux GUI ジョブのみ）。全コミットが単体でビルド・テストできることを確認済み。X11WindowHost は Step 3 で実装済みのため変更なし。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 129 / 0 / 0 | 52 / 0 / 0 |
+| linux-x64 | 129 / 0 / 0 | 52 / 0 / 0（+ Xvfb 帯撮影 合格） |
+| linux-arm64 | 129 / 0 / 0 | 52 / 0 / 0（+ Xvfb 帯撮影 合格） |
+
+追加: CT-79〜88、帯の透明化（隠し / 編集モードで該当行のアルファが 0、戻すと 255）、StripCoordinator → AreaStripHost → AreaWindow の結合、PNG の読み込み、ポータル不在で null、D-9 の 3 件。トリミング後の単一ファイル（linux-x64）でも Xvfb の帯撮影が合格。
+
+### 5. 性能
+
+実機の値は PT-17 待ち。Xvfb の偽ポータル（ImageMagick の import）は 1 回約 200 ms で、設計書 §5.3 の 0.1〜0.3 s と同程度。240 px / 帯 8 px で 30 回撮るため、第 1 段階の撮り直しは数秒かかる（第 2 段階で短縮する前提どおり）。
+
+### 6. 提案
+
+なし。判断メモ:
+
+- 帯の透明化は MosaicPresenter ではなく窓の Root をクリップして行う。編集枠やエリア内に置いたツールバーもまとめて消えるので撮影に写り込まない。クリップの境目が画素の途中に来ても覆われた行が半透明で残らないよう、上下 1 物理 px 広く消す（貼り合わせるのは帯の行だけ）。
+- 描画完了は RequestAnimationFrame を 3 回待つ（描く・表示・余裕 1。設計書の「描画完了 + 1 フレーム」）。フレームが来ない窓（最小化など）で止まらないよう 250 ms で打ち切る。
+- 帯で透明にするのは、要求したエリアと重なるモザイクのエリアだけ。塗りつぶし・生成パターンのエリアは撮影に写したまま（人が画面を見た時と同じ。CT-83）。透明にする行はエリアの全幅（契約が行だけのため）。
+- StripCoordinator のコンストラクタに「仮想画面の範囲」を足した。ポータルのフレームが X11 座標と異なる倍率でも、画素中心を写して最近傍で読む（CT-88、分数スケーリングの検証は PT-20 / S-6）。
+- 取得スレッドが読むエリア一覧と仮想画面は、取得開始時に UI スレッドで作るスナップショット。取得スレッドから UI スレッドへ同期で問い合わせる案は、取得が UI 待ちで止まるので却下。
+- ポータルの応答 1（ユーザーが取消）は Denied、それ以外の失敗・バス不在・ポータル不在は Unavailable。どちらも FR-52 で生成パターンに切り替わる。
+- D-9 の窓は × で最小化する（メニューへの唯一の入口のため）。終了はメニューの「終了」。
+- 偽ポータルによる Xvfb 確認は GNOME 実機の代わりではない（Mutter の合成タイミング、XWayland の座標、許可の記憶は実機でしか分からない）が、配線の退行は CI で捕まえられる。
+
+### 7. 人間への依頼
+
+docs/manual-tests.md の PT-15〜20（Ubuntu 26.04 実機）と spikes/S-5。特に PT-17（録画で露出が帯 1 本分か）と PT-20（125% / 150% でのずれ）。
+
+確認したいこと（最後にまとめて確認予定）: FR-52 の切り替えは Step 4 から「エリアのパターンを生成に変えて保存する」実装になっている。一時的な失敗（ログイン直後でポータルがまだ無い等）でも次回起動時は生成パターンのまま（ツールバーで戻せる）。「表示だけ生成に切り替え、保存はモザイクのまま」にする案もある。
+
+### 8. 次 Step の前提
+
+Step 8（ScreenCast + PipeWire ヘルパ）へ。spikes/S-6 の libhidercap 原型（P-2 の 4 関数 API）を native/hidercap に移す。
