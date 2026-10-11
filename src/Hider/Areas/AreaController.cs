@@ -288,17 +288,31 @@ namespace Hider.Areas
             task.ContinueWith(t =>
             {
                 var result = t.IsCompletedSuccessfully ? t.Result : CaptureResult.Failed(t.IsCanceled ? CaptureFailure.Timeout : CaptureFailure.Unavailable);
-                bool ok = result.Failure == CaptureFailure.None && result.Frame is not null && !cancel.IsCancellationRequested;
-                if (ok)
+                bool ok = false;
+                try
                 {
-                    CopyToBack(result.Frame!);
-                    Frames.Publish();
+                    ok = result.Failure == CaptureFailure.None && result.Frame is not null && !cancel.IsCancellationRequested;
+                    if (ok)
+                    {
+                        CopyToBack(result.Frame!);
+                        Frames.Publish();
+                    }
                 }
-                owner.Services.UiPost(() => FinishCapture(_reason, result, ok));
+                catch (Exception e)
+                {
+                    Log.Verbose($"area {Model.Id}: taking the frame failed: {e.GetType().Name}: {e.Message}");
+                    ok = false;
+                    result = CaptureResult.Failed(CaptureFailure.Unavailable);
+                }
+                finally
+                {
+                    // Always reaches FinishCapture: it ends the scheduler's run, without which this area never refreshes again.
+                    owner.Services.UiPost(() => FinishCapture(_reason, cancel, result, ok));
+                }
             }, TaskContinuationOptions.ExecuteSynchronously);
         }
 
-        private void FinishCapture(RefreshReason _reason, CaptureResult _result, bool _ok)
+        private void FinishCapture(RefreshReason _reason, CancellationTokenSource _cancel, CaptureResult _result, bool _ok)
         {
             try
             {
@@ -326,6 +340,12 @@ namespace Hider.Areas
             }
             finally
             {
+                // Both run on the UI thread, so Dispose never cancels a disposed source.
+                if (captureCancel == _cancel)
+                {
+                    captureCancel = null;
+                }
+                _cancel.Dispose();
                 scheduler.EndRun();
             }
         }
