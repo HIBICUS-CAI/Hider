@@ -47,6 +47,14 @@ namespace Hider.Areas
             chrome.Toolbar.SettingsClicked += ToggleSettings;
             settingsPopup.PlacementTarget = chrome.Toolbar.SettingsButton;
             Root.Children.Add(settingsPopup);
+            // IsOpen rather than Closed: Closed only comes when the popup window really opened.
+            settingsPopup.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Popup.IsOpenProperty && !settingsPopup.IsOpen)
+                {
+                    SettingsClosed?.Invoke();
+                }
+            };
             Closing += (_, e) => e.Cancel = KeepOpen(closingAllowed, e.CloseReason);
         }
 
@@ -69,6 +77,9 @@ namespace Hider.Areas
 
         /// <summary>↻ pressed.</summary>
         public event Action? RefreshRequested;
+
+        /// <summary>The settings popup closed (light dismiss, ⚙ again, or leaving edit mode).</summary>
+        public event Action? SettingsClosed;
 
         /// <summary>The settings popup content while it is open (FR-35 .. FR-37).</summary>
         public SettingsPanel? Settings => settingsPopup.IsOpen ? settings : null;

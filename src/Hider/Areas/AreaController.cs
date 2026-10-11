@@ -26,6 +26,7 @@ namespace Hider.Areas
         private readonly IAreaOwner owner;
         private readonly RefreshScheduler scheduler;
         private CancellationTokenSource? captureCancel;
+        private RefreshReason? heldForSettings;
         private bool disposed;
         private ResizeHandle dragHandle;
         private PixelPoint dragStartPointer;
@@ -41,6 +42,14 @@ namespace Hider.Areas
             Window.Attach(this);
             Host = _hostFactory(Window);
             Window.RefreshRequested += Refresh;
+            Window.SettingsClosed += () =>
+            {
+                if (heldForSettings is { } reason)
+                {
+                    heldForSettings = null;
+                    RequestCapture(reason);
+                }
+            };
         }
 
         public Area Model { get; }
@@ -264,6 +273,14 @@ namespace Hider.Areas
             if (disposed || Model.Pattern != PatternKind.Mosaic)
             {
                 scheduler.EndRun(); // the run began when Due was raised
+                return;
+            }
+            if (Window.Settings is not null && owner.Services.Capture.Traits.HasFlag(CaptureTraits.NeedsStripCooperation))
+            {
+                // Linux: the settings popup is a top-level window of its own, outside the strip transparency, and may lie over
+                // the area: a screenshot now would put the panel into the mosaic. Capture once it closes.
+                heldForSettings = _reason;
+                scheduler.EndRun();
                 return;
             }
             owner.CaptureStarting();

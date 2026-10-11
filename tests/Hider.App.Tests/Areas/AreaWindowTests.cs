@@ -262,5 +262,22 @@ namespace Hider.App.Tests.Areas
             f.Time.Advance(TimeSpan.FromSeconds(5));
             Assert.Equal(2, Hider.Core.Persistence.AreasFile.Load(f.AreasPath, out _).Areas.Count);
         }
+    
+        [AvaloniaTheory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void SettingsOpen_LinuxCaptureWaitsForItToClose(bool _strips)
+        {
+            // The popup is its own top-level window, outside the strip transparency: on Linux it would show in the mosaic.
+            var capture = new FakeUnderlayCapture { Traits = _strips ? Hider.Core.Capture.CaptureTraits.NeedsStripCooperation : Hider.Core.Capture.CaptureTraits.ExposureFree };
+            using var f = new AreaFixture(_capture: capture, _isWindows: !_strips);
+            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            area.Window.ToggleSettings();
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(_strips ? calls : calls + 1, capture.Calls);
+            area.Window.ToggleSettings();
+            Assert.Equal(calls + 1, capture.Calls);
+        }
     }
 }
