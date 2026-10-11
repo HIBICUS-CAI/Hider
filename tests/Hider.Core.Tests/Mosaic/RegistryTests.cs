@@ -16,9 +16,7 @@ namespace Hider.Core.Tests.Mosaic
         {
             var ids = MethodRegistry.All.Select(m => m.Id).ToList();
             Assert.Equal(ids.Count, ids.Distinct().Count());
-            Assert.All(ids, id => Assert.Contains(id, KnownIds));
-            Assert.Contains("pixelate", ids);
-            Assert.Contains("block", ids);
+            Assert.Equal(KnownIds.Order(), ids.Order());
         }
 
         [Fact]
