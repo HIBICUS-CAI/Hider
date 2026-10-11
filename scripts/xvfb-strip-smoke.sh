@@ -85,10 +85,19 @@ read -r ir ig ib < <(convert "$work/after.png" -crop 1x1+230+200 -format "$rgb" 
 read -r er eg eb < <(convert "$work/bg.png" -crop 12x12+224+198 -scale 1x1\! -format "$rgb" info:)
 echo "screenshots: $shots, screencast frames: $frames (expected 30 in total), files left: $left, area pixel: $ir $ig $ib, image cell average: $er $eg $eb"
 grep -v '^$' "$work/hider.log" | grep -v 'screencast: frame' | tail -4
+# Every check fails the script on its own (set -e does not stop on a failed command inside an && list or after "!").
+failures=0
+check() { if ! eval "$2"; then echo "FAIL: $1"; failures=$((failures + 1)); fi; }
 close() { local d=$(( $1 - $2 )); [ ${d#-} -le 6 ]; }
-[ $((shots + frames)) -eq 30 ] && [ "$left" -eq 0 ] && ! grep -q "capture failed" "$work/hider.log"
+check "all 30 strips grabbed" '[ $((shots + frames)) -eq 30 ]'
+check "no screenshot file left (FR-53)" '[ "$left" -eq 0 ]'
+check "no failed capture in the log" '! grep -q "capture failed" "$work/hider.log"'
 if [ $screencast = 1 ]; then
-    [ "$frames" -eq 30 ] && [ -s "$work/home/.hider/restore_token" ]
+    check "every strip through ScreenCast" '[ "$frames" -eq 30 ]'
+    check "restore token stored" '[ -s "$work/home/.hider/restore_token" ]'
 fi
-close "$ir" "$er" && close "$ig" "$eg" && close "$ib" "$eb"
+check "red within 6 of the cell average" 'close "$ir" "$er"'
+check "green within 6 of the cell average" 'close "$ig" "$eg"'
+check "blue within 6 of the cell average" 'close "$ib" "$eb"'
+[ $failures -eq 0 ] || exit 1
 echo "xvfb strip smoke$( [ $screencast = 1 ] && echo ' (screencast)'): passed"
