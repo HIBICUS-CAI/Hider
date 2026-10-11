@@ -13,21 +13,15 @@ namespace Hider.Platform.Linux
     /// </summary>
     public sealed class PortalScreenshotGrabber : IScreenGrabber
     {
-        /// <summary>Long enough for the first-time permission dialog.</summary>
-        public static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(60);
-
-        private readonly string? address;
         private readonly Func<PhysicalRect> screen;
-        private readonly SemaphoreSlim connectLock = new(1, 1);
-        private DBusConnection? connection;
-        private int requests;
+        private readonly PortalClient portal;
 
         /// <param name="_screen">The virtual screen in physical px: what a screenshot shows.</param>
         /// <param name="_address">D-Bus address; null for the session bus.</param>
         public PortalScreenshotGrabber(Func<PhysicalRect> _screen, string? _address = null)
         {
             screen = _screen;
-            address = _address ?? DBusAddress.Session;
+            portal = new PortalClient(_address);
         }
 
         /// <summary>
@@ -39,17 +33,26 @@ namespace Hider.Platform.Linux
             string? path = null;
             try
             {
-                var bus = await ConnectAsync(_ct).ConfigureAwait(false);
+                var bus = await portal.ConnectAsync(_ct).ConfigureAwait(false);
                 if (bus is null)
                 {
                     return null;
                 }
-                var (code, uri) = await ScreenshotAsync(bus, _ct).ConfigureAwait(false);
-                if (uri is not null && uri.StartsWith("file://", StringComparison.Ordinal))
+                var response = await portal.RequestAsync(bus, "org.freedesktop.portal.Screenshot", "Screenshot", "sa{sv}", (ref MessageWriter w, string token) =>
+                {
+                    w.WriteString("");
+                    var dict = w.WriteDictionaryStart();
+                    PortalClient.Entry(ref w, "handle_token", token);
+                    w.WriteDictionaryEntryStart();
+                    w.WriteString("interactive");
+                    w.WriteVariantBool(false);
+                    w.WriteDictionaryEnd(dict);
+                }, _ct).ConfigureAwait(false);
+                if (response.Results.TryGetValue("uri", out var value) && value.GetString() is { } uri && uri.StartsWith("file://", StringComparison.Ordinal))
                 {
                     path = Uri.UnescapeDataString(new Uri(uri).AbsolutePath);
                 }
-                switch (code)
+                switch (response.Code)
                 {
                     case 0:
                         var frame = path is null ? null : ReadPng(path);
@@ -57,14 +60,14 @@ namespace Hider.Platform.Linux
                     case 1:
                         throw new CaptureDeniedException("screenshot portal: cancelled by the user");
                     default:
-                        Log.Verbose($"screenshot portal: response {code}");
+                        Log.Verbose($"screenshot portal: response {response.Code}");
                         return null;
                 }
             }
             catch (Exception e) when (e is not (OperationCanceledException or CaptureDeniedException))
             {
                 Log.Verbose($"screenshot portal: {e.GetType().Name}: {e.Message}");
-                DropConnection();
+                portal.Reset();
                 return null;
             }
             finally
@@ -74,103 +77,6 @@ namespace Hider.Platform.Linux
                     TryDelete(path);
                 }
             }
-        }
-
-        private async Task<DBusConnection?> ConnectAsync(CancellationToken _ct)
-        {
-            if (address is null)
-            {
-                return null;
-            }
-            await connectLock.WaitAsync(_ct).ConfigureAwait(false);
-            try
-            {
-                if (connection is null)
-                {
-                    var bus = new DBusConnection(address);
-                    try
-                    {
-                        await bus.ConnectAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        bus.Dispose();
-                        throw;
-                    }
-                    connection = bus;
-                }
-                return connection;
-            }
-            finally
-            {
-                connectLock.Release();
-            }
-        }
-
-        private void DropConnection()
-        {
-            var old = Interlocked.Exchange(ref connection, null);
-            old?.Dispose();
-        }
-
-        private async Task<(uint Code, string? Uri)> ScreenshotAsync(DBusConnection _bus, CancellationToken _ct)
-        {
-            string token = $"hider{Environment.ProcessId}_{Interlocked.Increment(ref requests)}";
-            string sender = _bus.UniqueName!.TrimStart(':').Replace('.', '_');
-            string requestPath = $"/org/freedesktop/portal/desktop/request/{sender}/{token}";
-            var response = new TaskCompletionSource<(uint, string?)>(TaskCreationOptions.RunContinuationsAsynchronously);
-            // Subscribe before calling, so a fast response is not missed.
-            using var match = await _bus.AddMatchAsync(
-                new MatchRule { Type = MessageType.Signal, Interface = "org.freedesktop.portal.Request", Member = "Response", Path = requestPath },
-                (Message m, object? _) => ReadResponse(m),
-                (Notification<(uint, string?)> n) =>
-                {
-                    if (n.Type == NotificationType.Value)
-                    {
-                        response.TrySetResult(n.Value);
-                    }
-                    else if (!n.IsCompletion)
-                    {
-                        response.TrySetException(n.Exception);
-                    }
-                },
-                emitOnCapturedContext: false).ConfigureAwait(false);
-
-            MessageBuffer call;
-            using (var writer = _bus.GetMessageWriter())
-            {
-                writer.WriteMethodCallHeader("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Screenshot", "Screenshot", "sa{sv}");
-                writer.WriteString("");
-                var dict = writer.WriteDictionaryStart();
-                writer.WriteDictionaryEntryStart();
-                writer.WriteString("handle_token");
-                writer.WriteVariantString(token);
-                writer.WriteDictionaryEntryStart();
-                writer.WriteString("interactive");
-                writer.WriteVariantBool(false);
-                writer.WriteDictionaryEnd(dict);
-                call = writer.CreateMessage();
-            }
-            await _bus.CallMethodAsync(call, (Message m, object? _) => m.GetBodyReader().ReadObjectPath().ToString()).ConfigureAwait(false);
-            return await response.Task.WaitAsync(ResponseTimeout, _ct).ConfigureAwait(false);
-        }
-
-        private static (uint, string?) ReadResponse(Message _message)
-        {
-            var reader = _message.GetBodyReader();
-            uint code = reader.ReadUInt32();
-            string? uri = null;
-            var end = reader.ReadDictionaryStart();
-            while (reader.HasNext(end))
-            {
-                string key = reader.ReadString();
-                var value = reader.ReadVariantValue();
-                if (key == "uri")
-                {
-                    uri = value.GetString();
-                }
-            }
-            return (code, uri);
         }
 
         /// <summary>Decodes the portal's PNG into a premultiplied BGRA frame (null if it cannot be read).</summary>
@@ -207,8 +113,7 @@ namespace Hider.Platform.Linux
 
         public void Dispose()
         {
-            DropConnection();
-            connectLock.Dispose();
+            portal.Dispose();
         }
     }
 }
