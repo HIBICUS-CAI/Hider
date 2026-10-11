@@ -146,6 +146,7 @@ namespace Hider.Core.Scheduling
 
         private void Raise(RefreshReason _reason)
         {
+            Action<RefreshReason>? handler;
             lock (gate)
             {
                 if (disposed)
@@ -161,9 +162,11 @@ namespace Hider.Core.Scheduling
                     }
                     return;
                 }
-                running = Due is not null;
+                // Read once: the run is marked for exactly the handler that gets invoked (and must call EndRun).
+                handler = Due;
+                running = handler is not null;
             }
-            Due?.Invoke(_reason);
+            handler?.Invoke(_reason);
         }
 
         public void Dispose()
