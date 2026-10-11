@@ -23,7 +23,10 @@ namespace Hider.Core.Mosaic
             {
                 return image;
             }
+            // Forget the old image first: if drawing the new one throws, a later call must not hand out a freed image.
             image?.Dispose();
+            image = null;
+            key = null;
             var info = new SKImageInfo(Math.Max(1, _size.Width), Math.Max(1, _size.Height), SKColorType.Bgra8888, SKAlphaType.Premul);
             using var surface = MosaicPipeline.CreateSurface(_context, info);
             var inputs = new MosaicInputs { AreaSize = new SKSizeI(info.Width, info.Height) };
