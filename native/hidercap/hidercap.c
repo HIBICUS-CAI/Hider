@@ -6,6 +6,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <stddef.h>
+
 #include <pipewire/pipewire.h>
 #include <spa/buffer/meta.h>
 #include <spa/param/buffers.h>
@@ -13,7 +15,21 @@
 #include <spa/param/video/format-utils.h>
 #include <spa/pod/builder.h>
 
-/* One stream per process (Hider has one ScreenCast session at a time). All fields are guarded by the thread loop lock. */
+/* Without the compositor's frame time (SPA_META_Header), a frame counts from its receive time minus this margin
+ * (two frames at 60 Hz): it may have been rendered that much earlier (design §5.3, "固定待ち"). */
+#define RECEIVE_MARGIN_NS 33333333LL
+
+/* A frame time from SPA_META_Header is trusted only when it lies in the last 500 ms by CLOCK_MONOTONIC. */
+#define PTS_MAX_AGE_NS 500000000LL
+
+/* The layout PipeWireGrabber's HidercapFrame mirrors (HidercapTests checks the C# side). */
+_Static_assert(sizeof(hidercap_frame) == 32, "hidercap_frame layout");
+_Static_assert(offsetof(hidercap_frame, pts_ns) == 16, "hidercap_frame layout");
+_Static_assert(offsetof(hidercap_frame, sequence) == 24, "hidercap_frame layout");
+
+/* One stream per process (Hider has one ScreenCast session at a time). loop is written only by hidercap_start and
+ * hidercap_stop, which the caller never runs concurrently with the other functions; every other field is guarded by the
+ * thread loop lock (the stream callbacks run on the loop thread with it held). */
 static struct {
     struct pw_thread_loop *loop;
     struct pw_context *context;
@@ -33,6 +49,9 @@ static struct {
     uint64_t sequence;
 } g;
 
+/* hidercap_start called pw_init (paired with pw_deinit in hidercap_stop). */
+static int pw_initialized;
+
 static int64_t now_ns(void)
 {
     struct timespec ts;
@@ -43,7 +62,7 @@ static int64_t now_ns(void)
 /* The time the held frame was shown, as far as it is known. */
 static int64_t shown_at(void)
 {
-    return g.pts_from_meta ? g.pts_ns : g.pts_ns - HIDERCAP_RECEIVE_MARGIN_NS;
+    return g.pts_from_meta ? g.pts_ns : g.pts_ns - RECEIVE_MARGIN_NS;
 }
 
 static void release_held(void)
@@ -65,6 +84,9 @@ static int32_t chunk_stride(const struct spa_data *_d)
  * a producer, or one from before a format change, would otherwise be read past its end). */
 static int usable(struct pw_buffer *_b)
 {
+    if (_b->buffer->n_datas < 1) {
+        return 0;
+    }
     struct spa_data *d = &_b->buffer->datas[0];
     if (!g.has_format || d->data == NULL || d->chunk == NULL || d->chunk->size == 0
         || (d->chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) != 0 || g.format.size.width == 0 || g.format.size.height == 0) {
@@ -107,7 +129,7 @@ static void on_process(void *_data)
     /* Mutter stamps frames with CLOCK_MONOTONIC; a producer with another clock (GStreamer's running time, for one) gives
      * values far from now, which would make every frame look too old or too new: use the receive time then. */
     if (header != NULL && header->pts > 0 && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) == 0
-        && header->pts <= now && now - header->pts < HIDERCAP_PTS_MAX_AGE_NS) {
+        && header->pts <= now && now - header->pts < PTS_MAX_AGE_NS) {
         g.pts_ns = header->pts;
         g.pts_from_meta = 1;
     }
@@ -149,10 +171,13 @@ static void on_param_changed(void *_data, uint32_t _id, const struct spa_pod *_p
         || media_type != SPA_MEDIA_TYPE_video || media_subtype != SPA_MEDIA_SUBTYPE_raw) {
         return;
     }
-    if (spa_format_video_raw_parse(_param, &g.format) < 0) {
-        return;
+    struct spa_video_info_raw format;
+    spa_zero(format);
+    if (spa_format_video_raw_parse(_param, &format) < 0) {
+        return; /* keep the previous format whole rather than a half-parsed one */
     }
     release_held(); /* its layout belongs to the old format */
+    g.format = format;
     g.has_format = 1;
 
     /* Ask for CPU-mappable buffers and the header meta that carries the frame timestamp. */
@@ -178,26 +203,23 @@ static const struct pw_stream_events stream_events = {
     .process = on_process,
 };
 
-/* Copies the held frame into dst as opaque BGRA (the compositor sends BGRx / BGRA / RGBx / RGBA). */
-static void copy_held(uint8_t *_dst)
+/* Copies rows [row0, row1) of the held frame into dst as opaque BGRA (the compositor sends BGRx / BGRA / RGBx / RGBA),
+ * one pass per pixel. */
+static void copy_held(uint8_t *_dst, int32_t _row0, int32_t _row1)
 {
-    int32_t width = (int32_t)g.format.size.width, height = (int32_t)g.format.size.height;
+    int32_t width = (int32_t)g.format.size.width;
     int swap_rb = g.format.format == SPA_VIDEO_FORMAT_RGBx || g.format.format == SPA_VIDEO_FORMAT_RGBA;
-    for (int32_t y = 0; y < height; y++) {
+    for (int32_t y = _row0; y < _row1; y++) {
         const uint8_t *s = g.held_data + (size_t)y * (size_t)g.held_stride;
         uint8_t *d = _dst + (size_t)y * (size_t)width * 4;
-        if (!swap_rb) {
-            memcpy(d, s, (size_t)width * 4);
-            for (int32_t x = 0; x < width; x++) {
-                d[x * 4 + 3] = 255; /* screen content is opaque; BGRx carries garbage in the 4th byte */
+        for (int32_t x = 0; x < width; x++) {
+            uint32_t p;
+            memcpy(&p, s + (size_t)x * 4, 4); /* little endian: 0xAARRGGBB for BGRA, 0xAABBGGRR for RGBA */
+            if (swap_rb) {
+                p = (p & 0x0000FF00u) | ((p & 0x000000FFu) << 16) | ((p >> 16) & 0x000000FFu);
             }
-        } else {
-            for (int32_t x = 0; x < width; x++) {
-                d[x * 4 + 0] = s[x * 4 + 2];
-                d[x * 4 + 1] = s[x * 4 + 1];
-                d[x * 4 + 2] = s[x * 4 + 0];
-                d[x * 4 + 3] = 255;
-            }
+            p |= 0xFF000000u; /* screen content is opaque; BGRx carries garbage in the 4th byte */
+            memcpy(d + (size_t)x * 4, &p, 4);
         }
     }
 }
@@ -208,8 +230,9 @@ int hidercap_start(int _fd, uint32_t _node_id)
         close(_fd);
         return HIDERCAP_ALREADY_STARTED;
     }
-    pw_init(NULL, NULL);
     memset(&g, 0, sizeof(g));
+    pw_init(NULL, NULL);
+    pw_initialized = 1;
     g.loop = pw_thread_loop_new("hidercap", NULL);
     if (g.loop == NULL) {
         close(_fd);
@@ -261,8 +284,12 @@ int hidercap_start(int _fd, uint32_t _node_id)
     return HIDERCAP_OK;
 }
 
-int hidercap_grab_after(int64_t _not_before_ns, int32_t _timeout_ms, uint8_t *_dst, int32_t _dst_size, hidercap_frame *_out)
+int hidercap_grab_after(int64_t _not_before_ns, int32_t _timeout_ms, int32_t _row0, int32_t _row1, uint8_t *_dst,
+    int32_t _dst_size, hidercap_frame *_out)
 {
+    if (_out != NULL) {
+        memset(_out, 0, sizeof(*_out));
+    }
     if (g.loop == NULL || _out == NULL) {
         return HIDERCAP_NOT_STARTED;
     }
@@ -292,7 +319,9 @@ int hidercap_grab_after(int64_t _not_before_ns, int32_t _timeout_ms, uint8_t *_d
         if (_dst == NULL || _dst_size < 0 || (size_t)_dst_size < needed) {
             result = HIDERCAP_BUFFER_TOO_SMALL;
         } else {
-            copy_held(_dst);
+            int32_t row0 = _row0 < 0 ? 0 : (_row0 > height ? height : _row0);
+            int32_t row1 = _row1 < row0 ? row0 : (_row1 > height ? height : _row1);
+            copy_held(_dst, row0, row1);
         }
     }
     pw_thread_loop_unlock(g.loop);
@@ -333,4 +362,8 @@ void hidercap_stop(void)
         pw_thread_loop_destroy(g.loop);
     }
     memset(&g, 0, sizeof(g));
+    if (pw_initialized) {
+        pw_deinit();
+        pw_initialized = 0;
+    }
 }

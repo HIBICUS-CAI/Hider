@@ -100,7 +100,8 @@ namespace Hider.Core.Capture
                 ScreenFrame? frame;
                 try
                 {
-                    frame = await grabber.GrabAfterAsync(notBefore, _rect, _ct).ConfigureAwait(false);
+                    // Only this strip's rows are needed from the frame (ScreenCast copies just those).
+                    frame = await grabber.GrabAfterAsync(notBefore, new PhysicalRect(_rect.X, top, _rect.Width, bottom - top), _ct).ConfigureAwait(false);
                 }
                 catch (CaptureDeniedException e)
                 {

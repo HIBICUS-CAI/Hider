@@ -24,7 +24,8 @@ namespace Hider.Platform.Linux
         /// <summary>Takes ownership of <paramref name="_fd"/>.</summary>
         int Start(int _fd, uint _nodeId);
 
-        int GrabAfter(long _notBeforeNs, int _timeoutMs, Span<byte> _dst, out HidercapFrame _frame);
+        /// <summary>Copies rows [<paramref name="_row0"/>, <paramref name="_row1"/>) of the frame into a whole-frame buffer.</summary>
+        int GrabAfter(long _notBeforeNs, int _timeoutMs, int _row0, int _row1, Span<byte> _dst, out HidercapFrame _frame);
 
         ulong LastSequence();
 
@@ -66,11 +67,11 @@ namespace Hider.Platform.Linux
             return hidercap_start(_fd, _nodeId);
         }
 
-        public unsafe int GrabAfter(long _notBeforeNs, int _timeoutMs, Span<byte> _dst, out HidercapFrame _frame)
+        public unsafe int GrabAfter(long _notBeforeNs, int _timeoutMs, int _row0, int _row1, Span<byte> _dst, out HidercapFrame _frame)
         {
             fixed (byte* dst = _dst)
             {
-                return hidercap_grab_after(_notBeforeNs, _timeoutMs, dst, _dst.Length, out _frame);
+                return hidercap_grab_after(_notBeforeNs, _timeoutMs, _row0, _row1, dst, _dst.Length, out _frame);
             }
         }
 
@@ -88,7 +89,7 @@ namespace Hider.Platform.Linux
         private static partial int hidercap_start(int _fd, uint _nodeId);
 
         [LibraryImport(Library)]
-        private static unsafe partial int hidercap_grab_after(long _notBeforeNs, int _timeoutMs, byte* _dst, int _dstSize, out HidercapFrame _frame);
+        private static unsafe partial int hidercap_grab_after(long _notBeforeNs, int _timeoutMs, int _row0, int _row1, byte* _dst, int _dstSize, out HidercapFrame _frame);
 
         [LibraryImport(Library)]
         private static partial ulong hidercap_last_sequence();

@@ -71,6 +71,8 @@ namespace Hider.Core.Tests.Capture
             var rect = new PhysicalRect(10, 20, 100, 20);
             s.Add("a", rect);
             await s.Capture(rect, 8);
+            // Each grab asks for its strip's rows only.
+            Assert.Equal(new[] { new PhysicalRect(10, 20, 100, 8), new PhysicalRect(10, 28, 100, 8), new PhysicalRect(10, 36, 100, 4) }, s.Grabber.Needed);
             Assert.Equal(new[]
             {
                 "prepare",
@@ -208,7 +210,7 @@ namespace Hider.Core.Tests.Capture
             s.Add("a", rect);
             s.Grabber.Covers = new PhysicalRect(0, 0, 550, 480);
             Assert.Equal(CaptureFailure.Unavailable, (await s.Capture(rect, 8)).Failure);
-            Assert.Equal(rect, s.Grabber.Needed[0]);
+            Assert.Equal(new PhysicalRect(500, 20, 100, 8), s.Grabber.Needed[0]); // the first strip's rows
             Assert.Empty(s.Host.Transparent);
 
             s.Grabber.Frame = CoordinateFrame.Create(2560, 1080);

@@ -77,6 +77,7 @@ namespace Hider.App.Tests.Platform
             public int GrabResult { get; set; }
             public (int W, int H) Size { get; set; } = (1920, 1080);
             public List<long> NotBeforeNs { get; } = new();
+            public List<(int Row0, int Row1)> Rows { get; } = new();
             private bool started;
 
             public int Start(int _fd, uint _nodeId)
@@ -87,11 +88,12 @@ namespace Hider.App.Tests.Platform
                 return StartResult;
             }
 
-            public int GrabAfter(long _notBeforeNs, int _timeoutMs, Span<byte> _dst, out HidercapFrame _frame)
+            public int GrabAfter(long _notBeforeNs, int _timeoutMs, int _row0, int _row1, Span<byte> _dst, out HidercapFrame _frame)
             {
                 _log.Add("grab");
                 Assert.True(started, "grab before start");
                 NotBeforeNs.Add(_notBeforeNs);
+                Rows.Add((_row0, _row1));
                 _frame = new HidercapFrame { Width = Size.W, Height = Size.H, Stride = Size.W * 4, PtsFromMeta = 1, PtsNs = _notBeforeNs + 16_000_000, Sequence = 3 };
                 if (GrabResult != 0)
                 {
@@ -281,6 +283,47 @@ namespace Hider.App.Tests.Platform
             Assert.Null(await Grab(g, 0, new PhysicalRect(100, 100, 200, 100)));
             var frame = await Grab(g, 0, new PhysicalRect(2000, 100, 200, 100));
             Assert.Equal(Right.Bounds, frame!.Covers);
+        }
+
+        [Fact]
+        public async Task Grab_CopiesOnlyTheNeededRows()
+        {
+            // A strip of 8 rows needs 8 rows (plus a row of margin each side) of the monitor, not all 1080.
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            Assert.Equal((0, int.MaxValue), helper.Rows[^1]); // the first frame: size unknown, all rows
+            await Grab(g, 0, new PhysicalRect(100, 300, 200, 8));
+            Assert.Equal((299, 309), helper.Rows[^1]);
+
+            // The frame size changed (monitor mode switch): asked again for all rows of the new frame.
+            helper.Size = (3840, 2160);
+            int calls = helper.Rows.Count;
+            var frame = await Grab(g, 0, new PhysicalRect(100, 300, 200, 8));
+            Assert.Equal((3840, 2160), (frame!.Frame.Width, frame.Frame.Height));
+            Assert.Equal((0, int.MaxValue), helper.Rows[^1]);
+            await Grab(g, 0, new PhysicalRect(100, 300, 200, 8));
+            Assert.Equal((600, 617), helper.Rows[^1]); // the frame is scaled 2x against the monitor's 1920 x 1080
+            Assert.True(helper.Rows.Count > calls);
+        }
+
+        [Theory]
+        [InlineData(0, 0, 1080, 300, 8, 299, 309)]
+        [InlineData(0, 0, 2160, 300, 8, 600, 617)]
+        [InlineData(0, 0, 1080, 0, 8, 0, 9)]
+        [InlineData(0, 0, 1080, 1076, 4, 1075, 1080)]
+        [InlineData(0, 100, 1080, 150, 8, 49, 59)]
+        public void Rows_CoverWhatCopyRowsReads(int _shownX, int _shownY, int _frameHeight, int _y, int _h, int _row0, int _row1)
+        {
+            var shown = new PhysicalRect(_shownX, _shownY, 1920, 1080);
+            var needed = new PhysicalRect(10, _y, 50, _h);
+            Assert.Equal((_row0, _row1), PipeWireGrabber.Rows(shown, needed, _frameHeight));
+            // Every row StripCoordinator.CopyRows samples lies inside.
+            double sy = (double)_frameHeight / shown.Height;
+            for (int y = needed.Y; y < needed.Bottom; y++)
+            {
+                int fy = (int)Math.Floor((y + 0.5 - shown.Y) * sy);
+                Assert.InRange(fy, _row0, _row1 - 1);
+            }
         }
 
         [Theory]

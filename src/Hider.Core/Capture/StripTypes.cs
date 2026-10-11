@@ -14,8 +14,9 @@ namespace Hider.Core.Capture
         /// <summary>
         /// A frame shown no earlier than <paramref name="_notBeforeTimestamp"/> (a <see cref="TimeProvider.GetTimestamp"/>
         /// value of the coordinator's clock; with the system clock on Linux, CLOCK_MONOTONIC) that covers
-        /// <paramref name="_needed"/>. Null when no such frame can be had (FR-52); throws <see cref="CaptureDeniedException"/>
-        /// when the user refused.
+        /// <paramref name="_needed"/> (the strip being grabbed). Only the frame rows showing <paramref name="_needed"/> have to
+        /// be filled in. Null when no such frame can be had (FR-52); throws <see cref="CaptureDeniedException"/> when the user
+        /// refused.
         /// </summary>
         Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct);
 

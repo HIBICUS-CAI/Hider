@@ -32,6 +32,8 @@ namespace Hider.Platform.Linux
         private ScreenCastSession? session;
         private PhysicalRect? covers;
         private byte[] buffer = Array.Empty<byte>();
+        private int frameWidth;
+        private int frameHeight;
         private ITimer? idle;
         private bool disposed;
         private bool refused;
@@ -76,7 +78,7 @@ namespace Hider.Platform.Linux
                     return null;
                 }
                 long notBeforeNs = (long)(_notBeforeTimestamp * (1_000_000_000.0 / time.TimestampFrequency));
-                var (code, info) = await Task.Run(() => Grab(notBeforeNs), CancellationToken.None).ConfigureAwait(false);
+                var (code, info) = await Task.Run(() => Grab(notBeforeNs, shown, _needed), CancellationToken.None).ConfigureAwait(false);
                 _ct.ThrowIfCancellationRequested();
                 switch (code)
                 {
@@ -127,7 +129,7 @@ namespace Hider.Platform.Linux
                         return false;
                     }
                     // Ready only once a frame came through; otherwise every strip would time out with its rows transparent.
-                    var (code, _) = await Task.Run(() => Grab(0), CancellationToken.None).ConfigureAwait(false);
+                    var (code, _) = await Task.Run(() => Grab(0, null, default), CancellationToken.None).ConfigureAwait(false);
                     if (code != Hidercap.Ok)
                     {
                         Log.Verbose($"screencast: no first frame ({code}), closing the session");
@@ -155,16 +157,40 @@ namespace Hider.Platform.Linux
             }
         }
 
-        /// <summary>The helper call, growing the buffer once if the frame is larger than the last one.</summary>
-        private (int Code, HidercapFrame Info) Grab(long _notBeforeNs)
+        /// <summary>
+        /// The helper call. Only the frame rows of <paramref name="_needed"/> (mapped into the frame like
+        /// StripCoordinator.CopyRows does, one row of margin) are copied: a strip is 8 rows of a 2160-row monitor. All rows
+        /// when <paramref name="_shown"/> is null or the frame size is not known yet; again with all rows when the size
+        /// changed (the held frame is still recent enough, so that costs no wait). The buffer grows when needed.
+        /// </summary>
+        private (int Code, HidercapFrame Info) Grab(long _notBeforeNs, PhysicalRect? _shown, PhysicalRect _needed)
         {
-            int code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, buffer, out var info);
+            var (row0, row1) = _shown is { } shown && frameHeight > 0 ? Rows(shown, _needed, frameHeight) : (0, int.MaxValue);
+            int code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, row0, row1, buffer, out var info);
             if (code == Hidercap.BufferTooSmall)
             {
                 buffer = new byte[(long)info.Width * info.Height * 4];
-                code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, buffer, out info);
+                code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, row0, row1, buffer, out info);
+            }
+            if (code == Hidercap.Ok && (info.Width != frameWidth || info.Height != frameHeight))
+            {
+                bool partial = row0 > 0 || row1 < info.Height;
+                (frameWidth, frameHeight) = (info.Width, info.Height);
+                if (partial)
+                {
+                    code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, 0, int.MaxValue, buffer, out info);
+                }
             }
             return (code, info);
+        }
+
+        /// <summary>Frame rows holding <paramref name="_needed"/>'s rows when the frame shows <paramref name="_shown"/> in <paramref name="_frameHeight"/> rows.</summary>
+        public static (int Row0, int Row1) Rows(PhysicalRect _shown, PhysicalRect _needed, int _frameHeight)
+        {
+            double sy = _shown.Height > 0 ? (double)_frameHeight / _shown.Height : 1.0;
+            int row0 = (int)Math.Floor((_needed.Y + 0.5 - _shown.Y) * sy) - 1;
+            int row1 = (int)Math.Floor((_needed.Bottom - 0.5 - _shown.Y) * sy) + 2;
+            return (Math.Clamp(row0, 0, _frameHeight), Math.Clamp(row1, 0, _frameHeight));
         }
 
         private async Task<bool> OpenAsync(CancellationToken _ct)
@@ -231,6 +257,7 @@ namespace Hider.Platform.Linux
             var closing = session;
             session = null;
             covers = null;
+            (frameWidth, frameHeight) = (0, 0);
             helper.Stop();
             await portal.CloseAsync(closing).ConfigureAwait(false);
         }
