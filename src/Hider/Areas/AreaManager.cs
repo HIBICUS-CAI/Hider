@@ -20,6 +20,7 @@ namespace Hider.Areas
         private ITimer? saveTimer;
         private StripArea[] stripAreas = Array.Empty<StripArea>();
         private PhysicalRect stripScreen;
+        private IReadOnlyList<ScreenInfo> stripScreens = Array.Empty<ScreenInfo>();
 
         public AreaManager(AreaServices _services)
         {
@@ -138,6 +139,18 @@ namespace Hider.Areas
             }
         }
 
+        /// <summary>The monitors at the start of the latest capture.</summary>
+        public IReadOnlyList<ScreenInfo> StripScreens
+        {
+            get
+            {
+                lock (areas)
+                {
+                    return stripScreens;
+                }
+            }
+        }
+
         public void CaptureStarting()
         {
             if (Services.IsWindows)
@@ -147,11 +160,13 @@ namespace Hider.Areas
             // XWAYLAND-ASSUMPTION: area rectangles and the monitor union are absolute X11 coordinates, and a portal frame covers
             // that union (StripCoordinator maps between them by scale and offset).
             Volatile.Write(ref stripAreas, areas.Select(a => new StripArea(a.Model.Id, a.Model.Rect, a.Model.Pattern)).ToArray());
-            var bounds = Screens.Screens.Select(s => s.Bounds).ToList();
+            var monitors = Screens.Screens.ToArray();
+            var bounds = monitors.Select(s => s.Bounds).ToList();
             var union = bounds.Count == 0 ? default : PhysicalRect.FromEdges(bounds.Min(b => b.X), bounds.Min(b => b.Y), bounds.Max(b => b.Right), bounds.Max(b => b.Bottom));
             lock (areas)
             {
                 stripScreen = union;
+                stripScreens = monitors;
             }
         }
 

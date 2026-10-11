@@ -71,7 +71,10 @@ namespace Hider
         }
 
         /// <summary>The platform's underlay capture: Windows window capture (design §5.2); Linux from Step 7 (until then FR-52).</summary>
-        /// <summary>Windows: window capture (design §5.2). Linux: strips over the Screenshot portal (stage 1, design §5.3).</summary>
+        /// <summary>
+        /// Windows: window capture (design §5.2). Linux: strips (design §5.3) grabbed through ScreenCast + libhidercap
+        /// (stage 2), falling back to the Screenshot portal (stage 1) when the helper, the portal or the monitor does not fit.
+        /// </summary>
         private static IUnderlayCapture CreateCapture(AreaStripHost _stripHost)
         {
             if (OperatingSystem.IsWindows())
@@ -80,7 +83,9 @@ namespace Hider
             }
             if (OperatingSystem.IsLinux())
             {
-                return new StripCoordinator(new PortalScreenshotGrabber(() => _stripHost.Screen), _stripHost, () => _stripHost.Areas);
+                var stage2 = new PipeWireGrabber(new ScreenCastPortal(), new Hidercap(), new RestoreTokenStore(StoragePaths.RestoreToken), () => _stripHost.Screens);
+                var stage1 = new PortalScreenshotGrabber(() => _stripHost.Screen);
+                return new StripCoordinator(new FallbackGrabber(stage2, stage1), _stripHost, () => _stripHost.Areas);
             }
             return new UnavailableCapture();
         }
