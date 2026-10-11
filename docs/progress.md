@@ -667,3 +667,31 @@ Step 9（アイコン、README、ドキュメント、CI 全緑）へ。
 2. **pending の提案**: P-1（セル単位評価と結果のキャッシュ）、P-2（libhidercap の 4 関数 API）。いずれも推奨案で実装済み、コミットに `pending: P-n`。
 3. **仕様の解釈で決めたこと**: noise の scale は単位なし（値 × 4 px が格子間隔）、スライダーの保存は 500 ms のデバウンス、`CaptureRequest.ExcludeWindows[0]` は要求したエリア自身の窓（他のエリアは写る）、PT-27〜29 を追加。
 4. **CI の追加**: Linux の GUI ジョブで Xvfb + 偽ポータル（第 1 / 第 2 段階）を実行するため、apt で xvfb / xcompmgr / imagemagick / pipewire / wireplumber / gstreamer 等を入れています（1 ジョブあたり数十秒増）。
+
+## 不具合修正: Windows 11 実機での異常終了（2026-10-12）
+
+### 1. 結果
+
+修正済み。Windows ランナー（GPU 経路）の負荷試験で、修正前は再現し、修正後は再現しないことを確認。実機での再確認をお願いしたい。
+
+### 2. 症状と原因
+
+報告されたイベントログ: .NET ランタイムの内部エラー（0xC000001D / 0xC0000005、同一アドレス）、描画スレッドの `gr_direct_context_flush_and_submit` 内の未処理例外、ファイナライザスレッドの `SKShader.Finalize → sk_refcnt_safe_unref` 内の未処理例外。いずれも GPU（Skia の GrContext）のオブジェクトを描画スレッド以外から触ったことによるメモリ破壊。
+
+| # | 原因 | 修正（コミット） |
+|---|---|---|
+| 1 | SkSL 手法の子シェーダ（取得画像・ピラミッドの GPU テクスチャを包む）を破棄せず、ファイナライザスレッドでテクスチャが解放されていた | 子シェーダ・uniforms・children を返す前に破棄（123a04a） |
+| 2 | 取得バッファを複写なしの SKImage で GPU に描いていた。Skia はアップロードをフレーム末の flush まで遅らせるため、その時点で入れ替え・リサイズ済みのバッファ（解放済みメモリ）を読んでいた | GPU の時だけ取得画像を複写して渡す（d5d1bf4） |
+| 3 | エリアの削除・終了時に GPU のキャッシュ画像を UI スレッドから解放していた | テクスチャは退避し、次の描画で描画スレッドから解放（36645f5） |
+| — | 生成パターンの描き直しが例外で抜けると解放済みの画像を返し得た（予防） | 先にフィールドを空にする（7f0d0f9） |
+
+### 3. 確認
+
+| 確認 | 修正前 | 修正後 |
+|---|---|---|
+| scripts/windows-stress.ps1（モザイク 2 枚 100 ms 更新 + 生成 1 枚、90 s、gen-0 を小さくしてファイナライザを頻発。GitHub の Windows ランナー、描画は GPU（ANGLE の OpenGL）） | 約 13 s・取得 217 回で 0xC000001D（実機と同じスタック）。https://github.com/HIBICUS-CAI/Hider/actions/runs/38174231482 | 90 s 生存・取得 1,612 回。https://github.com/HIBICUS-CAI/Hider/actions/runs/38175013751 （全ジョブ緑） |
+| Linux Xvfb（Mesa の GL）で同条件 120 s | 再現せず（Mesa は寛容） | 異常なし |
+
+負荷試験は CI の Windows publish ジョブに組み込んだ（d7e5b7e）。`--verbose` の先頭に描画経路（GPU / CPU）を 1 行出すようにした（75e85bc）。
+
+Core 136 / GUI 67 件すべて合格（3 OS）。
