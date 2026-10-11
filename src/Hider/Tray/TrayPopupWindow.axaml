@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Hider.Tray.TrayPopupWindow"
+        WindowDecorations="None"
+        CanResize="False"
+        Topmost="True"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="Manual"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Title="Hider">
+    <!-- Design canvas 1: the same items as the native tray menu, opened by a left click on Windows. -->
+    <Border Width="236" Background="#F9F9F9" BorderBrush="#DCDCDC" BorderThickness="1" CornerRadius="8" Padding="6">
+        <StackPanel x:Name="Items" Spacing="2" />
+    </Border>
+</Window>
