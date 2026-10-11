@@ -44,3 +44,13 @@
 | 日付 | 環境 | RID | 描画モード | エリアサイズ | 窓数 | 平均 ms | CPU% |
 |---|---|---|---|---|---|---|---|
 | — | 実機（Step 5 で計測、人間待ち） | win-x64 | GPU | 800×450 | 3 | — | — |
+
+## Linux 撮り直し（PT-22〜23）
+
+240 px 高のエリア、帯 8 px（30 帯）。合否は Ubuntu 26.04 実機で決める（帯 1 本 3 フレーム以内、全体 2 秒以内）。
+
+| 日付 | 環境 | RID | 経路 | 帯 1 本 | 全体 |
+|---|---|---|---|---|---|
+| 2026-10-11 | 作業コンテナ Xvfb + xcompmgr + 偽ポータル（参考） | linux-x64 | 第 1 段階（ImageMagick import による偽 Screenshot） | 撮影 120〜240 ms | 数秒 |
+| 2026-10-11 | 同上 + PipeWire（GStreamer ximagesrc、30 fps、PTS なし） | linux-x64 | 第 2 段階（ScreenCast + libhidercap） | 約 65〜70 ms（受信時刻判定のため 2 フレーム） | 約 2.1 s |
+| — | Ubuntu 26.04 実機（人間待ち） | linux-x64 / linux-arm64 | 第 2 段階 | — | — |
