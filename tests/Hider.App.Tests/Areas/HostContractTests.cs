@@ -93,5 +93,21 @@ namespace Hider.App.Tests.Areas
             log.Add(area.Model.Rect.ToString());
             return log;
         }
+
+        [AvaloniaFact]
+        public void UnreadableAreasFile_IsNeverOverwritten()
+        {
+            using var f = new AreaFixture();
+            const string original = "{ \"version\": 1, \"areas\": [] }";
+            File.WriteAllText(f.AreasPath, original);
+            using (new FileStream(f.AreasPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                Assert.Equal(LoadStatus.Unreadable, f.Manager.Restore());
+            }
+            Assert.True(f.Manager.SaveBlocked);
+            f.Manager.AddNew();
+            f.Manager.SaveNow();
+            Assert.Equal(original, File.ReadAllText(f.AreasPath));
+        }
     }
 }

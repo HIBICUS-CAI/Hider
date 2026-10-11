@@ -142,6 +142,35 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void CT26_SecondBrokenFile_KeepsTheFirst()
+        {
+            File.WriteAllText(FilePath, "first broken");
+            AreasFile.Load(FilePath, out _);
+            File.WriteAllText(FilePath, "second broken");
+            AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Broken, status);
+            Assert.Equal("second broken", File.ReadAllText(FilePath + ".broken"));
+            var older = Directory.GetFiles(dir, "areas.json.broken-*");
+            Assert.Single(older);
+            Assert.Equal("first broken", File.ReadAllText(older[0]));
+        }
+
+        [Fact]
+        public void LockedFile_IsUnreadable_AndLeftAlone()
+        {
+            // Another program holding the file exclusively (backup / sync tools on Windows) is not a broken file.
+            File.WriteAllText(FilePath, "{ \"version\": 1, \"areas\": [] }");
+            using (new FileStream(FilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                var state = AreasFile.Load(FilePath, out var status);
+                Assert.Equal(LoadStatus.Unreadable, status);
+                Assert.Empty(state.Areas);
+            }
+            Assert.True(File.Exists(FilePath));
+            Assert.False(File.Exists(FilePath + ".broken"));
+        }
+
+        [Fact]
         public void CT27_Save_IsAtomic()
         {
             var state = new AppState { Areas = { AreaState.FromArea(SampleArea(), 1.0) } };

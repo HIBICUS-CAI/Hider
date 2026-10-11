@@ -9,14 +9,19 @@ namespace Hider.Core.Persistence
         Loaded,
         Missing,
         Broken,
+
+        /// <summary>The file exists but could not be read (locked by another program, no permission); it is left as it is.</summary>
+        Unreadable,
     }
 
     /// <summary>Reads and writes areas.json (FR-60 .. FR-65).</summary>
     public static class AreasFile
     {
         /// <summary>
-        /// Loads the state. A missing file gives an empty state (<see cref="LoadStatus.Missing"/>). A file that cannot be read
-        /// as version 1 is renamed to &lt;path&gt;.broken and an empty state is returned (<see cref="LoadStatus.Broken"/>, FR-64).
+        /// Loads the state. A missing file gives an empty state (<see cref="LoadStatus.Missing"/>). A file that is not valid
+        /// version 1 JSON is renamed to &lt;path&gt;.broken (an older .broken is kept under a time-stamped name) and an empty
+        /// state is returned (<see cref="LoadStatus.Broken"/>, FR-64). A file that cannot be read or renamed at all gives an
+        /// empty state with <see cref="LoadStatus.Unreadable"/>: the caller must not save over it in this session.
         /// Missing values are filled with defaults and invalid ones replaced (see <see cref="Normalize"/>).
         /// </summary>
         public static AppState Load(string _path, out LoadStatus _status)
@@ -26,19 +31,29 @@ namespace Hider.Core.Persistence
                 _status = LoadStatus.Missing;
                 return new AppState();
             }
+            string text;
+            try
+            {
+                text = File.ReadAllText(_path);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Log.Verbose($"areas.json could not be read: {e.Message}");
+                _status = LoadStatus.Unreadable;
+                return new AppState();
+            }
             AppState? state = null;
             try
             {
-                state = JsonSerializer.Deserialize(File.ReadAllText(_path), HiderJsonContext.Default.AppState);
+                state = JsonSerializer.Deserialize(text, HiderJsonContext.Default.AppState);
             }
-            catch (Exception e) when (e is JsonException or IOException or NotSupportedException or ArgumentException)
+            catch (Exception e) when (e is JsonException or NotSupportedException or ArgumentException)
             {
                 state = null;
             }
             if (state is null || state.Version != AppState.CurrentVersion || state.Areas is null)
             {
-                MoveAside(_path);
-                _status = LoadStatus.Broken;
+                _status = MoveAside(_path) ? LoadStatus.Broken : LoadStatus.Unreadable;
                 return new AppState();
             }
             Normalize(state);
@@ -162,18 +177,23 @@ namespace Hider.Core.Persistence
             }
         }
 
-        private static void MoveAside(string _path)
+        /// <summary>Renames the file to &lt;path&gt;.broken, keeping an older one as &lt;path&gt;.broken-&lt;time&gt;.</summary>
+        private static bool MoveAside(string _path)
         {
+            string broken = _path + ".broken";
             try
             {
-                File.Move(_path, _path + ".broken", overwrite: true);
+                if (File.Exists(broken))
+                {
+                    File.Move(broken, $"{broken}-{File.GetLastWriteTime(broken):yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}");
+                }
+                File.Move(_path, broken);
+                return true;
             }
-            catch (IOException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                // Keep starting with an empty state even if the broken file cannot be renamed.
-            }
-            catch (UnauthorizedAccessException)
-            {
+                Log.Verbose($"areas.json could not be moved aside: {e.Message}");
+                return false;
             }
         }
 

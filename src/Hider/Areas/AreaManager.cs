@@ -18,6 +18,7 @@ namespace Hider.Areas
         private readonly List<AreaController> areas = new();
         private readonly string areasPath;
         private ITimer? saveTimer;
+        private bool saveBlocked;
         private StripArea[] stripAreas = Array.Empty<StripArea>();
         private PhysicalRect stripScreen;
         private IReadOnlyList<ScreenInfo> stripScreens = Array.Empty<ScreenInfo>();
@@ -44,6 +45,9 @@ namespace Hider.Areas
         {
             var state = AreasFile.Load(areasPath, out var status);
             Log.Verbose($"areas.json: {status}, {state.Areas.Count} area(s)");
+            // A file that exists but cannot be read (locked by a backup or sync tool, no permission) must not be replaced by
+            // this session's empty state: nothing is saved until the next start.
+            saveBlocked = status == LoadStatus.Unreadable;
             var screens = Screens.Screens;
             var bounds = screens.Select(s => s.Bounds).ToArray();
             int primary = Screens.PrimaryIndex();
@@ -170,10 +174,18 @@ namespace Hider.Areas
             }
         }
 
+        /// <summary>areas.json could not be read at start, so this session does not write it.</summary>
+        public bool SaveBlocked => saveBlocked;
+
         public void SaveNow()
         {
             saveTimer?.Dispose();
             saveTimer = null;
+            if (saveBlocked)
+            {
+                Log.Verbose("not saving: areas.json could not be read at start and is left untouched");
+                return;
+            }
             var state = new AppState { Areas = areas.Select(a => AreaState.FromArea(a.Model, a.Host.Scale)).ToList() };
             try
             {
