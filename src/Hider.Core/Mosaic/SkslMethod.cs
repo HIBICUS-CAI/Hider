@@ -35,7 +35,8 @@ namespace Hider.Core.Mosaic
             uniforms[CommonParams.AreaOriginUniform] = new[] { (float)_inputs.AreaOrigin.X, _inputs.AreaOrigin.Y };
             if (Kind == MethodKind.Generated)
             {
-                uniforms[CommonParams.SeedUniform] = (float)_p.Raw(CommonParams.Seed);
+                // Kept small so the shader sees it exactly as a float.
+                uniforms[CommonParams.SeedUniform] = (float)(((long)_p.Raw(CommonParams.Seed) % 65536 + 65536) % 65536);
                 uniforms[CommonParams.BaseColorUniform] = new[]
                 {
                     (float)_p.Raw(CommonParams.BaseColorR), (float)_p.Raw(CommonParams.BaseColorG), (float)_p.Raw(CommonParams.BaseColorB),
