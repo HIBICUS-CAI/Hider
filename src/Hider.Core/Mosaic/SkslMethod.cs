@@ -34,7 +34,10 @@ namespace Hider.Core.Mosaic
         /// <summary>The method's SkSL shader, even when <see cref="IsPassThrough"/> would skip it.</summary>
         internal SKShader CreateEffectShader(MosaicInputs _inputs, ParamValues _p)
         {
-            var uniforms = new SKRuntimeEffectUniforms(Effect);
+            // Everything created here is disposed before returning: the runtime shader keeps its own native references. A
+            // leaked child would be released by the finalizer thread, and with a GPU-backed capture that frees a texture
+            // outside the render thread (GrContext is not thread-safe; crashes seen on Windows).
+            using var uniforms = new SKRuntimeEffectUniforms(Effect);
             foreach (var spec in Params)
             {
                 uniforms[spec.Key] = (float)UniformValue(spec.Key, _p);
@@ -49,10 +52,11 @@ namespace Hider.Core.Mosaic
                     (float)_p.Raw(CommonParams.BaseColorR), (float)_p.Raw(CommonParams.BaseColorG), (float)_p.Raw(CommonParams.BaseColorB),
                 };
             }
-            var children = new SKRuntimeEffectChildren(Effect);
-            if (Kind == MethodKind.Mosaic)
+            using var children = new SKRuntimeEffectChildren(Effect);
+            using var source = Kind == MethodKind.Mosaic ? SourceShader(_inputs, _p) : null;
+            if (source is not null)
             {
-                children["src"] = SourceShader(_inputs, _p);
+                children["src"] = source;
             }
             return Effect.ToShader(uniforms, children);
         }
