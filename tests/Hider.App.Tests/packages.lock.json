@@ -327,7 +327,8 @@
           "Avalonia.Controls.ColorPicker": "[12.1.4, )",
           "Avalonia.Desktop": "[12.1.4, )",
           "Avalonia.Themes.Fluent": "[12.1.4, )",
-          "Hider.Core": "[2.0.0, )"
+          "Hider.Core": "[2.0.0, )",
+          "Tmds.DBus.Protocol": "[0.94.1, )"
         }
       },
       "hider.core": {
