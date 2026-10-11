@@ -16,6 +16,9 @@ namespace Hider.Platform.Linux
     {
         public static readonly TimeSpan IdleClose = TimeSpan.FromSeconds(3);
 
+        /// <summary>After the portal or the helper failed, stage 1 is used this long before stage 2 is tried again.</summary>
+        public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(1);
+
         /// <summary>How long one strip waits for a new frame. Mutter sends frames on damage, and the transparent rows are damage.</summary>
         public const int GrabTimeoutMs = 1000;
 
@@ -30,6 +33,8 @@ namespace Hider.Platform.Linux
         private byte[] buffer = Array.Empty<byte>();
         private ITimer? idle;
         private bool disposed;
+        private bool refused;
+        private long retryAt = long.MinValue;
 
         /// <param name="_screens">Monitors in X11 physical px (safe to call on the capture thread).</param>
         public PipeWireGrabber(IScreenCastPortal _portal, IHidercap _helper, RestoreTokenStore _tokens, Func<IReadOnlyList<ScreenInfo>> _screens,
@@ -47,7 +52,9 @@ namespace Hider.Platform.Linux
 
         public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
-            if (!helper.IsAvailable)
+            // Without the helper, after the user cancelled the dialog (asking again for every strip would be unbearable; the
+            // next start of Hider asks again), or shortly after a failure, leave it to the next grabber.
+            if (!helper.IsAvailable || refused || time.GetTimestamp() < retryAt)
             {
                 return null;
             }
@@ -80,6 +87,7 @@ namespace Hider.Platform.Linux
                     default:
                         Log.Verbose($"screencast: helper error {code}, closing the session");
                         await CloseAsync().ConfigureAwait(false);
+                        BackOff();
                         return null;
                 }
             }
@@ -107,9 +115,19 @@ namespace Hider.Platform.Linux
 
         private async Task<bool> OpenAsync(CancellationToken _ct)
         {
-            var started = await portal.StartAsync(tokens.Load(), _ct).ConfigureAwait(false);
+            ScreenCastSession? started;
+            try
+            {
+                started = await portal.StartAsync(tokens.Load(), _ct).ConfigureAwait(false);
+            }
+            catch (CaptureDeniedException)
+            {
+                refused = true;
+                throw;
+            }
             if (started is null)
             {
+                BackOff();
                 return false;
             }
             // Single use: the token just spent is worthless, the new one (if any) replaces it (CT-91).
@@ -121,11 +139,17 @@ namespace Hider.Platform.Linux
             {
                 Log.Verbose($"screencast: hidercap_start failed ({code})");
                 await portal.CloseAsync(started).ConfigureAwait(false);
+                BackOff();
                 return false;
             }
             session = started;
             covers = MapStream(started.StreamRect, screens());
             return true;
+        }
+
+        private void BackOff()
+        {
+            retryAt = time.GetTimestamp() + (long)(RetryAfterFailure.TotalSeconds * time.TimestampFrequency);
         }
 
         private async Task CloseIdleAsync()

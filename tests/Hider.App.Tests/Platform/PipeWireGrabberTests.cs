@@ -197,26 +197,38 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task FailuresGiveNull_DenialPropagates()
+        public async Task PortalMissing_NullAndNoRetryForAWhile()
         {
             portal.Missing = true;
-            using (var g = Create())
-            {
-                Assert.Null(await Grab(g));
-            }
+            using var g = Create();
+            Assert.Null(await Grab(g));
+            Assert.Null(await Grab(g)); // the next strips go straight to stage 1
+            Assert.Single(log, "portal start");
             portal.Missing = false;
+            time.Advance(PipeWireGrabber.RetryAfterFailure);
+            Assert.NotNull(await Grab(g));
+        }
+
+        [Fact]
+        public async Task HelperStartFails_SessionClosed_NoRetryForAWhile()
+        {
             helper.StartResult = Hidercap.StreamError;
-            using (var g = Create())
-            {
-                Assert.Null(await Grab(g));
-                Assert.Equal("portal close", log[^1]);
-            }
-            helper.StartResult = 0;
+            using var g = Create();
+            Assert.Null(await Grab(g));
+            Assert.Equal("portal close", log[^1]);
+            Assert.Null(await Grab(g));
+            Assert.Single(log, "portal start");
+        }
+
+        [Fact]
+        public async Task Denied_PropagatesOnce_ThenNeverAsksAgain()
+        {
             portal.Deny = true;
-            using (var g = Create())
-            {
-                await Assert.ThrowsAsync<CaptureDeniedException>(() => Grab(g));
-            }
+            using var g = Create();
+            await Assert.ThrowsAsync<CaptureDeniedException>(() => Grab(g));
+            time.Advance(TimeSpan.FromHours(1));
+            Assert.Null(await Grab(g));
+            Assert.Single(log, "portal start");
         }
 
         [Fact]
