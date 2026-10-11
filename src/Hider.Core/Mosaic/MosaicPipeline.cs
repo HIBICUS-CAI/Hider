@@ -84,13 +84,16 @@ namespace Hider.Core.Mosaic
             }
             else
             {
-                // One shader evaluation per cell (proposal P-1): the reduced surface's pixel centres map to points inside each
-                // cell, so the cell values are exact; nearest upscaling restores the cells aligned to the area origin.
+                // One shader evaluation per cell (proposal P-1): reduced pixel j is evaluated at the centre of the cell's top-left
+                // pixel (j·cell + 0.5), so the cell values are exact; nearest upscaling restores the cells aligned to the area
+                // origin. Not the cell centre: block's joints lie on the right / bottom of a cell, and with gap ≥ cell / 2 the
+                // centre itself is a joint, which turned every cell into the base color. DrawJoints paints the joints.
                 int cw = (w + cell - 1) / cell, ch = (h + cell - 1) / cell;
                 var info = new SKImageInfo(cw, ch, SKColorType.Bgra8888, SKAlphaType.Premul);
                 using var surface = CreateSurface(_canvas.Context, info);
                 surface.Canvas.Scale(1f / cell, 1f / cell);
-                surface.Canvas.DrawRect(0, 0, cw * cell, ch * cell, paint);
+                surface.Canvas.Translate((cell - 1) / 2f, (cell - 1) / 2f);
+                surface.Canvas.DrawRect(-cell, -cell, (cw + 2) * cell, (ch + 2) * cell, paint);
                 using var cells = surface.Snapshot();
                 using var copy = new SKPaint { BlendMode = SKBlendMode.Src };
                 _canvas.DrawImage(cells, SKRect.Create(0, 0, cw * cell, ch * cell), new SKSamplingOptions(SKFilterMode.Nearest), copy);

@@ -175,6 +175,34 @@ namespace Hider.Core.Tests.Mosaic
             Assert.NotEqual(baseColor, bitmap.GetPixel(5, 5));
         }
 
+        [Theory]
+        [InlineData(12, 6)]
+        [InlineData(12, 11)]
+        [InlineData(8, 4)]
+        [InlineData(2, 1)]
+        public void CT53_WideGap_CellsKeepTheirColors(int _cell, int _gap)
+        {
+            // gap ≥ cell / 2 put the cell centre on a joint; the cells must still vary and the joints stay the base color.
+            using var bitmap = Render.Generated("block", 96, 48, new() { ["cellSize"] = _cell, ["variance"] = 1.0, ["gap"] = _gap });
+            var baseColor = SKColor.Parse("#68768A");
+            var interiors = new HashSet<SKColor>();
+            for (int y = 0; y < 48; y++)
+            {
+                for (int x = 0; x < 96; x++)
+                {
+                    if (x % _cell >= _cell - _gap || y % _cell >= _cell - _gap)
+                    {
+                        Assert.Equal(baseColor, bitmap.GetPixel(x, y));
+                    }
+                    else
+                    {
+                        interiors.Add(bitmap.GetPixel(x, y));
+                    }
+                }
+            }
+            Assert.True(interiors.Count > 1, $"cell {_cell} gap {_gap}: {interiors.Count} interior color(s)");
+        }
+
         [Fact]
         public void CT54_BlockVarianceZero_AllBaseColor()
         {
