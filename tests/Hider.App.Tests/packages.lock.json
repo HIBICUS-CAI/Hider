@@ -238,11 +238,6 @@
         "resolved": "5.0.0",
         "contentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
       },
-      "SkiaSharp.NativeAssets.Linux": {
-        "type": "Transitive",
-        "resolved": "3.119.4",
-        "contentHash": "UAyVzbqNfZsZbKbzj68zXLyUyF/SbTKmzTfOO6qDu++dtIUMMTzPBe8oOuzU/DiewpfKoUUlOSsJmqWc6blxBw=="
-      },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",
         "resolved": "3.119.4",
@@ -383,6 +378,12 @@
           "SkiaSharp.NativeAssets.Win32": "3.119.4",
           "SkiaSharp.NativeAssets.macOS": "3.119.4"
         }
+      },
+      "SkiaSharp.NativeAssets.Linux": {
+        "type": "CentralTransitive",
+        "requested": "[3.119.4, )",
+        "resolved": "3.119.4",
+        "contentHash": "UAyVzbqNfZsZbKbzj68zXLyUyF/SbTKmzTfOO6qDu++dtIUMMTzPBe8oOuzU/DiewpfKoUUlOSsJmqWc6blxBw=="
       },
       "Tmds.DBus.Protocol": {
         "type": "CentralTransitive",
