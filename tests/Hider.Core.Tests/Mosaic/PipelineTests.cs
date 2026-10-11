@@ -298,6 +298,13 @@ namespace Hider.Core.Tests.Mosaic
             output.WriteLine($"CT-58 1920x1080 CPU raster (prepare + draw, incl. {harness:F1} ms harness): pixelate {mosaic:F1} ms, blur 8 + pixelate {blur:F1} ms, " +
                 $"pixelate + levels 8 {levels:F1} ms, block {block:F1} ms, block with gap {gap:F1} ms, blur method {blurMethod:F1} ms, " +
                 $"hexcell {hexcell:F1} ms, noise {noise:F1} ms");
+            // Generous for slow CI runners (docs/perf.md has the real numbers): catches a path that went pathological, such as
+            // a native call per pixel or an accidental per-pixel shader where a fast path exists.
+            foreach (var (name, ms) in new[] { ("pixelate", mosaic), ("blur 8 + pixelate", blur), ("levels", levels), ("block", block), ("block gap", gap),
+                ("blur method", blurMethod), ("hexcell", hexcell), ("noise", noise) })
+            {
+                Assert.True(ms < 2000, $"{name}: {ms:F0} ms for 1920 x 1080");
+            }
         }
 
         [Theory]

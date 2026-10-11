@@ -107,12 +107,22 @@ namespace Hider.App.Tests.Tray
             Assert.Equal("Hider — エリア 1 個", tray.ToolTip);
         }
 
+        /// <summary>Lets the controller's continuation after the probe run (it resumes on the UI thread).</summary>
+        private static async Task AnswerAsync()
+        {
+            await Task.Yield();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        }
+
         [AvaloniaFact]
         public async Task D9_NoTray_MenuWindowWithTheSameItems()
         {
             using var f = new AreaFixture();
-            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => Task.FromResult(false));
-            await Task.Yield();
+            var probe = new TaskCompletionSource<bool>();
+            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => probe.Task);
+            Assert.Null(tray.FallbackWindow); // nothing until the D-Bus probe answers
+            probe.SetResult(false);
+            await AnswerAsync();
             var window = tray.FallbackWindow;
             Assert.NotNull(window);
             Assert.True(window!.IsVisible);
@@ -135,8 +145,10 @@ namespace Hider.App.Tests.Tray
         public async Task D9_WithTray_NoMenuWindow()
         {
             using var f = new AreaFixture();
-            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => Task.FromResult(true));
-            await Task.Yield();
+            var probe = new TaskCompletionSource<bool>();
+            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => probe.Task);
+            probe.SetResult(true);
+            await AnswerAsync();
             Assert.Null(tray.FallbackWindow);
         }
 

@@ -34,7 +34,7 @@ namespace Hider
             // Headless tests run without a desktop lifetime and build what they need themselves.
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                Start(desktop, StoragePaths.AreasFile, CreateHost, true);
+                Start(desktop, StoragePaths.AreasFile, CreateHost, true, null, OperatingSystem.IsLinux() ? ProbeTray : null);
             }
             base.OnFrameworkInitializationCompleted();
         }
@@ -43,19 +43,22 @@ namespace Hider
         internal TrayController? Tray => tray;
 
         /// <summary>No main window (FR-01): the tray icon and the restored areas (FR-02).</summary>
-        internal void Start(IClassicDesktopStyleApplicationLifetime _desktop, string _areasPath, Func<AreaWindow, IAreaWindowHost> _hostFactory, bool _handleSignals)
+        /// <param name="_capture">The underlay capture; null for the platform's (<see cref="CreateCapture"/>).</param>
+        /// <param name="_trayProbe">Whether a tray exists (Linux, D-9); null never shows the menu window.</param>
+        internal void Start(IClassicDesktopStyleApplicationLifetime _desktop, string _areasPath, Func<AreaWindow, IAreaWindowHost> _hostFactory, bool _handleSignals,
+            IUnderlayCapture? _capture, Func<Task<bool>>? _trayProbe)
         {
             // Screens need a top level; this window is never shown.
             screenProbe = new Window();
             var screens = new AvaloniaScreenService(() => screenProbe.Screens);
             Action<Action> uiPost = a => Dispatcher.UIThread.Post(a);
             var stripHost = new AreaStripHost(f => Dispatcher.UIThread.InvokeAsync(f));
-            capture = CreateCapture(stripHost);
+            capture = _capture ?? CreateCapture(stripHost);
             areas = new AreaManager(new AreaServices(screens, _hostFactory, _areasPath, TimeProvider.System,
                 uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));
             stripHost.Attach(areas);
             areas.Restore();
-            tray = new TrayController(this, areas, () => _desktop.Shutdown(), OperatingSystem.IsLinux() ? ProbeTray : null);
+            tray = new TrayController(this, areas, () => _desktop.Shutdown(), _trayProbe);
 
             // Save on exit and session end (FR-06, FR-61); every change is also saved as it happens.
             _desktop.ShutdownRequested += (_, _) => areas.SaveNow();

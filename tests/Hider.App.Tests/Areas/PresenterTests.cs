@@ -132,10 +132,13 @@ namespace Hider.App.Tests.Areas
             using (Capture(area))
             {
             }
+            int renders = area.Window.PatternView.GeneratedRenderCount;
             int before = MosaicPresenter.RetiredCount;
             area.Window.PatternView.ReleaseCaches();
-            Assert.Equal(before, MosaicPresenter.RetiredCount);
+            Assert.Equal(before, MosaicPresenter.RetiredCount); // nothing parked for a render thread
+            // The cache really was dropped: the next frame draws the pattern again (and still covers the area).
             using var again = Capture(area);
+            Assert.Equal(renders + 1, area.Window.PatternView.GeneratedRenderCount);
             Assert.Equal(255, again.GetPixel(10, 10).Alpha);
         }
     }

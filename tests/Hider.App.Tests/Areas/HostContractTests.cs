@@ -16,7 +16,8 @@ namespace Hider.App.Tests.Areas
             var app = (HiderApp)Avalonia.Application.Current!;
             using var lifetime = new ClassicDesktopStyleApplicationLifetime();
             string path = Path.Combine(Path.GetTempPath(), "hider-gui-" + Guid.NewGuid().ToString("N"), "areas.json");
-            app.Start(lifetime, path, w => new FakeAreaWindowHost(w, 1.0), false);
+            // A fake capture and tray answer: no session bus, portal or restore token of the machine running the tests.
+            app.Start(lifetime, path, w => new FakeAreaWindowHost(w, 1.0), false, new FakeUnderlayCapture(), () => Task.FromResult(true));
             try
             {
                 Assert.Null(lifetime.MainWindow);
