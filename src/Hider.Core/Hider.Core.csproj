@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Model, mosaic methods, capture abstractions, scheduling and persistence. Knows nothing about Avalonia. -->
+  <PropertyGroup>
+    <RootNamespace>Hider.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Each mosaic method's shader source ships inside the assembly (work instructions §2.3). -->
+    <EmbeddedResource Include="Mosaic/Methods/*.sksl" LogicalName="Hider.Core.Mosaic.Methods.%(Filename).sksl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hider.Core.Tests" />
+  </ItemGroup>
+
+</Project>
