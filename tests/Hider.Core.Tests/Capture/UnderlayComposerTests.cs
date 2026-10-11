@@ -143,6 +143,26 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
+        public void CT69_TimeoutSkip_BelongsToTheAreaThatTimedOut()
+        {
+            // Area A times out on window 1; area B (another own window, also above window 1) must still capture it.
+            const nint areaB = 77;
+            var source = new FakeWindowSource()
+                .Add(Area, new PhysicalRect(0, 0, 10, 10), (9, 9, 9), "Hider")
+                .Add(areaB, new PhysicalRect(200, 0, 10, 10), (9, 9, 9), "Hider")
+                .Add(1, new PhysicalRect(0, 0, 50, 100), Red, _failure: CaptureFailure.Timeout)
+                .Add(Progman, Screen, Desktop, "Progman");
+            var composer = new UnderlayComposer(source, TimeSpan.FromMilliseconds(50));
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area, areaB)).Failure);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), areaB, Area)).Failure);
+            Assert.Contains((nint)1, source.Captured);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.None, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area, areaB)).Failure);
+            Assert.DoesNotContain((nint)1, source.Captured);
+        }
+
+        [Fact]
         public void CT70_FrameBounds_OffsetWithinPrintWindowBitmap()
         {
             // PrintWindow draws GetWindowRect, which is larger than the DWM frame by the invisible borders.

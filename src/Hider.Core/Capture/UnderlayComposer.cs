@@ -31,7 +31,8 @@ namespace Hider.Core.Capture
         public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMilliseconds(250);
 
         private readonly IWindowSource source;
-        private HashSet<nint> skipNextTime = new();
+        // Per area (keyed by its own window): a window that timed out for one area is skipped by that area's next capture only.
+        private readonly Dictionary<nint, HashSet<nint>> skipNextTime = new();
 
         public UnderlayComposer(IWindowSource _source, TimeSpan? _timeout = null)
         {
@@ -72,8 +73,9 @@ namespace Hider.Core.Capture
             pixels.Slice(0, area.Width * area.Height * 4).Clear();
             var covered = new bool[area.Width * area.Height];
             int remaining = covered.Length;
-            var skip = skipNextTime;
-            skipNextTime = new HashSet<nint>();
+            nint owner = _request.ExcludeWindows.Count > 0 ? _request.ExcludeWindows[0] : 0;
+            var skip = skipNextTime.Remove(owner, out var pendingSkips) ? pendingSkips : new HashSet<nint>();
+            var skipLater = new HashSet<nint>();
             var captured = new List<nint>();
             var failure = CaptureFailure.None;
 
@@ -97,7 +99,7 @@ namespace Hider.Core.Capture
                 captured.Add(w.Handle);
                 if (image.Failure == CaptureFailure.Timeout)
                 {
-                    skipNextTime.Add(w.Handle);
+                    skipLater.Add(w.Handle);
                     failure = CaptureFailure.Timeout;
                     break;
                 }
@@ -109,6 +111,10 @@ namespace Hider.Core.Capture
                 remaining -= CopyUncovered(image.Image, w.WindowRect, part, area, pixels, covered);
             }
             LastCaptured = captured;
+            if (skipLater.Count > 0)
+            {
+                skipNextTime[owner] = skipLater;
+            }
             return failure == CaptureFailure.None ? new CaptureResult(frame, CaptureFailure.None) : CaptureResult.Failed(failure);
         }
 
