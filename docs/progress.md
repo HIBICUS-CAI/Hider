@@ -243,3 +243,66 @@ docs/manual-tests.md の PT-01〜08（Windows 11）と、Ubuntu の PT-02 / 03 /
 ### 8. 次 Step の前提
 
 Step 4（モザイクパイプラインと描画）へ。S-3 の CPU 結果（P-1）を反映してセル単位評価とキャッシュを入れる。
+
+## Step 4: モザイクパイプラインと描画（2026-10-11）
+
+### 1. 結果
+
+完了（GPU 経路の実測のみ人間待ち）。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| ゴールデン緑 | 達成 | https://github.com/HIBICUS-CAI/Hider/actions/runs/38164936834 （win-x64 / linux-x64 / linux-arm64 の 3 ランナーで、作業コンテナ（linux-x64）で作ったゴールデン 4 枚が許容値 1 / 2 以内で一致） |
+| GPU / CPU 両パスで同一出力（許容誤差内） | CPU 側達成、GPU は人間待ち | GT-21: Presenter のオフスクリーン経路（headless の Skia = CPU）と Core の直接描画が差 1/255 以内。GPU は spikes/S-3 `--window` で max diff を出す（人間待ち） |
+| S-3 の実測値を docs/perf.md に記録 | 達成（CPU） | docs/perf.md（S-3 の 3 ランナー値、CT-58 の 1080p パイプライン全体） |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| 27e76e8 | 取得の契約（IUnderlayCapture、FrameBuffer、FrameExchange） |
+| 880141b | MosaicPipeline 本体（前段ぼかし・ピラミッド・セル単位評価・色数）と GeneratedCache（pending: P-1） |
+| e4e5767 / cc58c51 | pixelate / block の本実装 |
+| 804ac67 / 49372b2 | 合成画像・ゴールデン比較の基盤、CT-41〜60 とゴールデン 4 枚 |
+| a6d0764 | 取得の配線（RefreshScheduler → 取得 → ダブルバッファ、FR-52 の切替） |
+| 71c6d1b | MosaicPresenter（pending: P-1） |
+| 180a008 | GT-21〜25 |
+| 8a489fe | docs/perf.md |
+
+新規依存なし。全コミットが単体でビルドできることを確認済み。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 76 / 0 / 0 | 31 / 0 / 0 |
+| linux-x64 | 76 / 0 / 0 | 31 / 0 / 0 |
+| linux-arm64 | 76 / 0 / 0 | 31 / 0 / 0 |
+
+追加: CT-41〜49、CT-51〜60、GT-21〜25。ゴールデン: CT42_pixelate_block12、CT48_blur_r8、CT49_blur8_pixelate12、CT51_block_seed1234（作業コンテナの CPU ラスタで生成し目視確認）。
+
+### 5. 性能
+
+1080p の CPU ラスタ（作業コンテナ）: ピクセル化 51.0 ms（うちテスト側 13.8 ms）、前段ぼかし 8 + ピクセル化 89.5 ms、生成ブロック 34.8 ms、目地付き 42.0 ms。支配項はピラミッド作成。詳細は docs/perf.md。
+
+### 6. 提案
+
+なし（P-1 を実装し `pending: P-1` を付けた）。判断メモ:
+
+- 色数は SkSL の色フィルタではなく Skia の表フィルタ（floor(c·L)/(L−1)）: CPU で 2 倍速く、GPU でも同じ結果。設計書 §4.2 の「SkSL ColorFilter」から変えたが、式は同じ。
+- 追加ぼかしの半径 r は sigma = r / 2 とした（見た目の広がりが r 程度になる）。
+- 生成パターンのハッシュは sin を使わない形にした（GPU / CPU で結果がずれにくい）。seed は 65536 の剰余を float で渡す。
+- 目地付きブロックは目地を矩形で塗ることでセル単位評価のまま描く（ICellMethod.DrawJoints）。全画素評価では 1080p で 579 ms だった。
+- 取得結果はキャプチャを実行したスレッドで Back に複写して Publish し、UI には再描画だけを投げる（UI スレッドで複写しない）。描画は FrameExchange.Read の中で SKImage.FromPixels により複写なしで参照する。
+- 最初のフレームが届く前のモザイクエリアは生成パターンで覆う（NFR-05）。
+- 「取得できません」表示時はツールバーが広がる分だけ窓も広げる（Xvfb の確認で見つけた表示崩れを修正）。
+
+### 7. 人間への依頼
+
+spikes/S-3 の `--window`（Windows 11 と Ubuntu 26.04）: GPU 経路の 1 フレーム時間と CPU 結果との最大差。
+
+### 8. 次 Step の前提
+
+Step 5（Windows 取得・ライブ更新・設定ポップアップ）へ。S-4（PrintWindow の黒判定）は人間待ちのため P-3 で仮通過し、UnderlayComposer は偽の窓リストで検証する。
