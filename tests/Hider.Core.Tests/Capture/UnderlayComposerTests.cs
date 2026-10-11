@@ -176,5 +176,25 @@ namespace Hider.Core.Tests.Capture
             Assert.Equal(Blue, At(f, 8, 50));      // x = 108: first frame column
             Assert.Equal(Blue, At(f, 8, 0));
         }
+    
+        [Fact]
+        public void PixelsNoWindowCovers_AreOpaqueBlack_AlsoWhenTheBufferIsReused()
+        {
+            // A gap between monitors: no window there. The frame is drawn with BlendMode.Src, so it must stay opaque.
+            var source = new FakeWindowSource()
+                .Add(Area, new PhysicalRect(0, 0, 10, 10), (9, 9, 9), "Hider")
+                .Add(1, new PhysicalRect(100, 100, 50, 100), Red);
+            var composer = new UnderlayComposer(source);
+            var big = composer.Compose(Request(new PhysicalRect(100, 100, 100, 100)));
+            Assert.Equal(CaptureFailure.None, big.Failure);
+            Assert.Equal(Red, At(big.Frame!, 10, 10));
+            int gap = 10 * big.Frame!.Stride + 70 * 4;
+            Assert.Equal(new byte[] { 0, 0, 0, 255 }, big.Frame.Bgra.Span.Slice(gap, 4).ToArray());
+
+            // A smaller area after a bigger one reuses the coverage buffer: nothing of the first call leaks in.
+            var small = composer.Compose(Request(new PhysicalRect(140, 100, 40, 40)));
+            Assert.Equal(Red, At(small.Frame!, 5, 5));
+            Assert.Equal(new byte[] { 0, 0, 0, 255 }, small.Frame!.Bgra.Span.Slice(5 * small.Frame.Stride + 20 * 4, 4).ToArray());
+        }
     }
 }

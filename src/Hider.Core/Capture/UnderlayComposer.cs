@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Hider.Core.Model;
 
 namespace Hider.Core.Capture
@@ -33,6 +34,9 @@ namespace Hider.Core.Capture
         private readonly IWindowSource source;
         // Per area (keyed by its own window): a window that timed out for one area is skipped by that area's next capture only.
         private readonly Dictionary<nint, HashSet<nint>> skipNextTime = new();
+        // Reused between calls (callers serialise Compose): an 800 x 600 area would otherwise put 480 KB on the large object
+        // heap ten times a second.
+        private bool[] coveredBuffer = Array.Empty<bool>();
 
         public UnderlayComposer(IWindowSource _source, TimeSpan? _timeout = null)
         {
@@ -70,9 +74,16 @@ namespace Hider.Core.Capture
             var frame = _target ?? new FrameBuffer();
             frame.Resize(area.Width, area.Height);
             var pixels = frame.Bgra.Span;
-            pixels.Slice(0, area.Width * area.Height * 4).Clear();
-            var covered = new bool[area.Width * area.Height];
-            int remaining = covered.Length;
+            int count = checked(area.Width * area.Height);
+            // Opaque black where no window is (gaps between monitors): the frame is drawn with BlendMode.Src.
+            MemoryMarshal.Cast<byte, uint>(pixels.Slice(0, count * 4)).Fill(0xFF000000);
+            if (coveredBuffer.Length < count)
+            {
+                coveredBuffer = new bool[count];
+            }
+            var covered = coveredBuffer.AsSpan(0, count);
+            covered.Clear();
+            int remaining = count;
             nint owner = _request.ExcludeWindows.Count > 0 ? _request.ExcludeWindows[0] : 0;
             var skip = skipNextTime.Remove(owner, out var pendingSkips) ? pendingSkips : new HashSet<nint>();
             var skipLater = new HashSet<nint>();
@@ -148,7 +159,7 @@ namespace Hider.Core.Capture
             return -1;
         }
 
-        private static bool HasUncovered(bool[] _covered, PhysicalRect _area, PhysicalRect _part)
+        private static bool HasUncovered(ReadOnlySpan<bool> _covered, PhysicalRect _area, PhysicalRect _part)
         {
             for (int y = _part.Y; y < _part.Bottom; y++)
             {
@@ -165,7 +176,7 @@ namespace Hider.Core.Capture
         }
 
         /// <summary>Copies the window's pixels of <paramref name="_part"/> that nothing above has covered; returns how many.</summary>
-        private static int CopyUncovered(FrameBuffer _image, PhysicalRect _windowRect, PhysicalRect _part, PhysicalRect _area, Span<byte> _dst, bool[] _covered)
+        private static int CopyUncovered(FrameBuffer _image, PhysicalRect _windowRect, PhysicalRect _part, PhysicalRect _area, Span<byte> _dst, Span<bool> _covered)
         {
             int copied = 0;
             var src = _image.Bgra.Span;
