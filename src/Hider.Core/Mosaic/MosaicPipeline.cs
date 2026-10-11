@@ -65,6 +65,10 @@ namespace Hider.Core.Mosaic
         public void Draw(SKCanvas _canvas, SKRect _dst, MosaicInputs _inputs, IMosaicMethod _method, ParamValues _p, int _levels)
         {
             int w = Math.Max(1, _inputs.AreaSize.Width), h = Math.Max(1, _inputs.AreaSize.Height);
+            if (_canvas.Context is null && _method is ICpuRenderer cpu && DrawOnCpu(_canvas, _dst, _inputs, cpu, _p, _levels, w, h))
+            {
+                return;
+            }
             using var shader = _method.CreateShader(_inputs, _p);
             using var paint = new SKPaint { Shader = shader, ColorFilter = LevelFilter(_levels), BlendMode = SKBlendMode.Src };
             var cellMethod = _method as ICellMethod;
@@ -93,6 +97,26 @@ namespace Hider.Core.Mosaic
                 cellMethod!.DrawJoints(_canvas, new SKSizeI(w, h), cell, _p);
             }
             _canvas.Restore();
+        }
+
+        private bool DrawOnCpu(SKCanvas _canvas, SKRect _dst, MosaicInputs _inputs, ICpuRenderer _cpu, ParamValues _p, int _levels, int _w, int _h)
+        {
+            using var bitmap = new SKBitmap(new SKImageInfo(_w, _h, SKColorType.Bgra8888, SKAlphaType.Premul));
+            using (var pixmap = bitmap.PeekPixels())
+            {
+                if (!_cpu.TryRender(pixmap, _inputs, _p))
+                {
+                    return false;
+                }
+            }
+            bitmap.NotifyPixelsChanged();
+            using var image = SKImage.FromBitmap(bitmap);
+            using var paint = new SKPaint { ColorFilter = LevelFilter(_levels), BlendMode = SKBlendMode.Src };
+            _canvas.Save();
+            _canvas.ClipRect(_dst);
+            _canvas.DrawImage(image, _dst, new SKSamplingOptions(SKFilterMode.Nearest), paint);
+            _canvas.Restore();
+            return true;
         }
 
         /// <summary>
