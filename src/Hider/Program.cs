@@ -18,7 +18,9 @@ namespace Hider
             }
             if (_args.Contains("--selftest"))
             {
-                return SelfTest.Run(Console.Out);
+                int core = SelfTest.Run(Console.Out);
+                int platform = PlatformSelfTest.Run(Console.Out);
+                return core != 0 || platform != 0 ? 1 : 0;
             }
             Log.Enabled = _args.Contains("--verbose");
 
