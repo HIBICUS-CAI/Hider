@@ -1,0 +1,14 @@
+// block (generated): cells of `cellSize` px colored around `baseColor` (Step 2 stub; hashing and gaps come in Step 4).
+// uniforms: cellSize (px), variance (0..1), gap (px), areaSize (px), areaOrigin (px, unused), baseColor (rgb 0..1), seed
+// children: none
+uniform float cellSize;
+uniform float variance;
+uniform float gap;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform float3 baseColor;
+uniform float seed;
+
+half4 main(float2 p) {
+    return half4(half3(baseColor), 1);
+}

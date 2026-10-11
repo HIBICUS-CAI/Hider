@@ -1,0 +1,13 @@
+// pixelate: square cells of `block` px aligned to the area origin (Step 2 stub; the pyramid sampling comes in Step 4).
+// uniforms: block (effective size, px), areaSize (px), areaOrigin (px, unused: cells follow the area, not the screen)
+// children: src (captured image in area pixel coordinates)
+uniform float block;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform shader src;
+
+half4 main(float2 p) {
+    float2 cell0 = floor(p / block) * block;
+    float2 cell1 = min(cell0 + block, areaSize);
+    return src.eval((cell0 + cell1) * 0.5);
+}
