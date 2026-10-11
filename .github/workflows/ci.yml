@@ -1,0 +1,176 @@
+name: CI (manual)
+
+# Manual only (GitHub Actions tab): never add push / pull_request / schedule triggers.
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Build / test targets"
+        type: choice
+        default: all
+        options: [all, win-x64, linux-x64, linux-arm64]
+      run_gui_tests:
+        description: "Run Avalonia headless GUI tests"
+        type: boolean
+        default: true
+      publish:
+        description: "Publish self-contained builds and run --selftest"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  AVALONIA_TELEMETRY_OPTOUT: 1
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      linux_matrix: ${{ steps.set.outputs.linux_matrix }}
+      has_linux: ${{ steps.set.outputs.has_linux }}
+    steps:
+      - id: set
+        shell: bash
+        run: |
+          all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
+          t='${{ inputs.targets }}'
+          if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
+          lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')
+          echo "matrix=$m" >> "$GITHUB_OUTPUT"
+          echo "linux_matrix=$lm" >> "$GITHUB_OUTPUT"
+          echo "has_linux=$(echo "$lm" | jq 'length > 0')" >> "$GITHUB_OUTPUT"
+
+  test-core:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore --locked-mode
+      - run: dotnet build -c Release --no-restore -warnaserror
+      - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-core-${{ matrix.rid }}
+          path: TestResults/**
+          retention-days: 14
+
+  test-gui:
+    if: ${{ inputs.run_gui_tests }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore --locked-mode
+      - run: dotnet build -c Release --no-restore -warnaserror
+      - run: dotnet test tests/Hider.App.Tests -c Release --no-build --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-gui-${{ matrix.rid }}
+          path: TestResults/**
+          retention-days: 14
+
+  native:
+    if: ${{ needs.plan.outputs.has_linux == 'true' }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.linux_matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+      - run: make -C native/hidercap RID=${{ matrix.rid }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hidercap-${{ matrix.rid }}
+          path: native/hidercap/out/${{ matrix.rid }}/libhidercap.so
+          retention-days: 14
+
+  publish:
+    if: ${{ inputs.publish }}
+    needs: [plan, test-core]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - if: ${{ startsWith(matrix.rid, 'linux') }}
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+      - run: python scripts/build.py ${{ matrix.rid }}
+      - name: Self test on the trimmed binary
+        shell: bash
+        run: |
+          exe="bin/publish/${{ matrix.rid }}/Hider"
+          [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
+          "$exe" --version
+          "$exe" --selftest
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Hider-${{ matrix.rid }}
+          path: bin/publish/${{ matrix.rid }}/
+          retention-days: 14
+
+  summary:
+    if: always()
+    needs: [plan, test-core, test-gui, native, publish]
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: bash
+        run: |
+          {
+            echo "| job | result |"
+            echo "|---|---|"
+            echo "| test-core | ${{ needs.test-core.result }} |"
+            echo "| test-gui | ${{ needs.test-gui.result }} |"
+            echo "| native | ${{ needs.native.result }} |"
+            echo "| publish | ${{ needs.publish.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
