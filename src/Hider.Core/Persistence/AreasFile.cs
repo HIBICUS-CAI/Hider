@@ -1,0 +1,194 @@
+using System.Text.Json;
+using Hider.Core.Model;
+using Hider.Core.Mosaic;
+
+namespace Hider.Core.Persistence
+{
+    public enum LoadStatus
+    {
+        Loaded,
+        Missing,
+        Broken,
+    }
+
+    /// <summary>Reads and writes areas.json (FR-60 .. FR-65).</summary>
+    public static class AreasFile
+    {
+        /// <summary>
+        /// Loads the state. A missing file gives an empty state (<see cref="LoadStatus.Missing"/>). A file that cannot be read
+        /// as version 1 is renamed to &lt;path&gt;.broken and an empty state is returned (<see cref="LoadStatus.Broken"/>, FR-64).
+        /// Missing values are filled with defaults and invalid ones replaced (see <see cref="Normalize"/>).
+        /// </summary>
+        public static AppState Load(string _path, out LoadStatus _status)
+        {
+            if (!File.Exists(_path))
+            {
+                _status = LoadStatus.Missing;
+                return new AppState();
+            }
+            AppState? state = null;
+            try
+            {
+                state = JsonSerializer.Deserialize(File.ReadAllText(_path), HiderJsonContext.Default.AppState);
+            }
+            catch (Exception e) when (e is JsonException or IOException or NotSupportedException or ArgumentException)
+            {
+                state = null;
+            }
+            if (state is null || state.Version != AppState.CurrentVersion || state.Areas is null)
+            {
+                MoveAside(_path);
+                _status = LoadStatus.Broken;
+                return new AppState();
+            }
+            Normalize(state);
+            _status = LoadStatus.Loaded;
+            return state;
+        }
+
+        /// <summary>Writes &lt;path&gt;.tmp and renames it over the file (FR-62). The existing file is untouched on failure.</summary>
+        public static void Save(string _path, AppState _state)
+        {
+            string? dir = Path.GetDirectoryName(Path.GetFullPath(_path));
+            if (dir is not null)
+            {
+                Directory.CreateDirectory(dir);
+            }
+            string tmp = _path + ".tmp";
+            try
+            {
+                byte[] json = JsonSerializer.SerializeToUtf8Bytes(_state, HiderJsonContext.Default.AppState);
+                using (var stream = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    stream.Write(json);
+                    stream.Flush(true);
+                }
+                File.Move(tmp, _path, overwrite: true);
+            }
+            catch
+            {
+                TryDelete(tmp);
+                throw;
+            }
+        }
+
+        public static string ToJson(AppState _state)
+        {
+            return JsonSerializer.Serialize(_state, HiderJsonContext.Default.AppState);
+        }
+
+        public static AppState? FromJson(string _json)
+        {
+            return JsonSerializer.Deserialize(_json, HiderJsonContext.Default.AppState);
+        }
+
+        /// <summary>
+        /// Repairs a loaded state: duplicate or malformed ids are replaced, colors that are not "#RRGGBB" fall back to the
+        /// default, opacity is clamped, sizes below the minimum are raised, and every registered method gets all of its
+        /// parameters (missing ones = default). Parameters of unknown method ids are kept as they are (§3.4).
+        /// </summary>
+        public static void Normalize(AppState _state)
+        {
+            var ids = new HashSet<string>();
+            foreach (var area in _state.Areas)
+            {
+                if (!AreaId.IsValid(area.Id) || !ids.Add(area.Id))
+                {
+                    area.Id = AreaId.New(ids.Contains);
+                    ids.Add(area.Id);
+                }
+                area.Opacity = double.IsNaN(area.Opacity) ? 1.0 : Math.Clamp(area.Opacity, 0.0, 1.0);
+                area.Width = double.IsFinite(area.Width) ? Math.Max(area.Width, AreaDefaults.MinSizeDip) : AreaDefaults.NewAreaWidthDip;
+                area.Height = double.IsFinite(area.Height) ? Math.Max(area.Height, AreaDefaults.MinSizeDip) : AreaDefaults.NewAreaHeightDip;
+                area.Fill ??= new FillSettings();
+                area.Fill.Color = ColorText.OrDefault(area.Fill.Color);
+                area.Mosaic ??= new MethodSettings<MosaicCommon> { Method = AreaDefaults.MosaicMethod };
+                area.Generated ??= new MethodSettings<GeneratedCommon> { Method = AreaDefaults.GeneratedMethod };
+                area.Mosaic.Common ??= new MosaicCommon();
+                area.Mosaic.Params ??= new Dictionary<string, Dictionary<string, double>>();
+                area.Generated.Common ??= new GeneratedCommon();
+                area.Generated.Params ??= new Dictionary<string, Dictionary<string, double>>();
+                area.Generated.Common.BaseColor = ColorText.OrDefault(area.Generated.Common.BaseColor);
+                if (string.IsNullOrEmpty(area.Mosaic.Method))
+                {
+                    area.Mosaic.Method = AreaDefaults.MosaicMethod;
+                }
+                if (string.IsNullOrEmpty(area.Generated.Method))
+                {
+                    area.Generated.Method = AreaDefaults.GeneratedMethod;
+                }
+                NormalizeMosaicCommon(area.Mosaic.Common);
+                FillDefaults(area.Mosaic.Params, MethodKind.Mosaic);
+                FillDefaults(area.Generated.Params, MethodKind.Generated);
+            }
+        }
+
+        /// <summary>Adds every registered method of a kind with all its parameters; missing values become defaults.</summary>
+        public static void FillDefaults(Dictionary<string, Dictionary<string, double>> _params, MethodKind _kind)
+        {
+            foreach (var method in MethodRegistry.OfKind(_kind))
+            {
+                if (!_params.TryGetValue(method.Id, out var values) || values is null)
+                {
+                    values = new Dictionary<string, double>();
+                    _params[method.Id] = values;
+                }
+                foreach (var spec in method.Params)
+                {
+                    values[spec.Key] = values.TryGetValue(spec.Key, out double v) ? spec.Clamp(v) : spec.Default;
+                }
+            }
+        }
+
+        private static void NormalizeMosaicCommon(MosaicCommon _common)
+        {
+            foreach (var spec in CommonParams.Mosaic)
+            {
+                switch (spec.Key)
+                {
+                    case CommonParams.Blur:
+                        _common.Blur = spec.Clamp(_common.Blur);
+                        break;
+                    case CommonParams.Levels:
+                        _common.Levels = (int)spec.Clamp(_common.Levels);
+                        break;
+                    case CommonParams.IntervalMs:
+                        _common.IntervalMs = (int)spec.Clamp(_common.IntervalMs);
+                        break;
+                    case CommonParams.StripPx:
+                        _common.StripPx = (int)spec.Clamp(_common.StripPx);
+                        break;
+                }
+            }
+        }
+
+        private static void MoveAside(string _path)
+        {
+            try
+            {
+                File.Move(_path, _path + ".broken", overwrite: true);
+            }
+            catch (IOException)
+            {
+                // Keep starting with an empty state even if the broken file cannot be renamed.
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        private static void TryDelete(string _path)
+        {
+            try
+            {
+                File.Delete(_path);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+}
