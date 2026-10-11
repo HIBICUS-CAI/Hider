@@ -1,0 +1,18 @@
+<Canvas xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:areas="using:Hider.Areas"
+        x:Class="Hider.Areas.EditChrome">
+    <!-- Design canvas 3: 2 px accent frame with a 1 px white outline outside and inside, 8 handles, toolbar. -->
+    <Border x:Name="OuterOutline" BorderBrush="#FFFFFF" BorderThickness="1" IsHitTestVisible="False" />
+    <Border x:Name="Frame" BorderBrush="#4C9AFF" BorderThickness="2" IsHitTestVisible="False" />
+    <Border x:Name="InnerOutline" BorderBrush="#FFFFFF" BorderThickness="1" IsHitTestVisible="False" />
+    <Border x:Name="HandleTopLeft" Classes="handle" Cursor="TopLeftCorner"><Border /></Border>
+    <Border x:Name="HandleTop" Classes="handle" Cursor="TopSide"><Border /></Border>
+    <Border x:Name="HandleTopRight" Classes="handle" Cursor="TopRightCorner"><Border /></Border>
+    <Border x:Name="HandleLeft" Classes="handle" Cursor="LeftSide"><Border /></Border>
+    <Border x:Name="HandleRight" Classes="handle" Cursor="RightSide"><Border /></Border>
+    <Border x:Name="HandleBottomLeft" Classes="handle" Cursor="BottomLeftCorner"><Border /></Border>
+    <Border x:Name="HandleBottom" Classes="handle" Cursor="BottomSide"><Border /></Border>
+    <Border x:Name="HandleBottomRight" Classes="handle" Cursor="BottomRightCorner"><Border /></Border>
+    <areas:EditToolbar x:Name="Toolbar" />
+</Canvas>
