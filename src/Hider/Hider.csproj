@@ -36,6 +36,15 @@
     <None Update="Assets/hider.svg" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('linux-'))">
+    <!-- PipeWire helper built by scripts/build.py (make -C native/hidercap). Optional: without it the Linux grabber
+         falls back to the Screenshot portal (D-6). Loaded from next to the executable. -->
+    <None Include="../../native/hidercap/out/$(RuntimeIdentifier)/libhidercap.so"
+          Condition="Exists('../../native/hidercap/out/$(RuntimeIdentifier)/libhidercap.so')"
+          Link="libhidercap.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Hider.App.Tests" />
   </ItemGroup>

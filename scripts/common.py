@@ -2,6 +2,7 @@ import os, platform
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_FILE = os.path.join(ROOT_DIR, 'src', 'Hider', 'Hider.csproj')
+NATIVE_HELPER_DIR = os.path.join(ROOT_DIR, 'native', 'hidercap')
 TARGETS = ['win-x64', 'linux-x64', 'linux-arm64']
 
 
