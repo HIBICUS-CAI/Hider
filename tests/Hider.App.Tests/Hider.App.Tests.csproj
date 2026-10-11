@@ -26,6 +26,7 @@
   <ItemGroup>
     <!-- Fakes live in Hider.Core.Tests/Fakes and are shared by linking the sources (a test exe cannot reference another). -->
     <Compile Include="../Hider.Core.Tests/Fakes/**/*.cs" Link="Fakes/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Hider.Core.Tests/Imaging/**/*.cs" Link="Imaging/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
