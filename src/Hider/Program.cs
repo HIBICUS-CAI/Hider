@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Hider.Core;
 
 namespace Hider
 {
@@ -8,6 +9,17 @@ namespace Hider
         [STAThread]
         public static int Main(string[] _args)
         {
+            // Command line switches are handled before Avalonia starts so that they work without a display.
+            if (_args.Contains("--version"))
+            {
+                Console.WriteLine($"Hider {AppInfo.Version}");
+                return 0;
+            }
+            if (_args.Contains("--selftest"))
+            {
+                return SelfTest.Run(Console.Out);
+            }
+
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(_args, ShutdownMode.OnExplicitShutdown);
         }
 
