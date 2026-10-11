@@ -1,0 +1,41 @@
+# Windows capture and drawing under load: two mosaic areas refreshed every 100 ms and one generated area, run for a while
+# with a small gen-0 budget so finalizers run often. Passes when Hider is still running and captured repeatedly.
+# Exercises the GPU path where Avalonia renders through ANGLE (on CI runners: WARP, the software D3D11 device).
+#   pwsh scripts/windows-stress.ps1 [-Exe bin/publish/win-x64/Hider.exe] [-Seconds 60]
+param(
+    [string]$Exe = "bin/publish/win-x64/Hider.exe",
+    [int]$Seconds = 60
+)
+$ErrorActionPreference = 'Stop'
+$work = Join-Path ([IO.Path]::GetTempPath()) ("hider-stress-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path (Join-Path $work '.hider') | Out-Null
+@'
+{ "version": 1, "areas": [
+  { "id": "0f3b8d2e", "x": 100, "y": 100, "width": 400, "height": 240, "opacity": 1.0, "pattern": "mosaic",
+    "mosaic": { "method": "hexcell", "common": { "intervalMs": 100, "blur": 4 }, "params": { "hexcell": { "radius": 10 } } } },
+  { "id": "1a2b3c4d", "x": 550, "y": 100, "width": 400, "height": 240, "opacity": 1.0, "pattern": "mosaic",
+    "mosaic": { "method": "pixelate", "common": { "intervalMs": 100, "levels": 8 }, "params": { "pixelate": { "block": 12 } } } },
+  { "id": "2b3c4d5e", "x": 100, "y": 400, "width": 300, "height": 200, "opacity": 0.8, "pattern": "pattern",
+    "generated": { "method": "noise", "common": { "baseColor": "#68768A", "seed": 7 }, "params": { "noise": { "scale": 4, "levels": 6 } } } }
+] }
+'@ | Set-Content -Path (Join-Path $work '.hider/areas.json') -Encoding utf8
+
+$env:USERPROFILE = $work
+$env:DOTNET_GCgen0size = '0x100000'
+$log = Join-Path $work 'hider.log'
+$process = Start-Process -FilePath (Resolve-Path $Exe) -ArgumentList '--verbose' -RedirectStandardError $log `
+    -RedirectStandardOutput (Join-Path $work 'out.log') -PassThru
+Start-Sleep -Seconds $Seconds
+$alive = -not $process.HasExited
+$captures = @(Select-String -Path $log -Pattern ' capture \d+x\d+: None').Count
+if ($alive) {
+    Stop-Process -Id $process.Id -Force
+} else {
+    Write-Host "Hider exited with code $($process.ExitCode)"
+}
+Write-Host "alive after $Seconds s: $alive, successful captures: $captures"
+Get-Content $log -Tail 15
+if (-not $alive -or $captures -lt 50) {
+    exit 1
+}
+Write-Host "windows stress: passed"
