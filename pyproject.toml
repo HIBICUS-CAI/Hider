@@ -1,0 +1,22 @@
+# Tool settings for scripts/ (standard library only; nothing to install to run them).
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["scripts"]
+mypy_path = "scripts"
+
+[tool.pyright]
+include = ["scripts"]
+extraPaths = ["scripts"]
+pythonVersion = "3.10"
+typeCheckingMode = "strict"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+src = ["scripts"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear, pathlib, naming, simplify, ruff's own; one import per line (E401).
+select = ["E", "W", "F", "I", "UP", "B", "PTH", "N", "SIM", "RUF"]

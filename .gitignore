@@ -17,6 +17,9 @@ BenchmarkDotNet.Artifacts/
 
 # Python
 __pycache__/
+.venv/
+.mypy_cache/
+.ruff_cache/
 
 # Spike native build output
 spikes/**/out/
