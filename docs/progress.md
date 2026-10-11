@@ -370,7 +370,7 @@ Step 6（hexcell / blur / noise）へ。
 
 ### 1. 結果
 
-完了（CI は下記の実行で確認）。
+完了。CI: https://github.com/HIBICUS-CAI/Hider/actions/runs/38167416443 （3 ランナーで全テスト・ゴールデン・CPU 経路とシェーダの一致が緑）。
 
 ### 2. 完了条件の達成表
 
@@ -416,7 +416,9 @@ CT-78（手法 1 つの追加で触ったファイル）:
 
 | OS | Core pass / fail / skip | GUI pass / fail / skip |
 |---|---|---|
-| 作業コンテナ（linux-x64） | 115 / 0 / 0 | 44 / 0 / 0 |
+| win-x64 | 115 / 0 / 0 | 44 / 0 / 0 |
+| linux-x64 | 115 / 0 / 0 | 44 / 0 / 0 |
+| linux-arm64 | 115 / 0 / 0 | 44 / 0 / 0 |
 
 追加: CT-71〜77、素通し・CPU 経路とシェーダの一致（MethodConsistencyTests）、RasterSampler と Skia の差 1 以内、全手法の選択・描画・保存。ゴールデン: CT71_hexcell_radius10（作業コンテナの CPU ラスタで生成し目視確認）。
 
