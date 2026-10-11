@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 
@@ -20,6 +21,7 @@ namespace Hider.Core.Mosaic.Methods
         };
 
         /// <summary>noise.sksl in C#: the lattice hashes once per node, then the same interpolation and steps per pixel.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)] // a per-pixel loop called a few times: skip tier-0 code
         public bool TryRender(SKPixmap _dst, MosaicInputs _inputs, ParamValues _p)
         {
             float step = (float)UniformValue("scale", _p) * 4f;

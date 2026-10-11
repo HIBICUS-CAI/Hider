@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 
@@ -52,6 +53,7 @@ namespace Hider.Core.Mosaic.Methods
         }
 
         /// <summary>The shader's rule with one sample per hexagon (a run of pixels in a row shares it).</summary>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)] // a per-pixel loop called a few times: skip tier-0 code
         public bool TryRender(SKPixmap _dst, MosaicInputs _inputs, ParamValues _p)
         {
             float radius = (float)_p.Effective("radius");
