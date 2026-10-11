@@ -130,6 +130,18 @@ namespace Hider.Core.Tests.Persistence
             Assert.Equal(LoadStatus.Broken, status);
         }
 
+        [Theory]
+        [InlineData("[null]")]
+        [InlineData("[{ \"id\": \"0f3b8d2e\" }, null]")]
+        public void CT26_NullArea_IsBroken(string _areas)
+        {
+            File.WriteAllText(FilePath, $"{{ \"version\": 1, \"areas\": {_areas} }}");
+            var state = AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Broken, status);
+            Assert.Empty(state.Areas);
+            Assert.True(File.Exists(FilePath + ".broken"));
+        }
+
         [Fact]
         public void CT26_InvalidJson_RenamedAndEmpty()
         {

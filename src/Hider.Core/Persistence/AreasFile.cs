@@ -51,7 +51,8 @@ namespace Hider.Core.Persistence
             {
                 state = null;
             }
-            if (state is null || state.Version != AppState.CurrentVersion || state.Areas is null)
+            // A null element deserialises fine (nullable annotations are not checked inside collections) but is no area.
+            if (state is null || state.Version != AppState.CurrentVersion || state.Areas is null || state.Areas.Contains(null!))
             {
                 _status = MoveAside(_path) ? LoadStatus.Broken : LoadStatus.Unreadable;
                 return new AppState();
