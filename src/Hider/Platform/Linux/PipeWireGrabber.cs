@@ -159,7 +159,7 @@ namespace Hider.Platform.Linux
             if (session is not null && !disposed)
             {
                 idle?.Dispose();
-                idle = time.CreateTimer(_ => _ = CloseIdleAsync(), null, IdleClose, Timeout.InfiniteTimeSpan);
+                idle = time.CreateTimer(_ => CloseIdleAsync().Forget("screencast: idle close"), null, IdleClose, Timeout.InfiniteTimeSpan);
             }
         }
 

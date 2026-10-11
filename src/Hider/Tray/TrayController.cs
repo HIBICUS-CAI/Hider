@@ -35,7 +35,7 @@ namespace Hider.Tray
             Update();
             if (_trayAvailable is not null)
             {
-                _ = ShowFallbackUnlessTrayAsync(_trayAvailable);
+                ShowFallbackUnlessTrayAsync(_trayAvailable).Forget("tray: probing for a StatusNotifierWatcher");
             }
         }
 
@@ -51,7 +51,7 @@ namespace Hider.Tray
                 return;
             }
             fallback = new TrayFallbackWindow();
-            fallback.CommandSelected += c => _ = ExecuteAsync(c);
+            fallback.CommandSelected += c => ExecuteAsync(c).Forget($"tray: {c}");
             Update();
             fallback.Show();
         }
@@ -74,7 +74,7 @@ namespace Hider.Tray
                 }
                 var native = new NativeMenuItem(item.Label) { IsEnabled = item.IsEnabled };
                 var command = item.Command;
-                native.Click += (_, _) => _ = ExecuteAsync(command);
+                native.Click += (_, _) => ExecuteAsync(command).Forget($"tray: {command}");
                 menu.Items.Add(native);
             }
             icon.ToolTipText = ToolTip;
@@ -129,7 +129,7 @@ namespace Hider.Tray
             var window = new TrayPopupWindow();
             popup = window;
             window.SetItems(Items);
-            window.CommandSelected += c => _ = ExecuteAsync(c);
+            window.CommandSelected += c => ExecuteAsync(c).Forget($"tray: {c}");
             if (_cursor is { } cursor)
             {
                 // The window's size is in DIP: convert it with the cursor monitor's scale before placing it in physical px.
