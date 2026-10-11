@@ -7,6 +7,11 @@ namespace Hider.Areas
     {
         IScreenService Screens { get; }
 
+        AreaServices Services { get; }
+
+        /// <summary>Native handles of every Hider window (left out of captures).</summary>
+        IReadOnlyList<nint> OwnWindows { get; }
+
         /// <summary>Saves now: add, delete, pattern change, drag end, edit end (FR-61).</summary>
         void SaveNow();
 

@@ -1,4 +1,5 @@
 using Hider.Core;
+using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Mosaic;
 using Hider.Core.Persistence;
@@ -15,25 +16,17 @@ namespace Hider.Areas
         public static readonly TimeSpan SaveDebounce = TimeSpan.FromMilliseconds(500);
 
         private readonly List<AreaController> areas = new();
-        private readonly Func<AreaWindow, IAreaWindowHost> hostFactory;
         private readonly string areasPath;
-        private readonly TimeProvider time;
-        private readonly Action<Action> uiPost;
-        private readonly bool isWindows;
         private ITimer? saveTimer;
 
-        public AreaManager(IScreenService _screens, Func<AreaWindow, IAreaWindowHost> _hostFactory, string _areasPath,
-            TimeProvider _time, Action<Action> _uiPost, bool _isWindows)
+        public AreaManager(AreaServices _services)
         {
-            Screens = _screens;
-            hostFactory = _hostFactory;
-            areasPath = _areasPath;
-            time = _time;
-            uiPost = _uiPost;
-            isWindows = _isWindows;
+            Services = _services;
+            areasPath = _services.AreasPath;
         }
 
-        public IScreenService Screens { get; }
+        public AreaServices Services { get; }
+        public IScreenService Screens => Services.Screens;
         public IReadOnlyList<AreaController> Areas => areas;
         public bool AnyEditing => areas.Any(a => a.Mode == AreaMode.Editing);
 
@@ -71,7 +64,7 @@ namespace Hider.Areas
                 : Screens.Primary();
             var workArea = screen?.WorkingArea ?? new PhysicalRect(0, 0, 1920, 1080);
             double scale = screen?.Scale ?? 1.0;
-            var area = Area.CreateNew(AreaId.New(id => areas.Any(a => a.Model.Id == id)), Placement.NewArea(workArea, scale), isWindows);
+            var area = Area.CreateNew(AreaId.New(id => areas.Any(a => a.Model.Id == id)), Placement.NewArea(workArea, scale), Services.IsWindows);
             AreasFile.FillDefaults(area.Mosaic.Params, MethodKind.Mosaic);
             AreasFile.FillDefaults(area.Generated.Params, MethodKind.Generated);
             var controller = CreateController(area);
@@ -125,6 +118,9 @@ namespace Hider.Areas
             Changed?.Invoke();
         }
 
+        /// <summary>Native handles of every Hider window, left out of captures (spec §6.1).</summary>
+        public IReadOnlyList<nint> OwnWindows => areas.Select(a => a.Host.Handle).Where(h => h != 0).ToArray();
+
         public void SaveNow()
         {
             saveTimer?.Dispose();
@@ -146,12 +142,12 @@ namespace Hider.Areas
         public void SaveSoon()
         {
             saveTimer?.Dispose();
-            saveTimer = time.CreateTimer(_ => uiPost(SaveNow), null, SaveDebounce, Timeout.InfiniteTimeSpan);
+            saveTimer = Services.Time.CreateTimer(_ => Services.UiPost(SaveNow), null, SaveDebounce, Timeout.InfiniteTimeSpan);
         }
 
         private AreaController CreateController(Area _area)
         {
-            var controller = new AreaController(_area, this, hostFactory);
+            var controller = new AreaController(_area, this, Services.HostFactory);
             areas.Add(controller);
             return controller;
         }
@@ -159,6 +155,7 @@ namespace Hider.Areas
         /// <summary>Saves (FR-06) and closes every window.</summary>
         public void Dispose()
         {
+            saveTimer?.Dispose();
             SaveNow();
             foreach (var area in areas)
             {

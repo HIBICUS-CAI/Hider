@@ -1,6 +1,8 @@
 using Avalonia;
 using Hider.Core;
+using Hider.Core.Capture;
 using Hider.Core.Model;
+using Hider.Core.Scheduling;
 using Hider.Platform;
 
 namespace Hider.Areas
@@ -16,10 +18,15 @@ namespace Hider.Areas
 
         /// <summary>Edit toolbar size (design canvas 3) and its gap to the area (D-8: toolbar height + 8).</summary>
         public const double ToolbarHeightDip = 36;
-        public const double ToolbarWidthDip = 436;
         public const double ToolbarGapDip = 8;
 
+        /// <summary>The toolbar grows to show "取得できません" (FR-52); the window must be wide enough for it.</summary>
+        public double ToolbarWidthDip => CaptureFailed ? EditToolbar.WidthWithWarning : EditToolbar.NormalWidth;
+
         private readonly IAreaOwner owner;
+        private readonly RefreshScheduler scheduler;
+        private CancellationTokenSource? captureCancel;
+        private bool disposed;
         private ResizeHandle dragHandle;
         private PixelPoint dragStartPointer;
         private PhysicalRect dragStartRect;
@@ -28,9 +35,12 @@ namespace Hider.Areas
         {
             Model = _model;
             owner = _owner;
+            scheduler = new RefreshScheduler(_owner.Services.Time);
+            scheduler.Due += reason => owner.Services.UiPost(() => StartCapture(reason));
             Window = new AreaWindow();
             Window.Attach(this);
             Host = _hostFactory(Window);
+            Window.RefreshRequested += Refresh;
         }
 
         public Area Model { get; }
@@ -48,11 +58,35 @@ namespace Hider.Areas
         /// <summary>State transitions, for checking that hosts do not change behaviour (GT-38).</summary>
         public event Action<string>? Transition;
 
+        /// <summary>Latest captured underlay (double buffer shared with the presenter, work instructions §3.5).</summary>
+        public FrameExchange Frames { get; } = new();
+
+        /// <summary>The last capture failed and the area fell back to a generated pattern (FR-52).</summary>
+        public bool CaptureFailed { get; private set; }
+
         public void Show()
         {
             Layout();
             Window.Show();
             Log.Verbose($"area {Model.Id}: shown at {Model.Rect}");
+            ConfigureRefresh();
+            RequestCapture(RefreshReason.Created);
+        }
+
+        /// <summary>↻ in the toolbar: capture again now (FR-50).</summary>
+        public void Refresh()
+        {
+            RequestCapture(RefreshReason.Manual);
+        }
+
+        /// <summary>
+        /// A setting changed (FR-36): redraw from the current capture without capturing again; a new refresh interval or strip
+        /// height applies from the next timer tick (D-10).
+        /// </summary>
+        public void SettingsChanged()
+        {
+            ConfigureRefresh();
+            Window.RefreshPattern();
         }
 
         public void EnterEdit()
@@ -93,6 +127,8 @@ namespace Hider.Areas
                 return;
             }
             IsDragging = true;
+            // FR-38: a live capture (Windows) keeps following the content during the drag; others capture when it ends.
+            scheduler.TimerPaused = !owner.Services.Capture.Traits.HasFlag(CaptureTraits.Live);
             dragHandle = _handle;
             dragStartPointer = _screenPointer;
             dragStartRect = Model.Rect;
@@ -125,8 +161,10 @@ namespace Hider.Areas
                 return;
             }
             IsDragging = false;
+            scheduler.TimerPaused = false;
             Transition?.Invoke("end-drag");
             owner.SaveNow();
+            RequestCapture(RefreshReason.Committed);
         }
 
         /// <summary>Arrow keys: 1 px, Shift 10 px (FR-33). Saved 500 ms after the last key press (FR-61).</summary>
@@ -150,8 +188,14 @@ namespace Hider.Areas
             }
             Model.Pattern = _pattern;
             Transition?.Invoke($"pattern:{_pattern}");
-            Window.RefreshPattern();
+            if (_pattern == PatternKind.Mosaic)
+            {
+                CaptureFailed = false;
+            }
+            ConfigureRefresh();
+            Layout();
             owner.SaveNow();
+            RequestCapture(RefreshReason.Manual);
         }
 
         /// <summary>Delete key or 🗑: removes this area without confirmation (FR-05, FR-33).</summary>
@@ -188,8 +232,105 @@ namespace Hider.Areas
         /// <summary>Area origin inside the window, in physical pixels (0 when hidden).</summary>
         public PixelPoint AreaOffsetInWindow => new(Model.Rect.X - WindowRect.X, Model.Rect.Y - WindowRect.Y);
 
+        private void ConfigureRefresh()
+        {
+            scheduler.Configure(Model.Pattern == PatternKind.Mosaic ? Model.Mosaic.Common.IntervalMs : 0);
+        }
+
+        private void RequestCapture(RefreshReason _reason)
+        {
+            if (Model.Pattern == PatternKind.Mosaic && !disposed)
+            {
+                scheduler.Request(_reason);
+            }
+        }
+
+        /// <summary>Starts one capture off the UI thread; the scheduler merges requests that come in meanwhile.</summary>
+        private void StartCapture(RefreshReason _reason)
+        {
+            if (disposed || Model.Pattern != PatternKind.Mosaic)
+            {
+                return;
+            }
+            scheduler.BeginRun();
+            var request = new CaptureRequest(Model.Rect, owner.OwnWindows, Model.Mosaic.Common.StripPx);
+            var cancel = new CancellationTokenSource();
+            captureCancel = cancel;
+            var capture = owner.Services.Capture;
+            Task<CaptureResult> task;
+            try
+            {
+                task = owner.Services.RunCapture(() => capture.CaptureAsync(request, cancel.Token));
+            }
+            catch (Exception e)
+            {
+                task = Task.FromException<CaptureResult>(e);
+            }
+            // Runs right where the capture finished (a capture thread in the app): the frame is copied into the back buffer
+            // there, and only the UI work is posted.
+            task.ContinueWith(t =>
+            {
+                var result = t.IsCompletedSuccessfully ? t.Result : CaptureResult.Failed(t.IsCanceled ? CaptureFailure.Timeout : CaptureFailure.Unavailable);
+                bool ok = result.Failure == CaptureFailure.None && result.Frame is not null && !cancel.IsCancellationRequested;
+                if (ok)
+                {
+                    CopyToBack(result.Frame!);
+                    Frames.Publish();
+                }
+                owner.Services.UiPost(() => FinishCapture(_reason, result, ok));
+            }, TaskContinuationOptions.ExecuteSynchronously);
+        }
+
+        private void FinishCapture(RefreshReason _reason, CaptureResult _result, bool _ok)
+        {
+            try
+            {
+                if (disposed)
+                {
+                    return;
+                }
+                if (_ok)
+                {
+                    Window.PatternView.InvalidateVisual();
+                    return;
+                }
+                Log.Verbose($"area {Model.Id}: capture failed ({_result.Failure}) on {_reason}, switching to a generated pattern");
+                if (Model.Pattern == PatternKind.Mosaic)
+                {
+                    // FR-52: cover with a generated pattern; the mosaic settings stay as they are.
+                    CaptureFailed = true;
+                    Frames.Clear();
+                    Model.Pattern = PatternKind.Generated;
+                    Transition?.Invoke($"capture-failed:{_result.Failure}");
+                    ConfigureRefresh();
+                    Layout();
+                    owner.SaveNow();
+                }
+            }
+            finally
+            {
+                scheduler.EndRun();
+            }
+        }
+
+        private void CopyToBack(FrameBuffer _frame)
+        {
+            var back = Frames.Back;
+            back.Resize(_frame.Width, _frame.Height);
+            var src = _frame.Bgra.Span;
+            var dst = back.Bgra.Span;
+            int row = _frame.Width * 4;
+            for (int y = 0; y < _frame.Height; y++)
+            {
+                src.Slice(y * _frame.Stride, row).CopyTo(dst.Slice(y * back.Stride, row));
+            }
+        }
+
         public void Dispose()
         {
+            disposed = true;
+            captureCancel?.Cancel();
+            scheduler.Dispose();
             Window.CloseFromController();
         }
     }

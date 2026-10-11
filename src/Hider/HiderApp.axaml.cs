@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Hider.Areas;
 using Hider.Core;
+using Hider.Core.Capture;
 using Hider.Core.Persistence;
 using Hider.Platform;
 using Hider.Platform.Linux;
@@ -45,8 +46,8 @@ namespace Hider
             // Screens need a top level; this window is never shown.
             screenProbe = new Window();
             var screens = new AvaloniaScreenService(() => screenProbe.Screens);
-            areas = new AreaManager(screens, _hostFactory, _areasPath, TimeProvider.System,
-                a => Dispatcher.UIThread.Post(a), OperatingSystem.IsWindows());
+            areas = new AreaManager(new AreaServices(screens, _hostFactory, _areasPath, TimeProvider.System,
+                a => Dispatcher.UIThread.Post(a), OperatingSystem.IsWindows(), CreateCapture(), AreaServices.OnThreadPool));
             areas.Restore();
             tray = new TrayController(this, areas, () => _desktop.Shutdown());
 
@@ -61,6 +62,12 @@ namespace Hider
                     Dispatcher.UIThread.Post(() => _desktop.Shutdown());
                 });
             }
+        }
+
+        /// <summary>The platform's underlay capture (Windows: Step 5, Linux: Step 7). Until then nothing can be captured (FR-52).</summary>
+        private static IUnderlayCapture CreateCapture()
+        {
+            return new UnavailableCapture();
         }
 
         private static IAreaWindowHost CreateHost(AreaWindow _window)

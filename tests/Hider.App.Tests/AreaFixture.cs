@@ -1,5 +1,6 @@
 using Avalonia;
 using Hider.Areas;
+using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Tests.Fakes;
 using Hider.Platform;
@@ -11,18 +12,23 @@ namespace Hider.App.Tests
     {
         private readonly string dir = Path.Combine(Path.GetTempPath(), "hider-gui-" + Guid.NewGuid().ToString("N"));
 
-        public AreaFixture(double _scale = 1.0, FakeScreenService? _screens = null, Func<AreaWindow, IAreaWindowHost>? _hostFactory = null)
+        public AreaFixture(double _scale = 1.0, FakeScreenService? _screens = null, Func<AreaWindow, IAreaWindowHost>? _hostFactory = null,
+            IUnderlayCapture? _capture = null)
         {
             Directory.CreateDirectory(dir);
             Scale = _scale;
             Screens = _screens ?? new FakeScreenService(FakeScreenService.Single(_scale));
-            Manager = new AreaManager(Screens, _hostFactory ?? (w =>
+            Capture = _capture ?? new FakeUnderlayCapture();
+            // Everything inline on the test (UI) thread: captures complete synchronously.
+            Manager = new AreaManager(new AreaServices(Screens, _hostFactory ?? (w =>
             {
                 var host = new FakeAreaWindowHost(w, _scale);
                 Hosts.Add(host);
                 return host;
-            }), AreasPath, Time, a => a(), true);
+            }), AreasPath, Time, a => a(), true, Capture, c => c()));
         }
+
+        public IUnderlayCapture Capture { get; }
 
         public string AreasPath => Path.Combine(dir, "areas.json");
         public double Scale { get; }
