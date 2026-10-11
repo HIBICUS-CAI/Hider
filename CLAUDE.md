@@ -21,8 +21,9 @@ src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mo
 src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
 native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
 tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
-scripts/           build.py / install.py（標準ライブラリのみ）
-spikes/            スパイク（sln に含めない）
+scripts/           build.py / install.py / make_icons.py（標準ライブラリのみ）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）
+tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
+spikes/            スパイク（sln に含めない。一覧は spikes/README.md）
 ```
 
 ## コマンド
@@ -33,6 +34,8 @@ dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
 python scripts/build.py <rid>                 # bin/publish/<rid>/
 bin/publish/<rid>/Hider --selftest            # 終了コード 0
+scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
+python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
 ```
 
 CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。`on: push` / `pull_request` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
