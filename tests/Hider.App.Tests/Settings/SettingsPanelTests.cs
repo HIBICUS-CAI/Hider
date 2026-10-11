@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Hider.Areas;
@@ -206,6 +207,35 @@ namespace Hider.App.Tests.Settings
             Assert.False(area.Window.Toolbar.RefreshButton.IsVisible);
             area.SetPattern(PatternKind.Generated);
             Assert.False(area.Window.Toolbar.RefreshButton.IsVisible);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(PatternKind.Mosaic)]
+        [InlineData(PatternKind.Generated)]
+        public void AllMethods_SelectableDrawnAndSaved(PatternKind _pattern)
+        {
+            // Step 6 completion: every v2.0 method can be picked in the popup, draws, and is stored in areas.json.
+            var (f, area, _) = Open(_pattern);
+            using (f)
+            {
+                var kind = _pattern == PatternKind.Mosaic ? MethodKind.Mosaic : MethodKind.Generated;
+                var methods = MethodRegistry.Filter(MethodRegistry.OfKind(kind), MethodRegistry.CurrentPlatform);
+                Assert.Equal(kind == MethodKind.Mosaic ? new[] { "pixelate", "hexcell", "blur" } : new[] { "block", "noise" },
+                    methods.Select(m => m.Id));
+                for (int i = 0; i < methods.Count; i++)
+                {
+                    var panel = area.Window.Settings!;
+                    panel.MethodBox!.SelectedIndex = i;
+                    panel = area.Window.Settings!;
+                    var labels = methods[i].Params.Select(p => Hider.Core.Strings.Get(p.LabelKey)).ToList();
+                    Assert.All(labels, l => Assert.Contains(l, panel.RowLabels));
+                    area.Window.PatternView.InvalidateVisual();
+                    using var frame = area.Window.CaptureRenderedFrame();
+                    Assert.NotNull(frame);
+                    var saved = Hider.Core.Persistence.AreasFile.Load(f.AreasPath, out _).Areas.Single().ToArea(1.0);
+                    Assert.Equal(methods[i].Id, kind == MethodKind.Mosaic ? saved.Mosaic.Method : saved.Generated.Method);
+                }
+            }
         }
 
         [AvaloniaFact]
