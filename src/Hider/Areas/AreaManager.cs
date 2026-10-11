@@ -144,6 +144,8 @@ namespace Hider.Areas
             {
                 return; // only the strip capture (Linux) reads these
             }
+            // XWAYLAND-ASSUMPTION: area rectangles and the monitor union are absolute X11 coordinates, and a portal frame covers
+            // that union (StripCoordinator maps between them by scale and offset).
             Volatile.Write(ref stripAreas, areas.Select(a => new StripArea(a.Model.Id, a.Model.Rect, a.Model.Pattern)).ToArray());
             var bounds = Screens.Screens.Select(s => s.Bounds).ToList();
             var union = bounds.Count == 0 ? default : PhysicalRect.FromEdges(bounds.Min(b => b.X), bounds.Min(b => b.Y), bounds.Max(b => b.Right), bounds.Max(b => b.Bottom));

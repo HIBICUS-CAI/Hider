@@ -9,9 +9,10 @@ v2 は XWayland（X11 クライアント）で動く（D-1）。将来 Avalonia.
 | src/Hider/Platform/Linux/X11WindowHost.cs | X11WindowHost | クライアントが窓の絶対位置を決められ、Mutter が `_NET_WM_STATE_ABOVE` を尊重する | WaylandExtensionHost（GNOME Shell 拡張の DBus を呼ぶ）に差し替える |
 | src/Hider.Core/Model/Placement.cs | Placement.Fit | 全モニタの絶対座標（物理 px）を知っている | 拡張の GetPlacement / モニタ情報で置き換える |
 | src/Hider/Platform/AvaloniaScreenService.cs | AvaloniaScreenService.CursorScreen | ポインタ位置は XWayland の窓の上にある時しか分からない（そのため Linux は新規エリアを主画面に出す） | 拡張にポインタのモニタを問い合わせる |
+| src/Hider/Areas/AreaManager.cs | AreaManager.CaptureStarting | 帯方式に渡すエリア矩形と仮想画面が X11 の絶対座標で、ポータルのフレームがその範囲を写す（StripCoordinator.CopyRows が倍率とオフセットで対応付け） | 拡張の GetPlacement で得た配置（物理 px）とモニタ情報に置き換える。帯の透明化と撮影の流れは変わらない |
 | src/Hider/Program.cs | BuildAvaloniaApp | `UsePlatformDetect()` + `X11PlatformOptions`（Avalonia.Wayland は参照しない） | プラットフォーム選択はここ 1 箇所だけ変える |
 
-帯の透明化は窓の描画内容（アルファ 0 の行）で行い、X11 のシェイプやリージョンは使わない（Step 7）。取得はポータル（Screenshot / ScreenCast）のみで、X11 の XGetImage 等は使わない。トレイは DBus StatusNotifierItem（Avalonia 標準）。いずれも移行で変わらない。
+帯の透明化は窓の描画内容（AreaWindow のクリップでアルファ 0 にした行）で行い、X11 のシェイプやリージョンは使わない（Step 7）。取得はポータル（Screenshot / ScreenCast）のみで、X11 の XGetImage 等は使わない。トレイは DBus StatusNotifierItem（Avalonia 標準）。いずれも移行で変わらない。
 
 ## 移行時に必要になるもの（今回はやらない）
 
