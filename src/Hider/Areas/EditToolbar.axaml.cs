@@ -1,4 +1,3 @@
-using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Hider.Core;
@@ -11,10 +10,13 @@ namespace Hider.Areas
     {
         public const double NormalWidth = 436;
         public const double WidthWithWarning = 540;
+        public const double HeightDip = 36;
 
         public EditToolbar()
         {
             InitializeComponent();
+            Width = NormalWidth;
+            Height = HeightDip;
             FillItem.Header = Strings.PatternFill;
             MosaicItem.Header = Strings.PatternMosaic;
             GeneratedItem.Header = Strings.PatternGenerated;
@@ -52,7 +54,7 @@ namespace Hider.Areas
                 _ => Strings.PatternGenerated,
             };
             RefreshButton.IsVisible = _pattern == PatternKind.Mosaic;
-            SizeText.Text = string.Format(CultureInfo.InvariantCulture, "{0} × {1} px", _rect.Width, _rect.Height);
+            SizeText.Text = Strings.ToolbarSize(_rect.Width, _rect.Height);
             FailedText.IsVisible = _captureFailed;
             Width = _captureFailed ? WidthWithWarning : NormalWidth;
         }

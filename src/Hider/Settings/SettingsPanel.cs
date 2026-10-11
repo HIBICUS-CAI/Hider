@@ -187,7 +187,7 @@ namespace Hider.Settings
         private void AddColorRow(string _label, Func<string> _get, Action<string> _set, List<string> _labels)
         {
             var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), BorderBrush = new SolidColorBrush(Color.Parse("#26000000")), BorderThickness = new Thickness(1) };
-            var hex = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, FontFamily = new FontFamily("Cascadia Mono, Consolas, DejaVu Sans Mono, monospace") };
+            var hex = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, FontFamily = UiFonts.Mono };
             void Show()
             {
                 string color = _get();
@@ -195,7 +195,7 @@ namespace Hider.Settings
                 hex.Text = color;
                 if (ColorButton is not null)
                 {
-                    Avalonia.Automation.AutomationProperties.SetName(ColorButton, $"{Strings.SettingsPickColor}: {color}");
+                    Avalonia.Automation.AutomationProperties.SetName(ColorButton, Strings.SettingsPickColorWithValue(color));
                 }
             }
             var view = new ColorView { Color = Color.Parse(_get()), IsAlphaEnabled = false, IsAlphaVisible = false, Width = 300 };
@@ -266,7 +266,7 @@ namespace Hider.Settings
             var box = new TextBox
             {
                 Text = common.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture), Width = 110, Height = 30, MinHeight = 30, FontSize = 12,
-                VerticalContentAlignment = VerticalAlignment.Center, FontFamily = new FontFamily("Cascadia Mono, Consolas, DejaVu Sans Mono, monospace"),
+                VerticalContentAlignment = VerticalAlignment.Center, FontFamily = UiFonts.Mono,
             };
             void CommitSeed()
             {

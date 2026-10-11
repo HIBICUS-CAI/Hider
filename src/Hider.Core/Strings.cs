@@ -47,6 +47,7 @@ namespace Hider.Core
             ["settings.seed"] = "シード",
             ["settings.reseed"] = "シードを振り直す",
             ["settings.pickColor"] = "色を選ぶ",
+            ["settings.pickColorWithValue"] = "色を選ぶ: {0}",
 
             // Mosaic methods and their parameters (D-5)
             ["method.pixelate"] = "ピクセル化",
@@ -82,6 +83,9 @@ namespace Hider.Core
             [ParamUnit.Percent] = "%",
             [ParamUnit.Ms] = "ms",
         };
+
+        /// <summary>The toolbar's size in physical pixels (FR-34). Symbols and digits only, so kept apart from texts.</summary>
+        private const string SizeFormat = "{0} × {1} px";
 
         /// <summary>Platform name shown as a badge next to Linux-only settings. A proper noun, not translated.</summary>
         public const string LinuxBadge = "Linux";
@@ -143,6 +147,17 @@ namespace Hider.Core
         }
 
         /// <summary>"N 個のエリアをすべて削除します。" (FR-05).</summary>
+        public static string ToolbarSize(int _width, int _height)
+        {
+            return string.Format(CultureInfo.InvariantCulture, SizeFormat, _width, _height);
+        }
+
+        /// <summary>Accessible name of the color button, with the current color.</summary>
+        public static string SettingsPickColorWithValue(string _color)
+        {
+            return string.Format(CultureInfo.InvariantCulture, Get("settings.pickColorWithValue"), _color);
+        }
+
         public static string ConfirmDeleteAll(int _count)
         {
             return string.Format(CultureInfo.InvariantCulture, Get("confirm.deleteAll"), _count);

@@ -17,7 +17,7 @@ namespace Hider.Areas
         public const double SideMarginDip = 8;
 
         /// <summary>Edit toolbar size (design canvas 3) and its gap to the area (D-8: toolbar height + 8).</summary>
-        public const double ToolbarHeightDip = 36;
+        public const double ToolbarHeightDip = EditToolbar.HeightDip;
         public const double ToolbarGapDip = 8;
 
         /// <summary>The toolbar grows to show "取得できません" (FR-52); the window must be wide enough for it.</summary>

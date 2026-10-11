@@ -49,7 +49,7 @@ namespace Hider.Settings
             Input = new TextBox
             {
                 Width = _inputWidth, Height = 28, MinHeight = 28, Padding = new Thickness(6, 0), FontSize = 12, TextAlignment = TextAlignment.Right,
-                VerticalContentAlignment = VerticalAlignment.Center, FontFamily = new FontFamily("Cascadia Mono, Consolas, DejaVu Sans Mono, monospace"),
+                VerticalContentAlignment = VerticalAlignment.Center, FontFamily = UiFonts.Mono,
             };
             Avalonia.Automation.AutomationProperties.SetName(Input, Strings.Get(_spec.LabelKey));
             SetColumn(Input, 2);

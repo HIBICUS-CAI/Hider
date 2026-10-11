@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Hider.Areas.EditToolbar"
-             Width="436" Height="36">
+             xmlns:ui="using:Hider"
+             x:Class="Hider.Areas.EditToolbar">
     <UserControl.Styles>
         <Style Selector="Button.icon">
             <Setter Property="Width" Value="28" />
@@ -36,7 +36,7 @@
     <Border Background="#F9F9F9" BorderBrush="#D6D6D6" BorderThickness="1" CornerRadius="6" BoxShadow="0 6 18 0 #59000000">
         <DockPanel Margin="6,0" VerticalAlignment="Center">
             <TextBlock x:Name="SizeText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,4,0"
-                       FontFamily="Cascadia Mono, Consolas, DejaVu Sans Mono, monospace" FontSize="12" Foreground="#444444" />
+                       FontFamily="{x:Static ui:UiFonts.Mono}" FontSize="12" Foreground="#444444" />
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button x:Name="PatternButton" Classes="text">
                     <StackPanel Orientation="Horizontal" Spacing="6">
