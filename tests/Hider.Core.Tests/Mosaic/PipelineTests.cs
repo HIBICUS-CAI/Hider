@@ -246,8 +246,9 @@ namespace Hider.Core.Tests.Mosaic
             double levels = Time(() => Render.Mosaic("pixelate", _levels: 8, _source: source));
             double block = Time(() => Render.Generated("block", 1920, 1080));
             double gap = Time(() => Render.Generated("block", 1920, 1080, new() { ["gap"] = 2 }));
+            double blurMethod = Time(() => Render.Mosaic("blur", _source: source));
             output.WriteLine($"CT-58 1920x1080 CPU raster (prepare + draw, incl. {harness:F1} ms harness): pixelate {mosaic:F1} ms, blur 8 + pixelate {blur:F1} ms, " +
-                $"pixelate + levels 8 {levels:F1} ms, block {block:F1} ms, block with gap {gap:F1} ms");
+                $"pixelate + levels 8 {levels:F1} ms, block {block:F1} ms, block with gap {gap:F1} ms, blur method {blurMethod:F1} ms");
         }
 
         [Theory]
