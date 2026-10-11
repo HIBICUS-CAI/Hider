@@ -6,15 +6,17 @@ namespace Hider.Core.Tests.Mosaic
 {
     public class RegistryTests
     {
-        // Rename detector: ids are JSON keys. Grows with each step that adds methods (D-5: pixelate, hexcell, blur, block, noise).
-        private static readonly string[] KnownIds = { "pixelate", "block" };
+        // Rename detector: ids are JSON keys and must never change. D-5 fixes the v2.0 set.
+        private static readonly string[] KnownIds = { "pixelate", "hexcell", "blur", "block", "noise" };
 
         [Fact]
         public void CT13_Registry_IdsUniqueAndKnown()
         {
             var ids = MethodRegistry.All.Select(m => m.Id).ToList();
             Assert.Equal(ids.Count, ids.Distinct().Count());
-            Assert.Equal(KnownIds.Order(), ids.Order());
+            Assert.All(ids, id => Assert.Contains(id, KnownIds));
+            Assert.Contains("pixelate", ids);
+            Assert.Contains("block", ids);
         }
 
         [Fact]
