@@ -3,7 +3,7 @@ using Avalonia.Markup.Xaml;
 
 namespace Hider
 {
-    public partial class App : Application
+    public partial class HiderApp : Application
     {
         public override void Initialize()
         {
