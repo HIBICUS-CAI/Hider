@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- GUI tests (test IDs GT-xx) on Avalonia.Headless with Skia rendering, so pixels can be compared without a display. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Hider.App.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Avalonia.Headless.XUnit" />
+    <PackageReference Include="Avalonia.Skia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Hider/Hider.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fakes live in Hider.Core.Tests/Fakes and are shared by linking the sources (a test exe cannot reference another). -->
+    <Compile Include="../Hider.Core.Tests/Fakes/**/*.cs" Link="Fakes/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
