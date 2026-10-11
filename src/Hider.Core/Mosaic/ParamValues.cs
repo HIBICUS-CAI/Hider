@@ -47,6 +47,13 @@ namespace Hider.Core.Mosaic
             return specs.TryGetValue(_key, out var spec) ? spec.Effective(Raw(_key), Opacity) : Raw(_key);
         }
 
+        /// <summary>Every resolved value as "key=value" in key order, for cache keys.</summary>
+        public string Fingerprint()
+        {
+            var keys = specs.Keys.Union(values.Keys).Order(StringComparer.Ordinal);
+            return string.Join(";", keys.Select(k => $"{k}={Raw(k).ToString("R", System.Globalization.CultureInfo.InvariantCulture)}")) + $";a={Opacity.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+
         /// <summary>Values for drawing a mosaic method: its params, the mosaic common values and the area's opacity.</summary>
         public static ParamValues ForMosaic(IMosaicMethod _method, MethodSettings<MosaicCommon> _settings, double _opacity)
         {

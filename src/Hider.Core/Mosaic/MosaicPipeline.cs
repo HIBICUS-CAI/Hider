@@ -3,19 +3,82 @@ using SkiaSharp;
 namespace Hider.Core.Mosaic
 {
     /// <summary>
-    /// The fixed part around a method (design §4.2): pre-blur → pyramid → method shader → color levels. Step 2 has the
-    /// pyramid and the method stage; the blur and levels stages and the CPU optimisations come in Step 4.
+    /// The fixed part around a method (design §4.2): pre-blur → pyramid → method shader → color levels.
+    /// <see cref="Prepare"/> does the first two (once per captured frame and blur value), <see cref="Draw"/> the rest.
+    /// Everything runs on the canvas' context: GPU when Avalonia renders on the GPU, Skia's CPU raster otherwise.
     /// </summary>
     public sealed class MosaicPipeline
     {
+        /// <summary>Gaussian sigma per px of blur radius (radius r ≈ 2 sigma).</summary>
+        public const float SigmaPerRadius = 0.5f;
+
+        public const int MaxPyramidLevels = 9;
+
+        private readonly Dictionary<int, SKColorFilter> levelFilters = new();
+
+        /// <summary>
+        /// Builds the method inputs from a captured image: blurred by the common "blur" value (effective, so it fades with
+        /// the opacity a) and its pyramid. The caller disposes the result with <see cref="Release"/>.
+        /// </summary>
+        public static MosaicInputs Prepare(SKImage _source, SKPointI _areaOrigin, ParamValues _p, GRRecordingContext? _context = null)
+        {
+            double radius = _p.Effective(CommonParams.Blur);
+            var source = radius > 0.01 ? Blur(_source, (float)radius * SigmaPerRadius, _context) : _source;
+            return new MosaicInputs
+            {
+                Source = source,
+                Pyramid = BuildPyramid(source, MaxPyramidLevels, _context),
+                AreaSize = new SKSizeI(_source.Width, _source.Height),
+                AreaOrigin = _areaOrigin,
+            };
+        }
+
+        /// <summary>Disposes the images <see cref="Prepare"/> created (never the original capture).</summary>
+        public static void Release(MosaicInputs _inputs, SKImage _original)
+        {
+            foreach (var image in _inputs.Pyramid.Distinct())
+            {
+                if (!ReferenceEquals(image, _original))
+                {
+                    image.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws the method into <paramref name="_dst"/> (canvas coordinates; the area's physical pixels are scaled to it), then
+        /// limits each channel to <paramref name="_levels"/> values (256 = no change).
+        /// </summary>
         public void Draw(SKCanvas _canvas, SKRect _dst, MosaicInputs _inputs, IMosaicMethod _method, ParamValues _p, int _levels)
         {
+            int w = Math.Max(1, _inputs.AreaSize.Width), h = Math.Max(1, _inputs.AreaSize.Height);
             using var shader = _method.CreateShader(_inputs, _p);
-            using var paint = new SKPaint { Shader = shader };
+            using var paint = new SKPaint { Shader = shader, ColorFilter = LevelFilter(_levels), BlendMode = SKBlendMode.Src };
+            var cellMethod = _method as ICellMethod;
+            int cell = cellMethod is not null ? Math.Max(1, cellMethod.CellSize(_p)) : 1;
+
             _canvas.Save();
+            _canvas.ClipRect(_dst);
             _canvas.Translate(_dst.Left, _dst.Top);
-            _canvas.Scale(_dst.Width / Math.Max(1, _inputs.AreaSize.Width), _dst.Height / Math.Max(1, _inputs.AreaSize.Height));
-            _canvas.DrawRect(0, 0, _inputs.AreaSize.Width, _inputs.AreaSize.Height, paint);
+            _canvas.Scale(_dst.Width / w, _dst.Height / h);
+            if (cell < 2)
+            {
+                _canvas.DrawRect(0, 0, w, h, paint);
+            }
+            else
+            {
+                // One shader evaluation per cell (proposal P-1): the reduced surface's pixel centres map to points inside each
+                // cell, so the cell values are exact; nearest upscaling restores the cells aligned to the area origin.
+                int cw = (w + cell - 1) / cell, ch = (h + cell - 1) / cell;
+                var info = new SKImageInfo(cw, ch, SKColorType.Bgra8888, SKAlphaType.Premul);
+                using var surface = CreateSurface(_canvas.Context, info);
+                surface.Canvas.Scale(1f / cell, 1f / cell);
+                surface.Canvas.DrawRect(0, 0, cw * cell, ch * cell, paint);
+                using var cells = surface.Snapshot();
+                using var copy = new SKPaint { BlendMode = SKBlendMode.Src };
+                _canvas.DrawImage(cells, SKRect.Create(0, 0, cw * cell, ch * cell), new SKSamplingOptions(SKFilterMode.Nearest), copy);
+                cellMethod!.DrawJoints(_canvas, new SKSizeI(w, h), cell, _p);
+            }
             _canvas.Restore();
         }
 
@@ -25,13 +88,17 @@ namespace Hider.Core.Mosaic
         /// </summary>
         public static IReadOnlyList<SKImage> BuildPyramid(SKImage _source, int _maxLevels)
         {
+            return BuildPyramid(_source, _maxLevels, null);
+        }
+
+        public static IReadOnlyList<SKImage> BuildPyramid(SKImage _source, int _maxLevels, GRRecordingContext? _context)
+        {
             var levels = new List<SKImage> { _source };
             var current = _source;
             while (levels.Count < _maxLevels && (current.Width > 1 || current.Height > 1))
             {
                 int w = (current.Width + 1) / 2, h = (current.Height + 1) / 2;
-                var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
-                using var surface = SKSurface.Create(info);
+                using var surface = CreateSurface(_context, new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
                 // Each destination pixel centre maps halfway between four source texels, so linear sampling averages them
                 // exactly. Clamping repeats the last row / column of odd sizes.
                 using var shader = current.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp,
@@ -42,6 +109,45 @@ namespace Hider.Core.Mosaic
                 levels.Add(current);
             }
             return levels;
+        }
+
+        /// <summary>Per-channel quantisation to <paramref name="_levels"/> values: floor(c·L) / (L−1) (256 = identity).</summary>
+        public SKColorFilter? LevelFilter(int _levels)
+        {
+            int levels = Math.Clamp(_levels, 2, 256);
+            if (levels >= 256)
+            {
+                return null;
+            }
+            if (!levelFilters.TryGetValue(levels, out var filter))
+            {
+                var identity = new byte[256];
+                var table = new byte[256];
+                for (int i = 0; i < 256; i++)
+                {
+                    identity[i] = (byte)i;
+                    int q = Math.Min(levels - 1, i * levels / 256);
+                    table[i] = (byte)Math.Round(q * 255.0 / (levels - 1));
+                }
+                filter = SKColorFilter.CreateTable(identity, table, table, table);
+                levelFilters[levels] = filter;
+            }
+            return filter;
+        }
+
+        private static SKImage Blur(SKImage _source, float _sigma, GRRecordingContext? _context)
+        {
+            using var surface = CreateSurface(_context, new SKImageInfo(_source.Width, _source.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
+            using var filter = SKImageFilter.CreateBlur(_sigma, _sigma, SKShaderTileMode.Clamp);
+            using var paint = new SKPaint { ImageFilter = filter, BlendMode = SKBlendMode.Src };
+            surface.Canvas.DrawImage(_source, 0, 0, paint);
+            return surface.Snapshot();
+        }
+
+        internal static SKSurface CreateSurface(GRRecordingContext? _context, SKImageInfo _info)
+        {
+            return (_context is not null ? SKSurface.Create(_context, false, _info) : null) ?? SKSurface.Create(_info)
+                ?? throw new InvalidOperationException($"Cannot create a {_info.Width}x{_info.Height} surface");
         }
     }
 }
