@@ -15,6 +15,8 @@ namespace Hider.Platform.Windows
     {
         // Reused managed copies of the window bitmaps, per window handle (captures run one at a time).
         private readonly Dictionary<nint, FrameBuffer> images = new();
+        // PrintWindow calls per window handle that have not returned yet (a hung window blocks them indefinitely).
+        private readonly Dictionary<nint, Task<WindowImage>> inFlight = new();
 
         public IReadOnlyList<WindowInfo> EnumerateTopDown()
         {
@@ -48,9 +50,24 @@ namespace Hider.Platform.Windows
             return result;
         }
 
+        /// <summary>
+        /// One PrintWindow per window at a time: while an earlier, abandoned call for a hung window has not returned, the
+        /// window times out at once instead of starting another call. Otherwise every capture (10 per second) would leave a
+        /// blocked thread-pool thread, a DC and a DIB section behind, and the late calls would write the shared bitmap cache
+        /// while later captures read it.
+        /// </summary>
         public WindowImage Capture(WindowInfo _window, TimeSpan _timeout)
         {
-            var task = Task.Run(() => PrintWindow(_window));
+            Task<WindowImage> task;
+            lock (inFlight)
+            {
+                if (inFlight.TryGetValue(_window.Handle, out var running) && !running.IsCompleted)
+                {
+                    return new WindowImage(null, CaptureFailure.Timeout);
+                }
+                task = Task.Run(() => PrintWindow(_window));
+                inFlight[_window.Handle] = task;
+            }
             if (!task.Wait(_timeout))
             {
                 return new WindowImage(null, CaptureFailure.Timeout);
@@ -113,6 +130,13 @@ namespace Hider.Platform.Windows
                 foreach (nint handle in images.Keys.Where(h => !alive.Contains(h)).ToArray())
                 {
                     images.Remove(handle);
+                }
+            }
+            lock (inFlight)
+            {
+                foreach (nint handle in inFlight.Keys.Where(h => !alive.Contains(h) && inFlight[h].IsCompleted).ToArray())
+                {
+                    inFlight.Remove(handle);
                 }
             }
         }
