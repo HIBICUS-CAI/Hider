@@ -73,7 +73,7 @@ def install_linux(dest_dir, data_home):
             '[Desktop Entry]',
             'Type=Application',
             'Name=Hider',
-            'Comment=Cover part of the screen with a plain window',
+            'Comment=画面の一部をモザイクやパターンで覆って隠す',
             f'Exec={desktop_exec_arg(exe_path)}',
             f'Icon={desktop_string(os.path.join(dest_dir, "Assets", "hider.svg"))}',
             'Terminal=false',
