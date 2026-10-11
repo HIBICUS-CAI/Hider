@@ -115,8 +115,13 @@ namespace Hider.Areas
             SKImage source;
             unsafe
             {
-                // No copy: the image reads the front buffer, which is not written while this read holds the exchange.
-                source = SKImage.FromPixels(info, (nint)pin.Pointer, _frame.Stride);
+                // CPU: no copy, the raster canvas reads the front buffer right here while the exchange is held. GPU: Skia defers
+                // texture uploads of raster images until the flush at the end of the frame, after the exchange (and the pin)
+                // are released and the buffer may be swapped, resized or collected, so the GPU gets its own copy (crashes in
+                // gr_direct_context_flush_and_submit seen on Windows).
+                source = _context is null
+                    ? SKImage.FromPixels(info, (nint)pin.Pointer, _frame.Stride)
+                    : SKImage.FromPixelCopy(info, (nint)pin.Pointer, _frame.Stride);
             }
             using (source)
             {
