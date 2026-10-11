@@ -695,3 +695,54 @@ Step 9（アイコン、README、ドキュメント、CI 全緑）へ。
 負荷試験は CI の Windows publish ジョブに組み込んだ（d7e5b7e）。`--verbose` の先頭に描画経路（GPU / CPU）を 1 行出すようにした（75e85bc）。
 
 Core 136 / GUI 67 件すべて合格（3 OS）。
+
+## PR #1 の 2 回目の指摘への対応（2026-10-12）
+
+### 1. 結果
+
+未解決スレッド 33 件（再指摘 1 件を含む）をすべて確認した。32 件は修正（1 件 1 コミット。関連が強い 2 組は 1 コミットにまとめた）。残る 1 件（ci.yml）は一部を修正し、actions の SHA 固定だけ未対応。各スレッドへ、コミットか未対応の理由を返信した。
+
+### 2. 主な変更
+
+| 区分 | 内容 |
+|---|---|
+| 露出（NFR-05） | 帯の透明中は、準備済みの Grabber だけを呼ぶ。ScreenCast のセッションは PrepareAsync だけが開く。Linux では設定ポップアップを開いている間、撮り直しを保留する |
+| 堅牢性 | 取得後の例外でも FinishCapture を必ず呼ぶ。Due は 1 度だけ読む。areas.json の null 要素・サイズ上限・未定義 pattern を正規化。Dispose 後は保存しない。復元トークンは最初から 0600 で作る |
+| 性能 | libhidercap は帯の行だけをコピーする（4K の帯 1 本あたり約 33 MB → 約 0.3 MB）。RasterSampler のネイティブ呼び出しを削減。描画ごとの LINQ と確保を減らした |
+| 生成パターン | セルハッシュを float32 で厳密な整数演算（x³ mod 251）にした。CPU とすべての GPU で同じ値になる |
+| UI | テーマを Light に固定。単位などの文字列を Strings へ。アクセシブル名を追加 |
+| ビルド・ツール | Hider.slnx に移行。SDK を 10.0.112 に固定。latest-recommended、コードスタイル、命名、書式をビルドと CI で強制。Python は mypy / pyright の strict と ruff。Makefile、PowerShell、シェル、CI の作法を修正 |
+
+### 3. ゴールデン画像の更新
+
+CT51_block_seed1234 を再生成した。理由: block / noise のセルハッシュを変えたため、同じシードでも模様が変わる。旧・新・差分を docs/golden-diffs/CT51_block_seed1234.png に置いた。新ハッシュの性質はテストで確認している。
+
+- 65536 通りのシードがすべて別の模様になる
+- シェーダと C# が 18 万セル（300×300 を 2 通りの座標・シードで）で完全に一致する
+- noise の CPU 経路とシェーダの差は 0 画素
+
+あわせて MethodConsistencyTests の許容率を 2% から 0.2% に下げた。
+
+### 4. 提案 P-2 の変更点
+
+`hidercap_grab_after` に行範囲（row0, row1）を追加した。関数 4 つの構成は変えていない。pending のまま。
+
+### 5. 対応しなかったもの
+
+| 指摘 | 理由 |
+|---|---|
+| actions の SHA 固定 | このセッションは actions/* のリポジトリを参照できず、正しい SHA を確かめられない。Dependabot（github-actions）での固定を推奨 |
+| テストの Microsoft.Testing.Platform 移行 | 任意の提案。現状の VSTest アダプタで問題がなく、CI の実行方法も変わるため別の変更にする |
+| 色のリソース化（ThemeDictionaries） | ダークテーマで読めない不具合は、Light 固定で解消した。色の集約は挙動の変わらない整理なので別の変更にする |
+
+### 6. ローカル環境への影響（確認をお願いしたいこと）
+
+- **.NET SDK**: 10.0.112 以上の 10.0.1xx が必要になった（global.json の latestPatch）。これまでは 10.0.x なら何でも通っていた。CI はパッチも固定する。
+- **Python**: 3.10 以上が必要。Linux では `python3`、または `./scripts/build.py` のように直接実行する。
+- **ビルドの厳格化**: 命名・不要な using・アナライザーの違反は、ローカルの `dotnet build -warnaserror` でもエラーになる。
+
+### 7. テスト
+
+- 件数: Core 158 / GUI 94。
+- 作業コンテナ（linux-x64）: build -warnaserror、dotnet format の検証、publish + selftest、Xvfb の第 1 / 第 2 段階がすべて成功。
+- CI: アナライザーを強制した時点で 3 OS の全ジョブが成功（https://github.com/HIBICUS-CAI/Hider/actions/runs/38184485525 ）。最終コミットでも実行（結果は PR に記載）。
