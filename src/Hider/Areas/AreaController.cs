@@ -266,6 +266,7 @@ namespace Hider.Areas
                 return;
             }
             scheduler.BeginRun();
+            owner.CaptureStarting();
             // ExcludeWindows[0] is this area's own window: the capture only looks at what lies below it.
             var exclude = new List<nint> { Host.Handle };
             exclude.AddRange(owner.OwnWindows.Where(h => h != Host.Handle));

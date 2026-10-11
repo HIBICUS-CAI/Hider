@@ -18,6 +18,7 @@ namespace Hider.Areas
         private readonly List<AreaController> areas = new();
         private readonly string areasPath;
         private ITimer? saveTimer;
+        private StripArea[] stripAreas = Array.Empty<StripArea>();
 
         public AreaManager(AreaServices _services)
         {
@@ -120,6 +121,14 @@ namespace Hider.Areas
 
         /// <summary>Native handles of every Hider window, left out of captures (spec §6.1).</summary>
         public IReadOnlyList<nint> OwnWindows => areas.Select(a => a.Host.Handle).Where(h => h != 0).ToArray();
+
+        /// <summary>Areas as the Linux strip capture sees them: refreshed on the UI thread whenever a capture starts.</summary>
+        public IReadOnlyList<StripArea> StripAreas => Volatile.Read(ref stripAreas);
+
+        public void CaptureStarting()
+        {
+            Volatile.Write(ref stripAreas, areas.Select(a => new StripArea(a.Model.Id, a.Model.Rect, a.Model.Pattern)).ToArray());
+        }
 
         public void SaveNow()
         {

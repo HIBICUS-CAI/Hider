@@ -20,6 +20,9 @@ namespace Hider.Areas
 
         void Delete(AreaController _area);
 
+        /// <summary>A capture is about to start (UI thread): the strip capture's area list is refreshed.</summary>
+        void CaptureStarting();
+
         /// <summary>An area entered or left edit mode (the tray menu changes, FR-03).</summary>
         void ModeChanged(AreaController _area);
     }

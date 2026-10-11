@@ -55,6 +55,9 @@ namespace Hider.Core.Tests.Fakes
         /// <summary>Never completes until cancelled.</summary>
         public bool Hang { get; set; }
 
+        /// <summary>Called inside each grab (e.g. to look at the windows while their strip is transparent).</summary>
+        public Action? OnGrab { get; set; }
+
         public int Calls { get; private set; }
         public int MaxConcurrent { get; private set; }
         public List<long> NotBefore { get; } = new();
@@ -71,6 +74,7 @@ namespace Hider.Core.Tests.Fakes
                     NotBefore.Add(_notBeforeTimestamp);
                     log.Add("grab");
                 }
+                OnGrab?.Invoke();
                 if (Hang)
                 {
                     await Task.Delay(Timeout.Infinite, _ct);
