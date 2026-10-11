@@ -7,12 +7,17 @@ namespace Hider
     /// <summary>
     /// Platform checks added to "--selftest" (run by CI on the trimmed binary): the native code paths that the Core checks
     /// cannot reach. Windows: window enumeration and one composed capture of the desktop corner (LibraryImport, function
-    /// pointer callback, DWM attributes, PrintWindow) must run without throwing.
+    /// pointer callback, DWM attributes, PrintWindow) must run without throwing. Linux: a libhidercap.so shipped next to the
+    /// executable must load and answer (packaging and LibraryImport after trimming).
     /// </summary>
     internal static class PlatformSelfTest
     {
         public static int Run(TextWriter _output)
         {
+            if (OperatingSystem.IsLinux())
+            {
+                return RunLinux(_output);
+            }
             if (!OperatingSystem.IsWindows())
             {
                 return 0;
@@ -30,6 +35,24 @@ namespace Hider
                 _output.WriteLine($"[fail] win32 capture: {e}");
                 return 1;
             }
+        }
+
+        private static int RunLinux(TextWriter _output)
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "libhidercap.so");
+            if (!File.Exists(path))
+            {
+                _output.WriteLine("[skip] libhidercap.so not shipped: the Screenshot portal is used (D-6)");
+                return 0;
+            }
+            var helper = new Hider.Platform.Linux.Hidercap();
+            if (!helper.IsAvailable)
+            {
+                _output.WriteLine("[fail] libhidercap.so is shipped but does not load (is libpipewire-0.3 installed?)");
+                return 1;
+            }
+            _output.WriteLine($"[ok]   libhidercap: loaded, last sequence {helper.LastSequence()}");
+            return 0;
         }
     }
 }

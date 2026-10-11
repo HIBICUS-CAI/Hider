@@ -39,7 +39,7 @@ namespace Hider.Core
                 }
             }
 
-            _output.WriteLine(failures == 0 ? "selftest passed" : $"selftest failed ({failures})");
+            _output.WriteLine(failures == 0 ? "core checks passed" : $"core checks failed ({failures})");
             return failures == 0 ? 0 : 1;
         }
 

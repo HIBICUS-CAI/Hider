@@ -20,7 +20,9 @@ namespace Hider
             {
                 int core = SelfTest.Run(Console.Out);
                 int platform = PlatformSelfTest.Run(Console.Out);
-                return core != 0 || platform != 0 ? 1 : 0;
+                bool passed = core == 0 && platform == 0;
+                Console.WriteLine(passed ? "selftest passed" : "selftest failed");
+                return passed ? 0 : 1;
             }
             Log.Enabled = _args.Contains("--verbose");
 
