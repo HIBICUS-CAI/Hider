@@ -31,6 +31,10 @@ namespace Hider.Core.Tests.Persistence
             Assert.Equal(@"C:\Users\me\.hider", StoragePaths.DataDirectory(true, k => env.GetValueOrDefault(k)));
             Assert.Equal("/home/me/.hider", StoragePaths.DataDirectory(false, k => env.GetValueOrDefault(k)));
             Assert.Equal("/home/me/.hider", StoragePaths.DataDirectory(false, k => k == "HOME" ? "/home/me/" : null));
+            // An empty HOME is unset, not the root directory.
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd('/', '\\');
+            Assert.Equal(profile + "/.hider", StoragePaths.DataDirectory(false, k => k == "HOME" ? "" : null));
+            Assert.Equal(profile + "\\.hider", StoragePaths.DataDirectory(true, k => k == "USERPROFILE" ? "" : null));
         }
     }
 }
