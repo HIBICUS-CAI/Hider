@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Controls.Primitives;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Rendering.Composition;
 using Hider.Core.Model;
 using Hider.Platform;
 using Hider.Settings;
@@ -131,8 +132,8 @@ namespace Hider.Areas
             }
         }
 
-        /// <summary>Frames to wait after making rows transparent: the frame that draws them, its presentation, one spare.</summary>
-        public const int StripFrames = 3;
+        /// <summary>Frames to wait after the transparent rows have been rendered: one spare frame for the display server.</summary>
+        public const int StripSpareFrames = 1;
 
         /// <summary>Upper bound for that wait, for windows that render no frames (minimised, not mapped yet).</summary>
         public static readonly TimeSpan StripFrameTimeout = TimeSpan.FromMilliseconds(250);
@@ -171,13 +172,18 @@ namespace Hider.Areas
             return Task.CompletedTask;
         }
 
+        /// <summary>Design §5.3: the composition batch that carries the change has been rendered, plus one spare frame.</summary>
         private async Task WaitFramesAsync(CancellationToken _ct)
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_ct);
             timeout.CancelAfter(StripFrameTimeout);
             try
             {
-                for (int i = 0; i < StripFrames; i++)
+                if (ElementComposition.GetElementVisual(this)?.Compositor is { } compositor)
+                {
+                    await compositor.RequestCompositionBatchCommitAsync().Rendered.WaitAsync(timeout.Token);
+                }
+                for (int i = 0; i < StripSpareFrames; i++)
                 {
                     var frame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                     RequestAnimationFrame(_ => frame.TrySetResult());
