@@ -23,4 +23,9 @@
     <ProjectReference Include="../../src/Hider.Core/Hider.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Fakes of App-side interfaces (IAreaWindowHost, IScreenService) are compiled only into Hider.App.Tests. -->
+    <Compile Remove="Fakes/App/**" />
+  </ItemGroup>
+
 </Project>
