@@ -77,7 +77,7 @@ namespace Hider.App.Tests.Areas
             // StripCoordinator → AreaStripHost → AreaWindow: overlapping mosaic windows are see-through exactly while a grab runs.
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(1920, 1080));
-            var bridge = new AreaStripHost(a => Dispatcher.UIThread.Post(a));
+            var bridge = new AreaStripHost(f => Dispatcher.UIThread.InvokeAsync(f));
             using var coordinator = new StripCoordinator(grabber, bridge, () => bridge.Areas);
             using var f = new AreaFixture(_capture: new UnavailableCapture(), _isWindows: false);
             bridge.Attach(f.Manager);

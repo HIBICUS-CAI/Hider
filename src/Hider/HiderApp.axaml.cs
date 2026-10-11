@@ -48,7 +48,7 @@ namespace Hider
             screenProbe = new Window();
             var screens = new AvaloniaScreenService(() => screenProbe.Screens);
             Action<Action> uiPost = a => Dispatcher.UIThread.Post(a);
-            var stripHost = new AreaStripHost(uiPost);
+            var stripHost = new AreaStripHost(f => Dispatcher.UIThread.InvokeAsync(f));
             capture = CreateCapture(stripHost);
             areas = new AreaManager(new AreaServices(screens, _hostFactory, _areasPath, TimeProvider.System,
                 uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));

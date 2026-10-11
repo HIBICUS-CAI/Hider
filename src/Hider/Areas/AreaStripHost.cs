@@ -9,12 +9,13 @@ namespace Hider.Areas
     /// </summary>
     public sealed class AreaStripHost : IStripHost
     {
-        private readonly Action<Action> uiPost;
+        private readonly Func<Func<Task>, Task> uiInvoke;
         private AreaManager? manager;
 
-        public AreaStripHost(Action<Action> _uiPost)
+        /// <param name="_uiInvoke">Runs async work on the UI thread and completes with it (Dispatcher.UIThread.InvokeAsync).</param>
+        public AreaStripHost(Func<Func<Task>, Task> _uiInvoke)
         {
-            uiPost = _uiPost;
+            uiInvoke = _uiInvoke;
         }
 
         public void Attach(AreaManager _manager)
@@ -33,39 +34,30 @@ namespace Hider.Areas
 
         public Task SetTransparentRowsAsync(string _areaId, int _y0, int _y1, CancellationToken _ct)
         {
-            return OnUi(_areaId, w => w.SetTransparentRowsAsync(_y0, _y1, _ct));
+            return OnUi(_areaId, w => w.SetTransparentRowsAsync(_y0, _y1, _ct), _ct);
         }
 
         public Task RestoreAsync(string _areaId)
         {
-            return OnUi(_areaId, w => w.RestoreRowsAsync());
+            return OnUi(_areaId, w => w.RestoreRowsAsync(), CancellationToken.None);
         }
 
-        private Task OnUi(string _areaId, Func<AreaWindow, Task> _action)
+        /// <summary>
+        /// Runs <paramref name="_action"/> on the area's window on the UI thread. The capture thread stops waiting when
+        /// <paramref name="_ct"/> is cancelled; if the dispatcher drops the job (shutting down) the task is cancelled too.
+        /// </summary>
+        private Task OnUi(string _areaId, Func<AreaWindow, Task> _action, CancellationToken _ct)
         {
-            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            uiPost(async () =>
+            var work = uiInvoke(async () =>
             {
-                try
+                // An area deleted meanwhile has nothing left to hide or restore.
+                var area = manager?.Areas.FirstOrDefault(a => a.Model.Id == _areaId);
+                if (area is not null)
                 {
-                    // An area deleted meanwhile has nothing left to hide or restore.
-                    var area = manager?.Areas.FirstOrDefault(a => a.Model.Id == _areaId);
-                    if (area is not null)
-                    {
-                        await _action(area.Window);
-                    }
-                    done.TrySetResult();
-                }
-                catch (OperationCanceledException)
-                {
-                    done.TrySetCanceled();
-                }
-                catch (Exception e)
-                {
-                    done.TrySetException(e);
+                    await _action(area.Window);
                 }
             });
-            return done.Task;
+            return work.WaitAsync(_ct);
         }
     }
 }
