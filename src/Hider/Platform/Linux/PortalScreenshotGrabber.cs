@@ -27,9 +27,15 @@ namespace Hider.Platform.Linux
 
         /// <summary>
         /// The portal shoots when called, and the coordinator calls after the windows have shown their transparent rows, so
-        /// every result is newer than <paramref name="_notBeforeTimestamp"/>.
+        /// every result is newer than <paramref name="_notBeforeTimestamp"/>. Null until <see cref="PrepareAsync"/> got an
+        /// answer: a strip is transparent here, and the first call may wait for a permission dialog.
         /// </summary>
-        public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
+        public Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
+        {
+            return answered ? ShootAsync(_ct) : Task.FromResult<ScreenFrame?>(null);
+        }
+
+        private async Task<ScreenFrame?> ShootAsync(CancellationToken _ct)
         {
             string? path = null;
             try
@@ -91,7 +97,7 @@ namespace Hider.Platform.Linux
             {
                 return true;
             }
-            return await GrabAfterAsync(0, _needed, _ct).ConfigureAwait(false) is not null;
+            return await ShootAsync(_ct).ConfigureAwait(false) is not null;
         }
 
         /// <summary>Decodes the portal's PNG into a premultiplied BGRA frame (null if it cannot be read).</summary>

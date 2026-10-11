@@ -35,7 +35,9 @@ namespace Hider.App.Tests.Platform
         {
             // An address nobody listens on stands for "no session bus / no portal" (CI, minimal sessions): FR-52 takes over.
             using var grabber = new PortalScreenshotGrabber(() => new Hider.Core.Model.PhysicalRect(0, 0, 1920, 1080), "unix:path=/nonexistent/hider-test-bus");
-            Assert.Null(await grabber.GrabAfterAsync(0, new Hider.Core.Model.PhysicalRect(0, 0, 10, 10), TestContext.Current.CancellationToken));
+            var rect = new Hider.Core.Model.PhysicalRect(0, 0, 10, 10);
+            Assert.False(await grabber.PrepareAsync(rect, TestContext.Current.CancellationToken));
+            Assert.Null(await grabber.GrabAfterAsync(0, rect, TestContext.Current.CancellationToken));
         }
     }
 }

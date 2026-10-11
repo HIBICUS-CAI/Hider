@@ -64,7 +64,9 @@ namespace Hider.Platform.Linux
             {
                 idle?.Dispose();
                 idle = null;
-                if (disposed || (session is null && !await OpenAsync(_ct).ConfigureAwait(false)))
+                // Only PrepareAsync opens the session: here a strip is transparent, so no portal round trip or dialog may
+                // start (closed by the idle timer, or stage 1 was prepared during a back-off): the strip just fails.
+                if (disposed || session is null)
                 {
                     return null;
                 }
@@ -124,7 +126,15 @@ namespace Hider.Platform.Linux
                     {
                         return false;
                     }
-                    await Task.Run(() => Grab(0), CancellationToken.None).ConfigureAwait(false);
+                    // Ready only once a frame came through; otherwise every strip would time out with its rows transparent.
+                    var (code, _) = await Task.Run(() => Grab(0), CancellationToken.None).ConfigureAwait(false);
+                    if (code != Hidercap.Ok)
+                    {
+                        Log.Verbose($"screencast: no first frame ({code}), closing the session");
+                        await CloseAsync().ConfigureAwait(false);
+                        BackOff();
+                        return false;
+                    }
                 }
                 return covers is { } shown && shown.Intersect(_needed) == _needed;
             }

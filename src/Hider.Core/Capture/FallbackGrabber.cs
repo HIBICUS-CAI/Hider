@@ -5,11 +5,14 @@ namespace Hider.Core.Capture
     /// <summary>
     /// Tries grabbers in order (Linux: ScreenCast + helper, then the Screenshot portal, D-6). The next one is asked when a
     /// grabber has no frame for the needed rectangle (helper missing, area on another monitor) or was refused; the refusal
-    /// is reported only when no grabber produced a frame.
+    /// is reported only when no grabber produced a frame. Only the grabbers up to the one <see cref="PrepareAsync"/> found
+    /// ready are asked for strips, so an unprepared one never starts slow or interactive work with a strip transparent.
+    /// The coordinator runs one capture at a time, so the prepared index needs no lock.
     /// </summary>
     public sealed class FallbackGrabber : IScreenGrabber
     {
         private readonly IReadOnlyList<IScreenGrabber> grabbers;
+        private int prepared = -1;
 
         public FallbackGrabber(params IScreenGrabber[] _grabbers)
         {
@@ -19,11 +22,11 @@ namespace Hider.Core.Capture
         public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
             CaptureDeniedException? denied = null;
-            foreach (var grabber in grabbers)
+            for (int i = 0; i <= prepared && i < grabbers.Count; i++)
             {
                 try
                 {
-                    var frame = await grabber.GrabAfterAsync(_notBeforeTimestamp, _needed, _ct).ConfigureAwait(false);
+                    var frame = await grabbers[i].GrabAfterAsync(_notBeforeTimestamp, _needed, _ct).ConfigureAwait(false);
                     if (frame is not null)
                     {
                         return frame;
@@ -43,13 +46,15 @@ namespace Hider.Core.Capture
         /// </summary>
         public async Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
         {
+            prepared = -1;
             CaptureDeniedException? denied = null;
-            foreach (var grabber in grabbers)
+            for (int i = 0; i < grabbers.Count; i++)
             {
                 try
                 {
-                    if (await grabber.PrepareAsync(_needed, _ct).ConfigureAwait(false))
+                    if (await grabbers[i].PrepareAsync(_needed, _ct).ConfigureAwait(false))
                     {
+                        prepared = i;
                         return true;
                     }
                 }

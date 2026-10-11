@@ -122,13 +122,21 @@ namespace Hider.App.Tests.Platform
 
         private static Task<ScreenFrame?> Grab(PipeWireGrabber _g, long _notBefore = 0, PhysicalRect? _needed = null)
         {
-            return _g.GrabAfterAsync(_notBefore, _needed ?? new PhysicalRect(100, 100, 200, 100), TestContext.Current.CancellationToken);
+            return _g.GrabAfterAsync(_notBefore, _needed ?? Needed, TestContext.Current.CancellationToken);
+        }
+
+        private static readonly PhysicalRect Needed = new(100, 100, 200, 100);
+
+        private static Task<bool> Prepare(PipeWireGrabber _g, PhysicalRect? _needed = null)
+        {
+            return _g.PrepareAsync(_needed ?? Needed, TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task CT89_StartGrabsStop_NoDoubleStart()
         {
             using var g = Create();
+            Assert.True(await Prepare(g));
             for (int i = 0; i < 3; i++)
             {
                 var frame = await Grab(g);
@@ -137,22 +145,55 @@ namespace Hider.App.Tests.Platform
                 Assert.Equal(0x5A, frame.Frame.Bgra.Span[0]);
                 Assert.Equal(new PhysicalRect(0, 0, 1920, 1080), frame.Covers);
             }
-            // The first grab grows the buffer and asks again; the session stays open between grabs.
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab", "grab", "grab" }, log);
+            // The first grab (in the prepare) grows the buffer and asks again; the session stays open between grabs.
+            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab", "grab", "grab", "grab" }, log);
 
-            // Closed after the idle time (the screen sharing indicator goes away), opened again for the next capture.
+            // Closed after the idle time (the screen sharing indicator goes away), opened again by the next prepare. The
+            // fake clock runs the timer and the close synchronously.
             time.Advance(PipeWireGrabber.IdleClose);
-            await Task.Delay(50, TestContext.Current.CancellationToken);
             Assert.False(g.IsOpen);
             Assert.Equal(new[] { "stop", "portal close" }, log.TakeLast(2));
+            Assert.True(await Prepare(g));
             Assert.NotNull(await Grab(g));
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab" }, log.TakeLast(3));
+            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log.TakeLast(4));
+        }
+
+        [Fact]
+        public async Task Grab_NeverOpensTheSession()
+        {
+            // A strip is transparent during a grab: a session closed in between (idle timer) or never prepared is not
+            // opened there (portal round trips, maybe a dialog); the strip fails instead.
+            using var g = Create();
+            Assert.Null(await Grab(g));
+            Assert.Empty(log);
+            Assert.True(await Prepare(g));
+            time.Advance(PipeWireGrabber.IdleClose);
+            log.Clear();
+            Assert.Null(await Grab(g));
+            Assert.Empty(log);
+        }
+
+        [Fact]
+        public async Task Prepare_NoFirstFrame_NotReady_SessionClosed()
+        {
+            helper.GrabResult = Hidercap.Timeout;
+            using var g = Create();
+            Assert.False(await Prepare(g));
+            Assert.False(g.IsOpen);
+            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "stop", "portal close" }, log);
+            // Backed off: stage 1 is used for a while instead of opening the portal for every capture.
+            helper.GrabResult = Hidercap.Ok;
+            Assert.False(await Prepare(g));
+            Assert.Single(log, "portal start");
+            time.Advance(PipeWireGrabber.RetryAfterFailure);
+            Assert.True(await Prepare(g));
         }
 
         [Fact]
         public async Task CT90_NotBefore_ConvertedToNanoseconds_TimeoutIsNull()
         {
             using var g = Create();
+            Assert.True(await Prepare(g));
             // FakeTimeProvider counts 100 ns ticks: 12345 ticks = 1 234 500 ns.
             await Grab(g, 12345);
             Assert.Equal(1_234_500, helper.NotBeforeNs[^1]);
@@ -174,13 +215,12 @@ namespace Hider.App.Tests.Platform
             portal.NewTokens.Enqueue("t2");
             portal.NewTokens.Enqueue(null);
             using var g = Create();
-            await Grab(g);
+            Assert.True(await Prepare(g));
             Assert.Equal("t1", tokens.Load());
             for (int i = 0; i < 2; i++)
             {
                 time.Advance(PipeWireGrabber.IdleClose);
-                await Task.Delay(50, TestContext.Current.CancellationToken);
-                await Grab(g);
+                Assert.True(await Prepare(g));
             }
             // Absent at first (dialog), then each start spends the previous token; no new token leaves none.
             Assert.Equal(new string?[] { null, "t1", "t2" }, portal.TokensUsed);
@@ -192,21 +232,22 @@ namespace Hider.App.Tests.Platform
         {
             helper.IsAvailable = false;
             using var g = Create();
+            Assert.False(await Prepare(g));
             Assert.Null(await Grab(g));
             Assert.Empty(log);
         }
 
         [Fact]
-        public async Task PortalMissing_NullAndNoRetryForAWhile()
+        public async Task PortalMissing_NotReadyAndNoRetryForAWhile()
         {
             portal.Missing = true;
             using var g = Create();
-            Assert.Null(await Grab(g));
-            Assert.Null(await Grab(g)); // the next strips go straight to stage 1
+            Assert.False(await Prepare(g));
+            Assert.False(await Prepare(g)); // the next captures go straight to stage 1
             Assert.Single(log, "portal start");
             portal.Missing = false;
             time.Advance(PipeWireGrabber.RetryAfterFailure);
-            Assert.NotNull(await Grab(g));
+            Assert.True(await Prepare(g));
         }
 
         [Fact]
@@ -214,9 +255,9 @@ namespace Hider.App.Tests.Platform
         {
             helper.StartResult = Hidercap.StreamError;
             using var g = Create();
-            Assert.Null(await Grab(g));
+            Assert.False(await Prepare(g));
             Assert.Equal("portal close", log[^1]);
-            Assert.Null(await Grab(g));
+            Assert.False(await Prepare(g));
             Assert.Single(log, "portal start");
         }
 
@@ -225,9 +266,9 @@ namespace Hider.App.Tests.Platform
         {
             portal.Deny = true;
             using var g = Create();
-            await Assert.ThrowsAsync<CaptureDeniedException>(() => Grab(g));
+            await Assert.ThrowsAsync<CaptureDeniedException>(() => Prepare(g));
             time.Advance(TimeSpan.FromHours(1));
-            Assert.Null(await Grab(g));
+            Assert.False(await Prepare(g));
             Assert.Single(log, "portal start");
         }
 
@@ -236,6 +277,7 @@ namespace Hider.App.Tests.Platform
         {
             portal.StreamRect = new PhysicalRect(1920, 0, 2560, 1440);
             using var g = Create(Primary, Right);
+            Assert.True(await Prepare(g, new PhysicalRect(2000, 100, 200, 100)));
             Assert.Null(await Grab(g, 0, new PhysicalRect(100, 100, 200, 100)));
             var frame = await Grab(g, 0, new PhysicalRect(2000, 100, 200, 100));
             Assert.Equal(Right.Bounds, frame!.Covers);
@@ -265,7 +307,7 @@ namespace Hider.App.Tests.Platform
             using var g = Create(Primary, Right);
             var ct = TestContext.Current.CancellationToken;
             Assert.True(await g.PrepareAsync(new PhysicalRect(2000, 100, 200, 100), ct));
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log);
+            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log); // the first grab grows the buffer
             Assert.True(g.IsOpen);
             // Already open: nothing more to do. An area on the other monitor is not this grabber's.
             log.Clear();
