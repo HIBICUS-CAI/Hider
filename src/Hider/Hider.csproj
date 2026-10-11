@@ -4,6 +4,8 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>Hider</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- LibraryImport (source-generated P/Invoke) needs unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- Self-contained trimmed single file: targets need no .NET runtime. Native libs stay next to the
