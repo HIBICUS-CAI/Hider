@@ -306,3 +306,62 @@ spikes/S-3 の `--window`（Windows 11 と Ubuntu 26.04）: GPU 経路の 1 フ�
 ### 8. 次 Step の前提
 
 Step 5（Windows 取得・ライブ更新・設定ポップアップ）へ。S-4（PrintWindow の黒判定）は人間待ちのため P-3 で仮通過し、UnderlayComposer は偽の窓リストで検証する。
+
+## Step 5: Windows 取得・ライブ更新・設定ポップアップ（2026-10-11）
+
+### 1. 結果
+
+実装完了。完了条件の 2 つはいずれも Windows 11 実機が必要なため人間待ち。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| Windows 11 実機で 800×450・窓 3 枚・100 ms で CPU が 1 コアの 10% 以下 | 人間待ち | docs/manual-tests.md PT-11、記録先 docs/perf.md「Windows ライブ更新」 |
+| S-4 で黒になった窓の種類が FR-52 で正しくフォールバック | 人間待ち（偽の窓リストでは達成） | CT-66〜68（黒判定・タイムアウト・取得不能 → 生成パターン）、docs/manual-tests.md PT-12〜13 |
+| CT-61〜70、GT-26〜35 | 達成 | https://github.com/HIBICUS-CAI/Hider/actions/runs/38165635187 |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| c4be83a | UnderlayComposer（下の窓の合成、純粋関数）と CT-61〜70 |
+| 8c3144e | Win32WindowSource（EnumWindows の Z 順、可視・非クローク・交差・Hider 除外、DWM 枠、Progman）、Win32UnderlayCapture（PrintWindow(PW_RENDERFULLCONTENT)、窓ごとタイムアウト、黒検出）と配線 |
+| 4ca29a8 | `--selftest` に Windows の取得経路の検査 |
+| dc759ea | Avalonia.Controls.ColorPicker（テーマは XAML で読み込み。S-7 のトリミング対策） |
+| 2ba5814 | 設定ポップアップ（ParamSpec から行を生成、手法ドロップダウン、カラーピッカー + プリセット 8 色） |
+| a3432cb | GT-26〜35、GT-40 |
+| 8a81937 | docs/manual-tests.md に PT-09〜14 |
+
+新規依存: Avalonia.Controls.ColorPicker（作業指示書 §2.1 の許可済み一覧内）。全コミットが単体でビルドできることを確認済み。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 86 / 0 / 0 | 42 / 0 / 0 |
+| linux-x64 | 86 / 0 / 0 | 42 / 0 / 0 |
+| linux-arm64 | 86 / 0 / 0 | 42 / 0 / 0 |
+
+追加: CT-61〜70、GT-26〜35、GT-40（設定ポップアップは headless の GUI テストで確認。ColorPicker の描画はトリミング後の単一ファイルで S-7 として確認済み）。
+
+### 5. 性能
+
+Windows の CPU 負荷は実機待ち（PT-11）。参考: S-4 の GPU なしランナーで PrintWindow は 1 窓約 30 ms。
+
+### 6. 提案
+
+なし。判断メモ:
+
+- スライダー操作中の保存は 500 ms のデバウンス（ドラッグ中に毎フレーム areas.json を書かない）。数値入力の確定・ドロップダウン・プリセットは即保存。
+- `CaptureRequest.ExcludeWindows[0]` を「要求したエリア自身の窓」と決めた。他のエリアの窓は合成に含める（エリアが重なった時に下のエリアのパターンが見えるのが自然なため）。全エリアを除外する案は、重なり部分で下のアプリの中身が透けるので却下。
+- 黒判定は保守的（全画素が黒に近い時だけ「取得不能」）。暗いアプリを誤って取得不能にしないため。
+- EnumWindows はトリミング安全のため関数ポインタ（`delegate* unmanaged`）で呼ぶ。
+
+### 7. 人間への依頼
+
+docs/manual-tests.md の PT-09〜14（Windows 11 実機）。特に PT-11（CPU 負荷）と S-4（spikes/S-4/README.md）の黒判定の結果。
+
+### 8. 次 Step の前提
+
+Step 6（hexcell / blur / noise）へ。
