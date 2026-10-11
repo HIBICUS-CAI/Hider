@@ -119,19 +119,36 @@ namespace Hider.Tray
 
         public TrayPopupWindow? PopupWindow => popup;
 
-        /// <summary>Opens the custom popup with the native menu's items at the cursor (Windows left click).</summary>
-        public void ShowPopup(PixelPoint? _at = null)
+        /// <summary>
+        /// Opens the custom popup with the native menu's items (Windows left click). With a cursor position it opens above-left
+        /// of the cursor, like the native menu near the taskbar, kept inside the working area of the cursor's monitor.
+        /// </summary>
+        public void ShowPopup(PixelPoint? _cursor = null)
         {
             popup?.Close();
-            popup = new TrayPopupWindow();
-            popup.SetItems(Items);
-            popup.CommandSelected += c => _ = ExecuteAsync(c);
-            if (_at is { } at)
+            var window = new TrayPopupWindow();
+            popup = window;
+            window.SetItems(Items);
+            window.CommandSelected += c => _ = ExecuteAsync(c);
+            if (_cursor is { } cursor)
             {
-                popup.Position = at;
+                // The window's size is in DIP: convert it with the cursor monitor's scale before placing it in physical px.
+                window.Measure(Size.Infinity);
+                var screen = window.Screens.ScreenFromPoint(cursor) ?? window.Screens.Primary;
+                window.Position = screen is null
+                    ? cursor
+                    : PlaceAboveLeft(cursor, PixelSize.FromSize(window.DesiredSize, screen.Scaling), screen.WorkingArea);
             }
-            popup.Show();
-            popup.Activate();
+            window.Show();
+            window.Activate();
+        }
+
+        /// <summary>Top-left of a window of <paramref name="_size"/> above-left of the cursor, clamped into the working area.</summary>
+        public static PixelPoint PlaceAboveLeft(PixelPoint _cursor, PixelSize _size, PixelRect _workingArea)
+        {
+            int x = Math.Clamp(_cursor.X - _size.Width, _workingArea.X, Math.Max(_workingArea.X, _workingArea.Right - _size.Width));
+            int y = Math.Clamp(_cursor.Y - _size.Height, _workingArea.Y, Math.Max(_workingArea.Y, _workingArea.Bottom - _size.Height));
+            return new PixelPoint(x, y);
         }
 
         private void OnClicked()
@@ -141,12 +158,7 @@ namespace Hider.Tray
             {
                 return;
             }
-            PixelPoint? at = null;
-            if (Platform.Windows.Win32Cursor.TryGetPosition(out int x, out int y))
-            {
-                at = new PixelPoint(x - 236, y - 200); // above-left of the cursor, like the native menu near the taskbar
-            }
-            ShowPopup(at);
+            ShowPopup(Platform.Windows.Win32Cursor.TryGetPosition(out int x, out int y) ? new PixelPoint(x, y) : null);
         }
 
         public void Dispose()

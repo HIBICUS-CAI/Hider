@@ -147,5 +147,17 @@ namespace Hider.App.Tests.Tray
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
         }
+
+        [Theory]
+        [InlineData(1900, 1070, 236, 200, 1664, 840)]   // 100 %: above-left of the cursor near the taskbar
+        [InlineData(1900, 1070, 472, 400, 1428, 640)]   // 200 %: the same DIP size is twice as many pixels
+        [InlineData(100, 1070, 472, 400, 0, 640)]       // cursor near the left edge: kept on screen
+        [InlineData(1900, 100, 472, 400, 1428, 0)]      // taskbar at the top: kept below the top edge
+        public void Popup_PlacedAboveLeftInsideTheWorkingArea(int _cx, int _cy, int _w, int _h, int _x, int _y)
+        {
+            var place = TrayController.PlaceAboveLeft(new Avalonia.PixelPoint(_cx, _cy), new Avalonia.PixelSize(_w, _h),
+                new Avalonia.PixelRect(0, 0, 1920, 1040));
+            Assert.Equal(new Avalonia.PixelPoint(_x, _y), place);
+        }
     }
 }
