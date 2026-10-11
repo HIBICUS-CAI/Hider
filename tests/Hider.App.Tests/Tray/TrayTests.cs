@@ -138,5 +138,14 @@ namespace Hider.App.Tests.Tray
         {
             Assert.False(await Hider.Platform.Linux.StatusNotifierProbe.HasWatcherAsync("unix:path=/nonexistent/hider-test-bus"));
         }
+
+        [AvaloniaFact]
+        public void FR71_IconsLoadFromAssets()
+        {
+            Assert.Equal(32, AppIcons.Image.PixelSize.Width);
+            Assert.NotNull(AppIcons.CreateWindowIcon());
+            using var f = new AreaFixture();
+            using var tray = CreateTray(f);
+        }
     }
 }

@@ -28,7 +28,7 @@ namespace Hider.Tray
         {
             areas = _areas;
             exit = _exit;
-            icon = new TrayIcon { Icon = new WindowIcon(AppIcons.Tray), Menu = menu, IsVisible = true };
+            icon = new TrayIcon { Icon = AppIcons.CreateWindowIcon(), Menu = menu, IsVisible = true };
             icon.Clicked += (_, _) => OnClicked();
             TrayIcon.SetIcons(_application, new TrayIcons { icon });
             areas.Changed += Update;

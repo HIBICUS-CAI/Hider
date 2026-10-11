@@ -13,6 +13,7 @@ namespace Hider.Tray
         public TrayFallbackWindow()
         {
             InitializeComponent();
+            Icon = AppIcons.CreateWindowIcon();
             Items.CommandSelected += c => CommandSelected?.Invoke(c);
             Closing += (_, e) =>
             {

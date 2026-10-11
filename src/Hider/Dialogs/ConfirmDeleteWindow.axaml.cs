@@ -16,7 +16,7 @@ namespace Hider.Dialogs
             NoteText.Text = Strings.ConfirmCannotUndo;
             CancelButton.Content = Strings.ConfirmCancel;
             DeleteButton.Content = Strings.ConfirmDelete;
-            AppIcon.Source = AppIcons.Tray;
+            AppIcon.Source = AppIcons.Image;
             CancelButton.Click += (_, _) => Finish(false);
             CloseButton.Click += (_, _) => Finish(false);
             DeleteButton.Click += (_, _) => Finish(true);
