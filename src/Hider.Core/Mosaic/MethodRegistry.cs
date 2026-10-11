@@ -8,6 +8,7 @@ namespace Hider.Core.Mosaic
         public static IReadOnlyList<IMosaicMethod> All { get; } = new IMosaicMethod[]
         {
             new PixelateMethod(),
+            new HexcellMethod(),
             new BlockMethod(),
         };
 
