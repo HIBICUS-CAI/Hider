@@ -1,6 +1,6 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using SkiaSharp;
+using Hider.Core.Model;
+using Hider.Core.Mosaic;
+using Hider.Core.Persistence;
 
 namespace Hider.Core
 {
@@ -43,35 +43,51 @@ namespace Hider.Core
             return failures == 0 ? 0 : 1;
         }
 
+        /// <summary>A state using every field and every registered method survives Save / Load through a file.</summary>
         private static string? CheckJson()
         {
-            var probe = new SelfTestProbe(1, "ok");
-            string json = JsonSerializer.Serialize(probe, SelfTestJsonContext.Default.SelfTestProbe);
-            var back = JsonSerializer.Deserialize(json, SelfTestJsonContext.Default.SelfTestProbe);
-            return back == probe ? null : $"round trip mismatch: {json}";
+            var area = Area.CreateNew("0f3b8d2e", new PhysicalRect(-1200, 340, 1200, 675), true);
+            area.Pattern = PatternKind.Generated;
+            area.Opacity = 0.5;
+            area.Fill.Color = "#2B2F36";
+            area.Mosaic.Params["unknown-method"] = new Dictionary<string, double> { ["x"] = 1.5 };
+            AreasFile.FillDefaults(area.Mosaic.Params, MethodKind.Mosaic);
+            AreasFile.FillDefaults(area.Generated.Params, MethodKind.Generated);
+            var state = new AppState { Areas = { AreaState.FromArea(area, 1.5) } };
+
+            string path = Path.Combine(Path.GetTempPath(), $"hider-selftest-{Environment.ProcessId}.json");
+            try
+            {
+                AreasFile.Save(path, state);
+                var loaded = AreasFile.Load(path, out var status);
+                string expected = AreasFile.ToJson(state);
+                string actual = AreasFile.ToJson(loaded);
+                if (status != LoadStatus.Loaded || expected != actual)
+                {
+                    return $"status {status}, expected {expected}, got {actual}";
+                }
+                var back = loaded.Areas[0].ToArea(1.5);
+                return back.Rect == area.Rect ? null : $"rect {back.Rect} != {area.Rect}";
+            }
+            finally
+            {
+                File.Delete(path);
+            }
         }
 
+        /// <summary>Every embedded .sksl compiles (needs the SkiaSharp native library next to the executable).</summary>
         private static string? CheckSksl()
         {
-            var sources = new List<(string Name, string Source)> { ("identity", IdentitySksl) };
-            foreach (var (name, source) in sources)
+            var ids = ShaderSource.All();
+            if (ids.Count == 0)
             {
-                using var effect = SKRuntimeEffect.CreateShader(source, out string? errors);
-                if (effect is null)
-                {
-                    return $"{name}: {errors}";
-                }
+                return "no embedded shaders";
+            }
+            foreach (string id in ids)
+            {
+                using var effect = ShaderSource.Compile(id);
             }
             return null;
         }
-
-        private const string IdentitySksl = "half4 main(float2 p) { return half4(1, 1, 1, 1); }";
-    }
-
-    internal sealed record SelfTestProbe(int Version, string Text);
-
-    [JsonSerializable(typeof(SelfTestProbe))]
-    internal sealed partial class SelfTestJsonContext : JsonSerializerContext
-    {
     }
 }
