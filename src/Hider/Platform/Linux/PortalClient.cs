@@ -77,16 +77,16 @@ namespace Hider.Platform.Linux
             // Subscribe before calling, so a fast response is not missed.
             using var match = await _bus.AddMatchAsync(
                 new MatchRule { Type = MessageType.Signal, Interface = "org.freedesktop.portal.Request", Member = "Response", Path = requestPath },
-                (Message m, object? _) => ReadResponse(m),
-                (Notification<Response> n) =>
+                (Message _m, object? _) => ReadResponse(_m),
+                (Notification<Response> _n) =>
                 {
-                    if (n.Type == NotificationType.Value)
+                    if (_n.Type == NotificationType.Value)
                     {
-                        response.TrySetResult(n.Value);
+                        response.TrySetResult(_n.Value);
                     }
-                    else if (!n.IsCompletion)
+                    else if (!_n.IsCompletion)
                     {
-                        response.TrySetException(n.Exception);
+                        response.TrySetException(_n.Exception);
                     }
                 },
                 emitOnCapturedContext: false).ConfigureAwait(false);

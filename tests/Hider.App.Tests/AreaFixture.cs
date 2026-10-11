@@ -17,15 +17,15 @@ namespace Hider.App.Tests
         {
             Directory.CreateDirectory(dir);
             Scale = _scale;
-            Screens = _screens ?? new FakeScreenService(FakeScreenService.Single(_scale));
+            Screens = _screens ?? new FakeScreenService(FakeScreenService.OneScreen(_scale));
             Capture = _capture ?? new FakeUnderlayCapture();
             // Everything inline on the test (UI) thread: captures complete synchronously.
-            Manager = new AreaManager(new AreaServices(Screens, _hostFactory ?? (w =>
+            Manager = new AreaManager(new AreaServices(Screens, _hostFactory ?? (_w =>
             {
-                var host = new FakeAreaWindowHost(w, _scale);
+                var host = new FakeAreaWindowHost(_w, _scale);
                 Hosts.Add(host);
                 return host;
-            }), AreasPath, Time, a => a(), _isWindows, Capture, c => c()));
+            }), AreasPath, Time, _a => _a(), _isWindows, Capture, _c => _c()));
         }
 
         public IUnderlayCapture Capture { get; }

@@ -32,7 +32,7 @@ namespace Hider.Platform.Linux
                     writer.WriteString(WatcherName);
                     call = writer.CreateMessage();
                 }
-                return await bus.CallMethodAsync(call, (Message m, object? _) => m.GetBodyReader().ReadBool()).ConfigureAwait(false);
+                return await bus.CallMethodAsync(call, (Message _m, object? _) => _m.GetBodyReader().ReadBool()).ConfigureAwait(false);
             }
             catch (Exception e)
             {

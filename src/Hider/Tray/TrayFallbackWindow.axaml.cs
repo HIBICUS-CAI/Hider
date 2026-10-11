@@ -14,12 +14,12 @@ namespace Hider.Tray
         {
             InitializeComponent();
             Icon = AppIcons.CreateWindowIcon();
-            Items.CommandSelected += c => CommandSelected?.Invoke(c);
-            Closing += (_, e) =>
+            Items.CommandSelected += _c => CommandSelected?.Invoke(_c);
+            Closing += (_, _e) =>
             {
-                if (Hider.Areas.AreaWindow.KeepOpen(closingAllowed, e.CloseReason))
+                if (Hider.Areas.AreaWindow.KeepOpen(closingAllowed, _e.CloseReason))
                 {
-                    e.Cancel = true;
+                    _e.Cancel = true;
                     WindowState = WindowState.Minimized;
                 }
             };

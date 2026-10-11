@@ -25,7 +25,7 @@ namespace Hider.Core.Tests.Imaging
             var inputs = MosaicPipeline.Prepare(source, _origin, p, null, method);
             try
             {
-                return Draw(source.Width, source.Height, canvas => new MosaicPipeline().Draw(canvas, SKRect.Create(source.Width, source.Height), inputs, method, p, _levels));
+                return Draw(source.Width, source.Height, _canvas => new MosaicPipeline().Draw(_canvas, SKRect.Create(source.Width, source.Height), inputs, method, p, _levels));
             }
             finally
             {
@@ -46,7 +46,7 @@ namespace Hider.Core.Tests.Imaging
             }
             var p = ParamValues.ForGenerated(method, settings);
             var inputs = new MosaicInputs { AreaSize = new SKSizeI(_width, _height), AreaOrigin = _origin };
-            return Draw(_width, _height, canvas => new MosaicPipeline().Draw(canvas, SKRect.Create(_width, _height), inputs, method, p, 256));
+            return Draw(_width, _height, _canvas => new MosaicPipeline().Draw(_canvas, SKRect.Create(_width, _height), inputs, method, p, 256));
         }
 
         public static SKBitmap Draw(int _width, int _height, Action<SKCanvas> _draw)
@@ -62,7 +62,7 @@ namespace Hider.Core.Tests.Imaging
 
         public static SKBitmap ToBitmap(SKImage _image)
         {
-            return Draw(_image.Width, _image.Height, c => c.DrawImage(_image, 0, 0));
+            return Draw(_image.Width, _image.Height, _c => _c.DrawImage(_image, 0, 0));
         }
     }
 }

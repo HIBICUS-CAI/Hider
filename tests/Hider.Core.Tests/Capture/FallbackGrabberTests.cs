@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Capture
 {
     public class FallbackGrabberTests
     {
-        private static readonly PhysicalRect Needed = new(10, 10, 50, 50);
+        private static readonly PhysicalRect needed = new(10, 10, 50, 50);
 
         [Fact]
         public async Task FirstFrameWins_LaterGrabbersUntouched()
@@ -15,11 +15,11 @@ namespace Hider.Core.Tests.Capture
             var first = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
             var second = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
             using var grabber = new FallbackGrabber(first, second);
-            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
-            Assert.NotNull(await grabber.GrabAfterAsync(7, Needed, TestContext.Current.CancellationToken));
+            Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
+            Assert.NotNull(await grabber.GrabAfterAsync(7, needed, TestContext.Current.CancellationToken));
             Assert.Equal((1, 0), (first.Calls, second.Calls));
             Assert.Equal(7, first.NotBefore[0]);
-            Assert.Equal(Needed, first.Needed[0]);
+            Assert.Equal(needed, first.Needed[0]);
         }
 
         [Fact]
@@ -30,8 +30,8 @@ namespace Hider.Core.Tests.Capture
             var first = new FakeScreenGrabber(log, null) { Ready = false };
             var second = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
             using var grabber = new FallbackGrabber(first, second);
-            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
-            var frame = await grabber.GrabAfterAsync(0, Needed, TestContext.Current.CancellationToken);
+            Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
+            var frame = await grabber.GrabAfterAsync(0, needed, TestContext.Current.CancellationToken);
             Assert.NotNull(frame);
             Assert.Equal((1, 1), (first.Calls, second.Calls));
         }
@@ -44,21 +44,21 @@ namespace Hider.Core.Tests.Capture
             var working = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
             using (var grabber = new FallbackGrabber(deniedFirst, working))
             {
-                Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
-                Assert.NotNull(await grabber.GrabAfterAsync(0, Needed, TestContext.Current.CancellationToken));
+                Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
+                Assert.NotNull(await grabber.GrabAfterAsync(0, needed, TestContext.Current.CancellationToken));
             }
 
             var empty = new FakeScreenGrabber(log, null) { Ready = false };
             var denied = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100)) { Deny = true };
             using (var grabber = new FallbackGrabber(empty, denied))
             {
-                Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
-                await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.GrabAfterAsync(0, Needed, TestContext.Current.CancellationToken));
+                Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
+                await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.GrabAfterAsync(0, needed, TestContext.Current.CancellationToken));
             }
             using (var grabber = new FallbackGrabber(new FakeScreenGrabber(log, null) { Ready = false }, new FakeScreenGrabber(log, null)))
             {
-                Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
-                Assert.Null(await grabber.GrabAfterAsync(0, Needed, TestContext.Current.CancellationToken));
+                Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
+                Assert.Null(await grabber.GrabAfterAsync(0, needed, TestContext.Current.CancellationToken));
             }
         }
 
@@ -70,18 +70,18 @@ namespace Hider.Core.Tests.Capture
             var first = new FakeScreenGrabber(log, null);
             var second = new FakeScreenGrabber(log, null);
             using var grabber = new FallbackGrabber(first, second);
-            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
             Assert.Single(log);
             first.Ready = false;
             log.Clear();
-            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
             Assert.Equal(2, log.Count);
             first.DenyPrepare = true;
             second.Ready = false;
-            await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
             first.DenyPrepare = false;
             first.Ready = false;
-            Assert.False(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            Assert.False(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
         }
 
         [Fact]
@@ -94,24 +94,24 @@ namespace Hider.Core.Tests.Capture
             var second = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
             using var grabber = new FallbackGrabber(first, second);
             var ct = TestContext.Current.CancellationToken;
-            Assert.Null(await grabber.GrabAfterAsync(0, Needed, ct));
-            Assert.True(await grabber.PrepareAsync(Needed, ct));
+            Assert.Null(await grabber.GrabAfterAsync(0, needed, ct));
+            Assert.True(await grabber.PrepareAsync(needed, ct));
             first.Frame = null;
-            Assert.Null(await grabber.GrabAfterAsync(0, Needed, ct));
+            Assert.Null(await grabber.GrabAfterAsync(0, needed, ct));
             Assert.Equal((1, 0), (first.Calls, second.Calls));
 
             // Stage 1 prepared (stage 2 not ready): stage 2 is still asked first, stage 1 answers.
             first.Ready = false;
             first.Frame = CoordinateFrame.Create(100, 100);
-            Assert.True(await grabber.PrepareAsync(Needed, ct));
+            Assert.True(await grabber.PrepareAsync(needed, ct));
             first.FailOnCall = 2;
-            Assert.NotNull(await grabber.GrabAfterAsync(0, Needed, ct));
+            Assert.NotNull(await grabber.GrabAfterAsync(0, needed, ct));
             Assert.Equal((2, 1), (first.Calls, second.Calls));
 
             // A failed prepare leaves nothing to ask.
             second.Ready = false;
-            Assert.False(await grabber.PrepareAsync(Needed, ct));
-            Assert.Null(await grabber.GrabAfterAsync(0, Needed, ct));
+            Assert.False(await grabber.PrepareAsync(needed, ct));
+            Assert.Null(await grabber.GrabAfterAsync(0, needed, ct));
             Assert.Equal((2, 1), (first.Calls, second.Calls));
         }
     }

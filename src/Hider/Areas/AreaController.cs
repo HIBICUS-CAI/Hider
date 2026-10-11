@@ -37,7 +37,7 @@ namespace Hider.Areas
             Model = _model;
             owner = _owner;
             scheduler = new RefreshScheduler(_owner.Services.Time);
-            scheduler.Due += reason => owner.Services.UiPost(() => StartCapture(reason));
+            scheduler.Due += _reason => owner.Services.UiPost(() => StartCapture(_reason));
             Window = new AreaWindow();
             Window.Attach(this);
             Host = _hostFactory(Window);
@@ -309,9 +309,9 @@ namespace Hider.Areas
             }
             // Runs right where the capture finished (a capture thread in the app): the frame is copied into the back buffer
             // there, and only the UI work is posted.
-            task.ContinueWith(t =>
+            task.ContinueWith(_t =>
             {
-                var result = t.IsCompletedSuccessfully ? t.Result : CaptureResult.Failed(t.IsCanceled ? CaptureFailure.Timeout : CaptureFailure.Unavailable);
+                var result = _t.IsCompletedSuccessfully ? _t.Result : CaptureResult.Failed(_t.IsCanceled ? CaptureFailure.Timeout : CaptureFailure.Unavailable);
                 bool ok = false;
                 try
                 {

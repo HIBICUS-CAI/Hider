@@ -11,7 +11,7 @@ namespace Hider.Core.Capture
     /// </summary>
     public sealed class FallbackGrabber : IScreenGrabber
     {
-        private readonly IReadOnlyList<IScreenGrabber> grabbers;
+        private readonly IScreenGrabber[] grabbers;
         private int prepared = -1;
 
         public FallbackGrabber(params IScreenGrabber[] _grabbers)
@@ -22,7 +22,7 @@ namespace Hider.Core.Capture
         public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
             CaptureDeniedException? denied = null;
-            for (int i = 0; i <= prepared && i < grabbers.Count; i++)
+            for (int i = 0; i <= prepared && i < grabbers.Length; i++)
             {
                 try
                 {
@@ -48,7 +48,7 @@ namespace Hider.Core.Capture
         {
             prepared = -1;
             CaptureDeniedException? denied = null;
-            for (int i = 0; i < grabbers.Count; i++)
+            for (int i = 0; i < grabbers.Length; i++)
             {
                 try
                 {

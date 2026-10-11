@@ -9,14 +9,14 @@ namespace Hider.Core.Tests.Mosaic
     public class RegistryTests
     {
         // Rename detector: ids are JSON keys and must never change. D-5 fixes the v2.0 set.
-        private static readonly string[] KnownIds = { "pixelate", "hexcell", "blur", "block", "noise" };
+        private static readonly string[] knownIds = { "pixelate", "hexcell", "blur", "block", "noise" };
 
         [Fact]
         public void CT13_Registry_IdsUniqueAndKnown()
         {
-            var ids = MethodRegistry.All.Select(m => m.Id).ToList();
+            var ids = MethodRegistry.All.Select(_m => _m.Id).ToList();
             Assert.Equal(ids.Count, ids.Distinct().Count());
-            Assert.Equal(KnownIds.Order(), ids.Order());
+            Assert.Equal(knownIds.Order(), ids.Order());
         }
 
         [Fact]
@@ -42,7 +42,7 @@ namespace Hider.Core.Tests.Mosaic
             foreach (var method in MethodRegistry.All)
             {
                 using var effect = ShaderSource.Compile(method.Id);
-                var expected = method.Params.Select(p => p.Key).Concat(CommonParams.FixedUniforms(method.Kind)).Order().ToList();
+                var expected = method.Params.Select(_p => _p.Key).Concat(CommonParams.FixedUniforms(method.Kind)).Order().ToList();
                 Assert.Equal(expected, effect.Uniforms.Order().ToList());
                 Assert.Equal(method.Kind == MethodKind.Mosaic ? new[] { "src" } : Array.Empty<string>(), effect.Children.ToArray());
             }
@@ -54,22 +54,22 @@ namespace Hider.Core.Tests.Mosaic
             var windowsOnly = new DummyMethod("winonly", MethodKind.Mosaic, PlatformSupport.Windows);
             var both = new DummyMethod("both", MethodKind.Mosaic, PlatformSupport.All);
             var linux = MethodRegistry.Filter(new IMosaicMethod[] { windowsOnly, both }, PlatformSupport.Linux);
-            Assert.Equal(new[] { "both" }, linux.Select(m => m.Id));
+            Assert.Equal(new[] { "both" }, linux.Select(_m => _m.Id));
             var windows = MethodRegistry.Filter(new IMosaicMethod[] { windowsOnly, both }, PlatformSupport.Windows);
-            Assert.Equal(new[] { "winonly", "both" }, windows.Select(m => m.Id));
-            Assert.All(MethodRegistry.ForPlatform(PlatformSupport.Linux), m => Assert.True(m.Support.HasFlag(PlatformSupport.Linux)));
+            Assert.Equal(new[] { "winonly", "both" }, windows.Select(_m => _m.Id));
+            Assert.All(MethodRegistry.ForPlatform(PlatformSupport.Linux), _m => Assert.True(_m.Support.HasFlag(PlatformSupport.Linux)));
         }
 
         [Fact]
         public void CT17_MethodKind_SourceRequirement()
         {
-            var generated = MethodRegistry.OfKind(MethodKind.Generated).First();
+            var generated = MethodRegistry.OfKind(MethodKind.Generated)[0];
             var inputs = new MosaicInputs { Source = null, AreaSize = new SKSizeI(32, 32) };
             using (var shader = generated.CreateShader(inputs, ParamValues.ForGenerated(generated, new MethodSettings<GeneratedCommon>())))
             {
                 Assert.NotNull(shader);
             }
-            var mosaic = MethodRegistry.OfKind(MethodKind.Mosaic).First();
+            var mosaic = MethodRegistry.OfKind(MethodKind.Mosaic)[0];
             Assert.Throws<ArgumentException>(() => mosaic.CreateShader(inputs, ParamValues.ForMosaic(mosaic, new MethodSettings<MosaicCommon>(), 1.0)));
         }
 
@@ -118,7 +118,7 @@ namespace Hider.Core.Tests.Mosaic
             using (_shader)
             {
                 using var paint = new SKPaint { Shader = _shader, BlendMode = SKBlendMode.Src };
-                return Render.Draw(_size.Width, _size.Height, c => c.DrawRect(0, 0, _size.Width, _size.Height, paint));
+                return Render.Draw(_size.Width, _size.Height, _c => _c.DrawRect(0, 0, _size.Width, _size.Height, paint));
             }
         }
 

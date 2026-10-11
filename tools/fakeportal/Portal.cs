@@ -40,8 +40,6 @@ namespace Hider.Tools.FakePortal
             return ValueTask.CompletedTask;
         }
 
-        public bool RunMethodHandlerSynchronously(Message _message) => true;
-
         private void Screenshot(MethodContext _context)
         {
             var reader = _context.Request.GetBodyReader();

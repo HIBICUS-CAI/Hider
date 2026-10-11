@@ -12,7 +12,7 @@ namespace Hider.App.Tests.Areas
 {
     public class AreaWindowTests
     {
-        private static readonly PhysicalRect Rect = new(400, 300, 400, 240);
+        private static readonly PhysicalRect areaRect = new(400, 300, 400, 240);
 
         private static void DoubleClick(AreaController _area, Point _p)
         {
@@ -27,19 +27,19 @@ namespace Hider.App.Tests.Areas
         public void GT02_HiddenMode_HasNoChrome()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             area.ExitEdit();
             Assert.Equal(AreaMode.Hidden, area.Mode);
             Assert.False(area.Window.ChromeAttached);
             Assert.Empty(area.Window.GetVisualDescendants().OfType<EditToolbar>());
-            Assert.Equal(Rect, f.Hosts[0].Last);
+            Assert.Equal(areaRect, f.Hosts[0].Last);
         }
 
         [AvaloniaFact]
         public void GT03_DoubleClick_EntersEditMode()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             area.ExitEdit();
             DoubleClick(area, AreaFixture.AreaCenter(area));
             Assert.Equal(AreaMode.Editing, area.Mode);
@@ -50,17 +50,17 @@ namespace Hider.App.Tests.Areas
         public void GT04_SingleClickAndWheel_AreSwallowed()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             area.ExitEdit();
             var p = AreaFixture.AreaCenter(area);
             bool reachedBehind = false;
-            area.Window.AddHandler(InputElement.PointerPressedEvent, (_, e) => reachedBehind |= !e.Handled, Avalonia.Interactivity.RoutingStrategies.Bubble, true);
+            area.Window.AddHandler(InputElement.PointerPressedEvent, (_, _e) => reachedBehind |= !_e.Handled, Avalonia.Interactivity.RoutingStrategies.Bubble, true);
             area.Window.MouseDown(p, MouseButton.Left);
             area.Window.MouseUp(p, MouseButton.Left);
             area.Window.MouseWheel(p, new Vector(0, -1));
             Assert.False(reachedBehind);
             Assert.Equal(AreaMode.Hidden, area.Mode);
-            Assert.Equal(Rect, area.Model.Rect);
+            Assert.Equal(areaRect, area.Model.Rect);
         }
 
         [AvaloniaFact]
@@ -69,7 +69,7 @@ namespace Hider.App.Tests.Areas
             using var f = new AreaFixture(2.0);
             var area = f.Add(new PhysicalRect(400, 300, 800, 480));
             Assert.Equal(8, area.Window.Chrome.Handles.Count);
-            Assert.All(area.Window.Chrome.Handles, h => Assert.True(h.Control.IsVisible));
+            Assert.All(area.Window.Chrome.Handles, _h => Assert.True(_h.Control.IsVisible));
             Assert.True(area.Window.Toolbar.IsVisible);
             Assert.Equal("800 × 480 px", area.Window.Toolbar.SizeText.Text);
             Assert.Equal(400, area.Window.PatternView.Width, 6); // DIP = physical / 2
@@ -79,7 +79,7 @@ namespace Hider.App.Tests.Areas
         public void GT06_BodyDrag_MovesByTheDelta()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             var p = AreaFixture.AreaCenter(area);
             var screenStart = area.Window.PointToScreen(p);
             // Like a real mouse: the target is a screen position, delivered relative to wherever the window is now.
@@ -88,21 +88,21 @@ namespace Hider.App.Tests.Areas
             area.Window.MouseMove(InWindow(30, 20));
             area.Window.MouseMove(InWindow(50, -10));
             area.Window.MouseUp(InWindow(50, -10), MouseButton.Left);
-            Assert.Equal(Rect.Offset(50, -10), area.Model.Rect);
+            Assert.Equal(areaRect.Offset(50, -10), area.Model.Rect);
             Assert.False(area.IsDragging);
             var host = f.Hosts[0];
             Assert.Equal(area.WindowRect, host.Last);
-            Assert.Equal(Rect.X + 50, host.Last.X + area.AreaOffsetInWindow.X);
+            Assert.Equal(areaRect.X + 50, host.Last.X + area.AreaOffsetInWindow.X);
         }
 
         [AvaloniaFact]
         public void GT07_HandleDrag_MovesOneEdgeAndStopsAtMinimum()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             Point Center(ResizeHandle _kind)
             {
-                var h = area.Window.Chrome.Handles.Single(x => x.Kind == _kind).Control;
+                var h = area.Window.Chrome.Handles.Single(_x => _x.Kind == _kind).Control;
                 return new Point(Canvas.GetLeft(h) + h.Width / 2, Canvas.GetTop(h) + h.Height / 2);
             }
 
@@ -110,7 +110,7 @@ namespace Hider.App.Tests.Areas
             area.Window.MouseDown(right, MouseButton.Left);
             area.Window.MouseMove(right + new Vector(40, 25));
             area.Window.MouseUp(right + new Vector(40, 25), MouseButton.Left);
-            Assert.Equal(Rect with { Width = Rect.Width + 40 }, area.Model.Rect);
+            Assert.Equal(areaRect with { Width = areaRect.Width + 40 }, area.Model.Rect);
 
             var start = area.Model.Rect;
             var topLeft = Center(ResizeHandle.TopLeft);
@@ -127,10 +127,10 @@ namespace Hider.App.Tests.Areas
         public void GT08_ArrowKeys_OneAndTenPixels()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             area.Window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
             area.Window.KeyPress(Key.Down, RawInputModifiers.Shift, PhysicalKey.ArrowDown, null);
-            Assert.Equal(Rect.Offset(1, 10), area.Model.Rect);
+            Assert.Equal(areaRect.Offset(1, 10), area.Model.Rect);
             int saves = f.Manager.SaveCount;
             f.Time.Advance(TimeSpan.FromMilliseconds(499));
             Assert.Equal(saves, f.Manager.SaveCount);
@@ -142,8 +142,8 @@ namespace Hider.App.Tests.Areas
         public void GT09_DeleteKey_RemovesWithoutConfirmation()
         {
             using var f = new AreaFixture();
-            f.Add(Rect);
-            var area = f.Add(Rect.Offset(500, 0));
+            f.Add(areaRect);
+            var area = f.Add(areaRect.Offset(500, 0));
             area.Window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
             Assert.Single(f.Manager.Areas);
             Assert.DoesNotContain(area, f.Manager.Areas);
@@ -153,7 +153,7 @@ namespace Hider.App.Tests.Areas
         public void GT10_EscapeAndDone_ReturnToHiddenAndSave()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             int saves = f.Manager.SaveCount;
             area.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Assert.Equal(AreaMode.Hidden, area.Mode);
@@ -169,7 +169,7 @@ namespace Hider.App.Tests.Areas
         public void GT11_FocusLoss_KeepsEditMode()
         {
             using var f = new AreaFixture();
-            var area = f.Add(Rect);
+            var area = f.Add(areaRect);
             area.Window.Activate();
             var other = new Window();
             other.Show();
@@ -211,7 +211,7 @@ namespace Hider.App.Tests.Areas
         public void GT14_WindowProperties()
         {
             using var f = new AreaFixture();
-            var w = f.Add(Rect).Window;
+            var w = f.Add(areaRect).Window;
             Assert.True(w.Topmost);
             Assert.False(w.ShowInTaskbar);
             Assert.Equal(WindowDecorations.None, w.WindowDecorations);
@@ -247,7 +247,7 @@ namespace Hider.App.Tests.Areas
         {
             Assert.Equal(_keepOpen, AreaWindow.KeepOpen(_allowed, _reason));
         }
-    
+
         [AvaloniaFact]
         public void SaveAfterDispose_DoesNotEmptyTheFile()
         {
@@ -262,7 +262,7 @@ namespace Hider.App.Tests.Areas
             f.Time.Advance(TimeSpan.FromSeconds(5));
             Assert.Equal(2, Hider.Core.Persistence.AreasFile.Load(f.AreasPath, out _).Areas.Count);
         }
-    
+
         [AvaloniaTheory]
         [InlineData(true)]
         [InlineData(false)]

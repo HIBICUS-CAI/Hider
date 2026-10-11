@@ -60,19 +60,19 @@ namespace Hider.Settings
             SetColumn(Unit, 3);
             Children.Add(Unit);
 
-            Slider.PropertyChanged += (_, e) =>
+            Slider.PropertyChanged += (_, _e) =>
             {
-                if (e.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty && !updating)
+                if (_e.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty && !updating)
                 {
                     Commit(Round(Spec.FromSliderPosition(Slider.Value / SliderSteps)), false);
                 }
             };
-            Input.KeyDown += (_, e) =>
+            Input.KeyDown += (_, _e) =>
             {
-                if (e.Key == Key.Enter)
+                if (_e.Key == Key.Enter)
                 {
                     CommitInput();
-                    e.Handled = true;
+                    _e.Handled = true;
                 }
             };
             Input.LostFocus += (_, _) => CommitInput();

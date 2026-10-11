@@ -47,15 +47,15 @@ namespace Hider.Platform.Linux
                 {
                     return null;
                 }
-                var response = await portal.RequestAsync(bus, "org.freedesktop.portal.Screenshot", "Screenshot", "sa{sv}", (ref MessageWriter w, string token) =>
+                var response = await portal.RequestAsync(bus, "org.freedesktop.portal.Screenshot", "Screenshot", "sa{sv}", (ref MessageWriter _w, string _token) =>
                 {
-                    w.WriteString("");
-                    var dict = w.WriteDictionaryStart();
-                    PortalClient.Entry(ref w, "handle_token", token);
-                    w.WriteDictionaryEntryStart();
-                    w.WriteString("interactive");
-                    w.WriteVariantBool(false);
-                    w.WriteDictionaryEnd(dict);
+                    _w.WriteString("");
+                    var dict = _w.WriteDictionaryStart();
+                    PortalClient.Entry(ref _w, "handle_token", _token);
+                    _w.WriteDictionaryEntryStart();
+                    _w.WriteString("interactive");
+                    _w.WriteVariantBool(false);
+                    _w.WriteDictionaryEnd(dict);
                 }, _ct).ConfigureAwait(false);
                 if (response.Results.TryGetValue("uri", out var value) && value.GetString() is { } uri && uri.StartsWith("file://", StringComparison.Ordinal))
                 {

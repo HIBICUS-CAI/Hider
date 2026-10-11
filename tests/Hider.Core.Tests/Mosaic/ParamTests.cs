@@ -5,9 +5,9 @@ namespace Hider.Core.Tests.Mosaic
 {
     public class ParamTests
     {
-        private static ParamSpec Block => MethodRegistry.Find("pixelate")!.Params.Single(p => p.Key == "block");
-        private static ParamSpec Blur => CommonParams.Mosaic.Single(p => p.Key == CommonParams.Blur);
-        private static ParamSpec Interval => CommonParams.Mosaic.Single(p => p.Key == CommonParams.IntervalMs);
+        private static ParamSpec Block => MethodRegistry.Find("pixelate")!.Params.Single(_p => _p.Key == "block");
+        private static ParamSpec Blur => CommonParams.Mosaic.Single(_p => _p.Key == CommonParams.Blur);
+        private static ParamSpec Interval => CommonParams.Mosaic.Single(_p => _p.Key == CommonParams.IntervalMs);
 
         [Fact]
         public void CT04_Effective_LerpFloorOne()
@@ -28,7 +28,7 @@ namespace Hider.Core.Tests.Mosaic
         [Fact]
         public void CT06_ParamSpec_RangesConsistent()
         {
-            var specs = MethodRegistry.All.SelectMany(m => m.Params).Concat(CommonParams.Mosaic).ToList();
+            var specs = MethodRegistry.All.SelectMany(_m => _m.Params).Concat(CommonParams.Mosaic).ToList();
             Assert.NotEmpty(specs);
             foreach (var s in specs)
             {

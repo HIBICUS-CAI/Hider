@@ -20,7 +20,7 @@ namespace Hider.Core.Tests.Fakes
 
         public TimeSpan Elapsed => TimeSpan.FromTicks(nowTicks);
 
-        public int ActiveTimers => timers.Count(t => t.DueAt is not null);
+        public int ActiveTimers => timers.Count(_t => _t.DueAt is not null);
 
         public override ITimer CreateTimer(TimerCallback _callback, object? _state, TimeSpan _dueTime, TimeSpan _period)
         {
@@ -36,7 +36,7 @@ namespace Hider.Core.Tests.Fakes
             long target = nowTicks + _delta.Ticks;
             while (true)
             {
-                var next = timers.Where(t => t.DueAt is { } due && due <= target).OrderBy(t => t.DueAt).FirstOrDefault();
+                var next = timers.Where(_t => _t.DueAt is { } due && due <= target).OrderBy(_t => _t.DueAt).FirstOrDefault();
                 if (next is null)
                 {
                     break;

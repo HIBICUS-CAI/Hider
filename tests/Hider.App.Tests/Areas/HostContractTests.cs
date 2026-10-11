@@ -17,7 +17,7 @@ namespace Hider.App.Tests.Areas
             using var lifetime = new ClassicDesktopStyleApplicationLifetime();
             string path = Path.Combine(Path.GetTempPath(), "hider-gui-" + Guid.NewGuid().ToString("N"), "areas.json");
             // A fake capture and tray answer: no session bus, portal or restore token of the machine running the tests.
-            app.Start(lifetime, path, w => new FakeAreaWindowHost(w, 1.0), false, new FakeUnderlayCapture(), () => Task.FromResult(true));
+            app.Start(lifetime, path, _w => new FakeAreaWindowHost(_w, 1.0), false, new FakeUnderlayCapture(), () => Task.FromResult(true));
             try
             {
                 Assert.Null(lifetime.MainWindow);
@@ -62,14 +62,14 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(LoadStatus.Loaded, f.Manager.Restore());
             Assert.Equal(new PhysicalRect(100, 100, 300, 200), f.Hosts[0].Last);
             Assert.Equal(Placement.Fit(new PhysicalRect(9000, 9000, 400, 240), new[] { f.Screens.Screens[0].Bounds }, 0), f.Hosts[1].Last);
-            Assert.All(f.Manager.Areas, a => Assert.Equal(AreaMode.Hidden, a.Mode));
+            Assert.All(f.Manager.Areas, _a => Assert.Equal(AreaMode.Hidden, _a.Mode));
         }
 
         [AvaloniaFact]
         public void GT38_SwappingHosts_SameTransitions()
         {
-            var fake = Run(w => new FakeAreaWindowHost(w, 1.0));
-            var avalonia = Run(w => new AvaloniaWindowHost(w));
+            var fake = Run(_w => new FakeAreaWindowHost(_w, 1.0));
+            var avalonia = Run(_w => new AvaloniaWindowHost(_w));
             Assert.Equal(fake, avalonia);
             Assert.Contains("enter-edit", fake);
             Assert.Contains("end-drag", fake);

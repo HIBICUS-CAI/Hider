@@ -16,9 +16,9 @@ namespace Hider.Core.Mosaic
         };
 
         // Looked up on every repaint: built once.
-        private static readonly FrozenDictionary<string, IMosaicMethod> byId = All.ToFrozenDictionary(m => m.Id, StringComparer.Ordinal);
-        private static readonly IMosaicMethod[] mosaic = All.Where(m => m.Kind == MethodKind.Mosaic).ToArray();
-        private static readonly IMosaicMethod[] generated = All.Where(m => m.Kind == MethodKind.Generated).ToArray();
+        private static readonly FrozenDictionary<string, IMosaicMethod> byId = All.ToFrozenDictionary(_m => _m.Id, StringComparer.Ordinal);
+        private static readonly IMosaicMethod[] mosaic = All.Where(_m => _m.Kind == MethodKind.Mosaic).ToArray();
+        private static readonly IMosaicMethod[] generated = All.Where(_m => _m.Kind == MethodKind.Generated).ToArray();
 
         public static IMosaicMethod? Find(string _id)
         {
@@ -38,7 +38,7 @@ namespace Hider.Core.Mosaic
 
         public static IReadOnlyList<IMosaicMethod> Filter(IEnumerable<IMosaicMethod> _methods, PlatformSupport _platform)
         {
-            return _methods.Where(m => (m.Support & _platform) == _platform).ToArray();
+            return _methods.Where(_m => (_m.Support & _platform) == _platform).ToArray();
         }
 
         /// <summary>The platform this process runs on.</summary>

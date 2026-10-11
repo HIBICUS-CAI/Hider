@@ -35,7 +35,7 @@ namespace Hider.Core.Tests.Mosaic
             using var source = SyntheticImage.CreateImage(16, 16);
             var p = ParamValues.ForMosaic(_method, new MethodSettings<MosaicCommon> { Method = _method.Id }, 1.0);
             var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(16, 16) };
-            return Render.Draw(32, 32, c => new MosaicPipeline().Draw(c, SKRect.Create(32, 32), inputs, _method, p, _levels));
+            return Render.Draw(32, 32, _c => new MosaicPipeline().Draw(_c, SKRect.Create(32, 32), inputs, _method, p, _levels));
         }
 
         [Fact]
@@ -52,7 +52,7 @@ namespace Hider.Core.Tests.Mosaic
         {
             using var shaderPath = Draw(new CpuDummy { Accept = false }, 256);
             using var source = SyntheticImage.CreateImage(16, 16);
-            using var expected = Render.Draw(32, 32, c => c.DrawImage(source, SKRect.Create(32, 32), new SKSamplingOptions(SKFilterMode.Nearest)));
+            using var expected = Render.Draw(32, 32, _c => _c.DrawImage(source, SKRect.Create(32, 32), new SKSamplingOptions(SKFilterMode.Nearest)));
             Assert.Equal(0, Golden.MaxDiff(expected, shaderPath));
         }
 
@@ -67,7 +67,7 @@ namespace Hider.Core.Tests.Mosaic
             using var shader = image.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(_scale, _scale));
             using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.Src };
             int w = 64 * _scale + 7, h = 48 * _scale + 5; // past the edges: clamping
-            using var expected = Render.Draw(w, h, c => c.DrawRect(0, 0, w, h, paint));
+            using var expected = Render.Draw(w, h, _c => _c.DrawRect(0, 0, w, h, paint));
             using var sampler = RasterSampler.Create(image, _scale, _linear)!;
             int worst = 0;
             for (int y = 0; y < h; y += 3)

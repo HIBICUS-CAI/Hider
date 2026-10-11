@@ -11,9 +11,9 @@ namespace Hider.Core.Tests.Scheduling
             var time = new FakeTimeProvider();
             var scheduler = new RefreshScheduler(time);
             var log = new List<(TimeSpan, RefreshReason)>();
-            scheduler.Due += r =>
+            scheduler.Due += _r =>
             {
-                log.Add((time.Elapsed, r));
+                log.Add((time.Elapsed, _r));
                 if (_endRunAtOnce)
                 {
                     scheduler.EndRun();
@@ -39,8 +39,8 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.Configure(100);
             time.Advance(TimeSpan.FromMilliseconds(1000));
             Assert.Equal(10, log.Count);
-            Assert.All(log, e => Assert.Equal(RefreshReason.Timer, e.Item2));
-            Assert.Equal(Enumerable.Range(1, 10).Select(i => TimeSpan.FromMilliseconds(i * 100)), log.Select(e => e.Item1));
+            Assert.All(log, _e => Assert.Equal(RefreshReason.Timer, _e.Item2));
+            Assert.Equal(Enumerable.Range(1, 10).Select(_i => TimeSpan.FromMilliseconds(_i * 100)), log.Select(_e => _e.Item1));
         }
 
         [Fact]
@@ -50,8 +50,8 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.Request(RefreshReason.Created);
             scheduler.Request(RefreshReason.Committed);
             scheduler.Request(RefreshReason.Manual);
-            Assert.Equal(new[] { RefreshReason.Created, RefreshReason.Committed, RefreshReason.Manual }, log.Select(e => e.Item2));
-            Assert.All(log, e => Assert.Equal(TimeSpan.Zero, e.Item1));
+            Assert.Equal(new[] { RefreshReason.Created, RefreshReason.Committed, RefreshReason.Manual }, log.Select(_e => _e.Item2));
+            Assert.All(log, _e => Assert.Equal(TimeSpan.Zero, _e.Item1));
         }
 
         [Fact]
@@ -68,7 +68,7 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.Request(RefreshReason.Committed);
             Assert.Empty(log);
             scheduler.EndRun();
-            Assert.Equal(new[] { RefreshReason.Manual }, log.Select(e => e.Item2));
+            Assert.Equal(new[] { RefreshReason.Manual }, log.Select(_e => _e.Item2));
             scheduler.EndRun();
             Assert.Single(log);
 
@@ -77,7 +77,7 @@ namespace Hider.Core.Tests.Scheduling
             time.Advance(TimeSpan.FromMilliseconds(300));
             Assert.Single(log);
             scheduler.EndRun();
-            Assert.Equal(new[] { RefreshReason.Timer, RefreshReason.Timer }, log.Select(e => e.Item2));
+            Assert.Equal(new[] { RefreshReason.Timer, RefreshReason.Timer }, log.Select(_e => _e.Item2));
             scheduler.EndRun();
 
             // Configure takes effect from the next period: the tick already scheduled stays, then the new interval.
@@ -86,7 +86,7 @@ namespace Hider.Core.Tests.Scheduling
             t2.Advance(TimeSpan.FromMilliseconds(50));
             s2.Configure(300);
             t2.Advance(TimeSpan.FromMilliseconds(700));
-            Assert.Equal(new[] { 100, 400, 700 }, log2.Select(e => (int)e.Item1.TotalMilliseconds));
+            Assert.Equal(new[] { 100, 400, 700 }, log2.Select(_e => (int)_e.Item1.TotalMilliseconds));
             s2.Dispose();
 
             // Paused timer (drag with a non-live capture) skips ticks but keeps requests.
@@ -94,7 +94,7 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.TimerPaused = true;
             time.Advance(TimeSpan.FromMilliseconds(900));
             scheduler.Request(RefreshReason.Committed);
-            Assert.Equal(new[] { RefreshReason.Committed }, log.Select(e => e.Item2));
+            Assert.Equal(new[] { RefreshReason.Committed }, log.Select(_e => _e.Item2));
             scheduler.EndRun();
             scheduler.TimerPaused = false;
             log.Clear();
@@ -103,7 +103,7 @@ namespace Hider.Core.Tests.Scheduling
                 time.Advance(TimeSpan.FromMilliseconds(100));
                 scheduler.EndRun();
             }
-            Assert.Equal(3, log.Count(e => e.Item2 == RefreshReason.Timer));
+            Assert.Equal(3, log.Count(_e => _e.Item2 == RefreshReason.Timer));
 
             // Ticks while a run is outstanding (Due raised, the posted capture not started yet) do not raise Due again.
             log.Clear();

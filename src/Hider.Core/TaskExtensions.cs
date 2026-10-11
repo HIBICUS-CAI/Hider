@@ -13,7 +13,7 @@ namespace Hider.Core
                 Report(_task, _what);
                 return;
             }
-            _task.ContinueWith(t => Report(t, _what), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            _task.ContinueWith(_t => Report(_t, _what), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
 
         private static void Report(Task _task, string _what)

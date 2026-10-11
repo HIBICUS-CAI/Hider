@@ -9,7 +9,7 @@ namespace Hider.Areas
 {
     /// <summary>
     /// All areas: create, restore, delete, edit all, and saving to areas.json (FR-02, FR-05, FR-06, FR-10, FR-61).
-    /// Runs on the UI thread; the debounce timer posts back through <paramref name="_uiPost"/>.
+    /// Runs on the UI thread; the debounce timer posts back through <see cref="AreaServices.UiPost"/>.
     /// </summary>
     public sealed class AreaManager : IAreaOwner, IDisposable
     {
@@ -33,7 +33,7 @@ namespace Hider.Areas
         public AreaServices Services { get; }
         public IScreenService Screens => Services.Screens;
         public IReadOnlyList<AreaController> Areas => areas;
-        public bool AnyEditing => areas.Any(a => a.Mode == AreaMode.Editing);
+        public bool AnyEditing => areas.Any(_a => _a.Mode == AreaMode.Editing);
 
         /// <summary>Number of saves written, for tests.</summary>
         public int SaveCount { get; private set; }
@@ -50,7 +50,7 @@ namespace Hider.Areas
             // this session's empty state: nothing is saved until the next start.
             saveBlocked = status == LoadStatus.Unreadable;
             var screens = Screens.Screens;
-            var bounds = screens.Select(s => s.Bounds).ToArray();
+            var bounds = screens.Select(_s => _s.Bounds).ToArray();
             int primary = Screens.PrimaryIndex();
             foreach (var stored in state.Areas)
             {
@@ -68,11 +68,11 @@ namespace Hider.Areas
         public AreaController AddNew()
         {
             var screen = Screens.CursorScreen is { } cursor
-                ? Screens.Screens.FirstOrDefault(s => s.Bounds == cursor) ?? Screens.Primary()
+                ? Screens.Screens.FirstOrDefault(_s => _s.Bounds == cursor) ?? Screens.Primary()
                 : Screens.Primary();
             var workArea = screen?.WorkingArea ?? new PhysicalRect(0, 0, 1920, 1080);
             double scale = screen?.Scale ?? 1.0;
-            var area = Area.CreateNew(AreaId.New(id => areas.Any(a => a.Model.Id == id)), Placement.NewArea(workArea, scale), Services.IsWindows);
+            var area = Area.CreateNew(AreaId.New(_id => areas.Any(_a => _a.Model.Id == _id)), Placement.NewArea(workArea, scale), Services.IsWindows);
             AreasFile.FillDefaults(area.Mosaic.Params, MethodKind.Mosaic);
             AreasFile.FillDefaults(area.Generated.Params, MethodKind.Generated);
             var controller = CreateController(area);
@@ -178,10 +178,10 @@ namespace Hider.Areas
             }
             // XWAYLAND-ASSUMPTION: area rectangles and the monitor union are absolute X11 coordinates, and a portal frame covers
             // that union (StripCoordinator maps between them by scale and offset).
-            Volatile.Write(ref stripAreas, areas.Select(a => new StripArea(a.Model.Id, a.Model.Rect, a.Model.Pattern)).ToArray());
+            Volatile.Write(ref stripAreas, areas.Select(_a => new StripArea(_a.Model.Id, _a.Model.Rect, _a.Model.Pattern)).ToArray());
             var monitors = Screens.Screens.ToArray();
-            var bounds = monitors.Select(s => s.Bounds).ToList();
-            var union = bounds.Count == 0 ? default : PhysicalRect.FromEdges(bounds.Min(b => b.X), bounds.Min(b => b.Y), bounds.Max(b => b.Right), bounds.Max(b => b.Bottom));
+            var bounds = monitors.Select(_s => _s.Bounds).ToList();
+            var union = bounds.Count == 0 ? default : PhysicalRect.FromEdges(bounds.Min(_b => _b.X), bounds.Min(_b => _b.Y), bounds.Max(_b => _b.Right), bounds.Max(_b => _b.Bottom));
             lock (areas)
             {
                 stripScreen = union;
@@ -211,7 +211,7 @@ namespace Hider.Areas
             // setups made areas grow or shrink with every exit and start.
             var state = new AppState
             {
-                Areas = areas.Select(a => AreaState.FromArea(a.Model, Screens.ScreenAt(a.Model.Rect.X, a.Model.Rect.Y)?.Scale ?? 1.0)).ToList(),
+                Areas = areas.Select(_a => AreaState.FromArea(_a.Model, Screens.ScreenAt(_a.Model.Rect.X, _a.Model.Rect.Y)?.Scale ?? 1.0)).ToList(),
             };
             try
             {

@@ -44,7 +44,7 @@ namespace Hider.Platform.Windows
                 // Forget the bitmaps of closed windows and the output buffers of deleted areas (ExcludeWindows lists every
                 // Hider window that still exists).
                 source.Trim(source.LastEnumerated);
-                foreach (nint gone in outputs.Keys.Where(h => !_request.ExcludeWindows.Contains(h)).ToArray())
+                foreach (nint gone in outputs.Keys.Where(_h => !_request.ExcludeWindows.Contains(_h)).ToArray())
                 {
                     outputs.Remove(gone);
                 }

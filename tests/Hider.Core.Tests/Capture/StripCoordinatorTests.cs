@@ -6,9 +6,9 @@ namespace Hider.Core.Tests.Capture
 {
     public class StripCoordinatorTests
     {
-        private static readonly PhysicalRect Screen = new(0, 0, 640, 480);
+        private static readonly PhysicalRect screenRect = new(0, 0, 640, 480);
 
-        private sealed class Setup
+        private sealed class Setup : IDisposable
         {
             public readonly List<string> Log = new();
             public readonly FakeTimeProvider Time = new();
@@ -19,7 +19,7 @@ namespace Hider.Core.Tests.Capture
 
             public Setup(FrameBuffer? _frame = null)
             {
-                Grabber = new FakeScreenGrabber(Log, _frame ?? CoordinateFrame.Create(Screen.Width, Screen.Height));
+                Grabber = new FakeScreenGrabber(Log, _frame ?? CoordinateFrame.Create(screenRect.Width, screenRect.Height));
                 Host = new FakeStripHost(Log, Time);
                 Coordinator = new StripCoordinator(Grabber, Host, () => Areas.ToList(), Time);
             }
@@ -29,6 +29,11 @@ namespace Hider.Core.Tests.Capture
                 var area = new StripArea(_id, _rect, _kind);
                 Areas.Add(area);
                 return area;
+            }
+
+            public void Dispose()
+            {
+                Coordinator.Dispose(); // and the grabber
             }
 
             public Task<CaptureResult> Capture(PhysicalRect _rect, int _strip, CancellationToken? _ct = null)
@@ -42,13 +47,13 @@ namespace Hider.Core.Tests.Capture
         {
             var strips = StripCoordinator.Strips(240, 8).ToList();
             Assert.Equal(30, strips.Count);
-            Assert.All(strips, s => Assert.Equal(8, s.Y1 - s.Y0));
+            Assert.All(strips, _s => Assert.Equal(8, _s.Y1 - _s.Y0));
             Assert.Equal((232, 240), strips[^1]);
 
             var odd = StripCoordinator.Strips(250, 8).ToList();
             Assert.Equal(32, odd.Count);
             Assert.Equal((248, 250), odd[^1]);
-            Assert.Equal(250, odd.Sum(s => s.Y1 - s.Y0));
+            Assert.Equal(250, odd.Sum(_s => _s.Y1 - _s.Y0));
         }
 
         [Fact]
@@ -94,8 +99,8 @@ namespace Hider.Core.Tests.Capture
             for (int i = 0; i < s.Grabber.NotBefore.Count; i++)
             {
                 // Every grab asks for a frame after the last window of its strip finished drawing.
-                int grabIndex = s.Log.Select((e, k) => (e, k)).Where(x => x.e == "grab").ElementAt(i).k;
-                int sets = s.Log.Take(grabIndex).Count(e => e.StartsWith("set"));
+                int grabIndex = s.Log.Select((_e, _k) => (Entry: _e, Index: _k)).Where(_x => _x.Entry == "grab").ElementAt(i).Index;
+                int sets = s.Log.Take(grabIndex).Count(_e => _e.StartsWith("set"));
                 Assert.True(s.Grabber.NotBefore[i] >= s.Host.SetCompletedAt[sets - 1]);
             }
         }
@@ -192,12 +197,12 @@ namespace Hider.Core.Tests.Capture
             var first = Task.Run(() => s.Capture(a, 8));
             var second = Task.Run(() => s.Capture(b, 8));
             var results = await Task.WhenAll(first, second);
-            Assert.All(results, r => Assert.Equal(CaptureFailure.None, r.Failure));
+            Assert.All(results, _r => Assert.Equal(CaptureFailure.None, _r.Failure));
             Assert.Equal(6, s.Grabber.Calls);
             Assert.Equal(1, s.Grabber.MaxConcurrent);
             // Whole captures are serial too: a's strips are not interleaved with b's.
-            var order = s.Log.Where(e => e.StartsWith("set")).Select(e => e.Split(' ')[1]).ToList();
-            Assert.Equal(2, s.Log.Count(e => e == "prepare"));
+            var order = s.Log.Where(_e => _e.StartsWith("set")).Select(_e => _e.Split(' ')[1]).ToList();
+            Assert.Equal(2, s.Log.Count(_e => _e == "prepare"));
             Assert.True(order.Take(3).Distinct().Count() == 1 && order.Skip(3).Distinct().Count() == 1, string.Join(",", order));
         }
 

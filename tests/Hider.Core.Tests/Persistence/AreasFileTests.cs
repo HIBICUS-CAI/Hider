@@ -236,7 +236,7 @@ namespace Hider.Core.Tests.Persistence
         {
             string json = AreasFile.ToJson(new AppState { Areas = { AreaState.FromArea(SampleArea(), 1.0) } });
             using var doc = JsonDocument.Parse(json);
-            var keys = doc.RootElement.GetProperty("areas")[0].EnumerateObject().Select(p => p.Name).ToArray();
+            var keys = doc.RootElement.GetProperty("areas")[0].EnumerateObject().Select(_p => _p.Name).ToArray();
             Assert.Equal(new[] { "id", "x", "y", "width", "height", "opacity", "pattern", "fill", "mosaic", "generated" }, keys);
         }
 
@@ -244,10 +244,10 @@ namespace Hider.Core.Tests.Persistence
         public void CT98_DuplicateOrBadIds_Replaced()
         {
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e" }, { "id": "0f3b8d2e" }, { "id": "XYZ" } ] }""");
-            var ids = AreasFile.Load(FilePath, out _).Areas.Select(a => a.Id).ToList();
+            var ids = AreasFile.Load(FilePath, out _).Areas.Select(_a => _a.Id).ToList();
             Assert.Equal(3, ids.Distinct().Count());
             Assert.Equal("0f3b8d2e", ids[0]);
-            Assert.All(ids, id => Assert.True(AreaId.IsValid(id), id));
+            Assert.All(ids, _id => Assert.True(AreaId.IsValid(_id), _id));
         }
 
         private static void AssertSameShape(JsonElement _expected, JsonElement _actual, string _path)
@@ -256,8 +256,8 @@ namespace Hider.Core.Tests.Persistence
             switch (_expected.ValueKind)
             {
                 case JsonValueKind.Object:
-                    var e = _expected.EnumerateObject().Select(p => p.Name).ToArray();
-                    var a = _actual.EnumerateObject().Select(p => p.Name).ToArray();
+                    var e = _expected.EnumerateObject().Select(_p => _p.Name).ToArray();
+                    var a = _actual.EnumerateObject().Select(_p => _p.Name).ToArray();
                     Assert.True(e.SequenceEqual(a), $"{_path}: keys [{string.Join(",", e)}] vs [{string.Join(",", a)}]");
                     foreach (var name in e)
                     {

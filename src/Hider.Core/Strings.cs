@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Hider.Core.Mosaic;
 
 namespace Hider.Core
@@ -88,6 +89,12 @@ namespace Hider.Core
         /// <summary>The toolbar's size in physical pixels (FR-34). Symbols and digits only, so kept apart from texts.</summary>
         private const string SizeFormat = "{0} × {1} px";
 
+        // Parsed once (after the tables above: static fields initialise in order).
+        private static readonly CompositeFormat trayTooltip = CompositeFormat.Parse(Get("tray.tooltip"));
+        private static readonly CompositeFormat toolbarSize = CompositeFormat.Parse(SizeFormat);
+        private static readonly CompositeFormat pickColorWithValue = CompositeFormat.Parse(Get("settings.pickColorWithValue"));
+        private static readonly CompositeFormat confirmDeleteAll = CompositeFormat.Parse(Get("confirm.deleteAll"));
+
         /// <summary>Platform name shown as a badge next to Linux-only settings. A proper noun, not translated.</summary>
         public const string LinuxBadge = "Linux";
 
@@ -145,24 +152,25 @@ namespace Hider.Core
         /// <summary>"Hider — エリア N 個" (FR-07).</summary>
         public static string TrayTooltip(int _count)
         {
-            return string.Format(CultureInfo.InvariantCulture, Get("tray.tooltip"), _count);
+            return string.Format(CultureInfo.InvariantCulture, trayTooltip, _count);
         }
 
-        /// <summary>"N 個のエリアをすべて削除します。" (FR-05).</summary>
+        /// <summary>The size shown on the edit toolbar, in physical pixels (FR-34).</summary>
         public static string ToolbarSize(int _width, int _height)
         {
-            return string.Format(CultureInfo.InvariantCulture, SizeFormat, _width, _height);
+            return string.Format(CultureInfo.InvariantCulture, toolbarSize, _width, _height);
         }
 
         /// <summary>Accessible name of the color button, with the current color.</summary>
         public static string SettingsPickColorWithValue(string _color)
         {
-            return string.Format(CultureInfo.InvariantCulture, Get("settings.pickColorWithValue"), _color);
+            return string.Format(CultureInfo.InvariantCulture, pickColorWithValue, _color);
         }
 
+        /// <summary>"N 個のエリアをすべて削除します。" (FR-05).</summary>
         public static string ConfirmDeleteAll(int _count)
         {
-            return string.Format(CultureInfo.InvariantCulture, Get("confirm.deleteAll"), _count);
+            return string.Format(CultureInfo.InvariantCulture, confirmDeleteAll, _count);
         }
     }
 }

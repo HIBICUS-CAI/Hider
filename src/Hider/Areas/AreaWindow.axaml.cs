@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Controls.Primitives;
-using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Rendering.Composition;
 using Hider.Core.Model;
@@ -38,9 +37,9 @@ namespace Hider.Areas
             AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Bubble);
             AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Bubble);
             AddHandler(PointerCaptureLostEvent, OnPointerCaptureLost, RoutingStrategies.Bubble);
-            AddHandler(PointerWheelChangedEvent, (_, e) => e.Handled = true, RoutingStrategies.Bubble, handledEventsToo: true);
+            AddHandler(PointerWheelChangedEvent, (_, _e) => _e.Handled = true, RoutingStrategies.Bubble, handledEventsToo: true);
 
-            chrome.Toolbar.PatternSelected += p => controller.SetPattern(p);
+            chrome.Toolbar.PatternSelected += _p => controller.SetPattern(_p);
             chrome.Toolbar.DoneClicked += () => controller.ExitEdit();
             chrome.Toolbar.DeleteClicked += () => controller.Delete();
             chrome.Toolbar.RefreshClicked += () => RefreshRequested?.Invoke();
@@ -48,14 +47,14 @@ namespace Hider.Areas
             settingsPopup.PlacementTarget = chrome.Toolbar.SettingsButton;
             Root.Children.Add(settingsPopup);
             // IsOpen rather than Closed: Closed only comes when the popup window really opened.
-            settingsPopup.PropertyChanged += (_, e) =>
+            settingsPopup.PropertyChanged += (_, _e) =>
             {
-                if (e.Property == Popup.IsOpenProperty && !settingsPopup.IsOpen)
+                if (_e.Property == Popup.IsOpenProperty && !settingsPopup.IsOpen)
                 {
                     SettingsClosed?.Invoke();
                 }
             };
-            Closing += (_, e) => e.Cancel = KeepOpen(closingAllowed, e.CloseReason);
+            Closing += (_, _e) => _e.Cancel = KeepOpen(closingAllowed, _e.CloseReason);
         }
 
         /// <summary>
@@ -220,7 +219,7 @@ namespace Hider.Areas
         {
             closingAllowed = true;
             Close();
-            Pattern.ReleaseCaches();
+            Pattern.Dispose();
         }
 
         private PixelPoint ScreenPoint(PointerEventArgs _e)
@@ -309,7 +308,7 @@ namespace Hider.Areas
         {
             for (var c = _source; c is not null && c != this; c = c.Parent as Control)
             {
-                if (c.Tag is ResizeHandle handle && chrome.Handles.Any(h => h.Control == c))
+                if (c.Tag is ResizeHandle handle && chrome.Handles.Any(_h => _h.Control == c))
                 {
                     return handle;
                 }

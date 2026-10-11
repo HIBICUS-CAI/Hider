@@ -1,4 +1,3 @@
-using Hider.Core.Model;
 using SkiaSharp;
 
 namespace Hider.Core.Mosaic.Methods

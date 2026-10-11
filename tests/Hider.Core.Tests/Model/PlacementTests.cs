@@ -4,8 +4,8 @@ namespace Hider.Core.Tests.Model
 {
     public class PlacementTests
     {
-        private static readonly PhysicalRect Primary = new(0, 0, 1920, 1080);
-        private static readonly PhysicalRect Left = new(-2560, -200, 2560, 1440);
+        private static readonly PhysicalRect primaryScreen = new(0, 0, 1920, 1080);
+        private static readonly PhysicalRect leftScreen = new(-2560, -200, 2560, 1440);
 
         [Theory]
         [InlineData(1.0, true, 400, 240, 100)]
@@ -31,40 +31,40 @@ namespace Hider.Core.Tests.Model
         public void CT32_Fit_IntersectingRect_Unchanged()
         {
             var rect = new PhysicalRect(1800, 1000, 400, 300); // partly off the primary screen
-            Assert.Equal(rect, Placement.Fit(rect, new[] { Primary }, 0));
+            Assert.Equal(rect, Placement.Fit(rect, new[] { primaryScreen }, 0));
         }
 
         [Fact]
         public void CT33_Fit_NoIntersection_MovesToPrimaryCentre()
         {
             var rect = new PhysicalRect(5000, 5000, 400, 240);
-            Assert.Equal(new PhysicalRect(760, 420, 400, 240), Placement.Fit(rect, new[] { Left, Primary }, 1));
+            Assert.Equal(new PhysicalRect(760, 420, 400, 240), Placement.Fit(rect, new[] { leftScreen, primaryScreen }, 1));
         }
 
         [Fact]
         public void CT34_Fit_TooLarge_ShrinksToPrimary()
         {
             var rect = new PhysicalRect(9000, 0, 4000, 3000);
-            Assert.Equal(Primary, Placement.Fit(rect, new[] { Primary }, 0));
+            Assert.Equal(primaryScreen, Placement.Fit(rect, new[] { primaryScreen }, 0));
         }
 
         [Fact]
         public void CT35_Fit_NegativeCoordinatesOnLeftMonitor()
         {
             var onLeft = new PhysicalRect(-1000, 100, 400, 240);
-            Assert.Equal(onLeft, Placement.Fit(onLeft, new[] { Left, Primary }, 1));
+            Assert.Equal(onLeft, Placement.Fit(onLeft, new[] { leftScreen, primaryScreen }, 1));
             var beyondLeft = new PhysicalRect(-3000, 100, 400, 240);
-            Assert.Equal(new PhysicalRect(760, 420, 400, 240), Placement.Fit(beyondLeft, new[] { Left, Primary }, 1));
+            Assert.Equal(new PhysicalRect(760, 420, 400, 240), Placement.Fit(beyondLeft, new[] { leftScreen, primaryScreen }, 1));
         }
-    
+
         [Fact]
         public void Fit_LargerThanAllScreens_CutToTheirBoundingBox()
         {
             // A hand-edited 40000 px area touches a screen but would need multi-gigabyte pixel buffers.
             var huge = new PhysicalRect(-5000, 100, 40000, 40000);
-            Assert.Equal(new PhysicalRect(-2560, 100, 4480, 1140), Placement.Fit(huge, new[] { Left, Primary }, 1));
+            Assert.Equal(new PhysicalRect(-2560, 100, 4480, 1140), Placement.Fit(huge, new[] { leftScreen, primaryScreen }, 1));
             var wide = new PhysicalRect(100, 100, 5000, 200);
-            Assert.Equal(new PhysicalRect(100, 100, 1820, 200), Placement.Fit(wide, new[] { Primary }, 0));
+            Assert.Equal(new PhysicalRect(100, 100, 1820, 200), Placement.Fit(wide, new[] { primaryScreen }, 0));
         }
     }
 }

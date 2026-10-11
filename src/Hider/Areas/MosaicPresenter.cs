@@ -19,7 +19,7 @@ namespace Hider.Areas
     /// a repaint just copies the cached image. Until the first frame arrives a mosaic area shows its generated pattern so the
     /// content stays covered (NFR-05).
     /// </summary>
-    public sealed class MosaicPresenter : Control
+    public sealed class MosaicPresenter : Control, IDisposable
     {
         /// <summary>GPU images of closed areas, freed by the next draw on the render thread (where the GrContext lives).</summary>
         private static readonly List<SKImage> retired = new();
@@ -107,7 +107,7 @@ namespace Hider.Areas
             {
                 if (_op.Method is not null && Frames is { } frames)
                 {
-                    var image = frames.Read((frame, version) => frame is null ? null : MosaicImage(frame, version, _op, context));
+                    var image = frames.Read((_frame, _version) => _frame is null ? null : MosaicImage(_frame, _version, _op, context));
                     if (image is not null)
                     {
                         _canvas.DrawImage(image, dst, sampling, paint);
@@ -224,11 +224,6 @@ namespace Hider.Areas
             }
         }
 
-        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs _e)
-        {
-            base.OnDetachedFromVisualTree(_e);
-        }
-
         /// <summary>
         /// Drops the cached images (window closed; UI thread). Raster images are freed now; GPU textures must be freed on the
         /// render thread with its GrContext, so they wait for the next draw of any area (crashes seen on Windows otherwise).
@@ -242,6 +237,13 @@ namespace Hider.Areas
                 mosaicImage = null;
                 mosaicKey = null;
             }
+        }
+
+        /// <summary>The area's window closed: its cached images go (<see cref="ReleaseCaches"/>).</summary>
+        public void Dispose()
+        {
+            ReleaseCaches();
+            generated.Dispose();
         }
 
         /// <summary>GPU images waiting for the render thread (tests).</summary>

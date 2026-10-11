@@ -61,10 +61,10 @@ namespace Hider.Core.Tests.Mosaic
         internal static void AssertClose(IMosaicMethod _method, MosaicInputs _inputs, ParamValues _p, double _maxShare)
         {
             int w = _inputs.AreaSize.Width, h = _inputs.AreaSize.Height;
-            using var cpu = Render.Draw(w, h, c => new MosaicPipeline().Draw(c, SKRect.Create(w, h), _inputs, _method, _p, 256));
+            using var cpu = Render.Draw(w, h, _c => new MosaicPipeline().Draw(_c, SKRect.Create(w, h), _inputs, _method, _p, 256));
             using var shader = _method.CreateShader(_inputs, _p);
             using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.Src };
-            using var reference = Render.Draw(w, h, c => c.DrawRect(0, 0, w, h, paint));
+            using var reference = Render.Draw(w, h, _c => _c.DrawRect(0, 0, w, h, paint));
             int far = 0;
             var farInRow = new int[h];
             var farInColumn = new int[w];

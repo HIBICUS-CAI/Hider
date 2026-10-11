@@ -22,7 +22,7 @@ namespace Hider.App.Tests
             Assert.Equal(30, frame.PixelSize.Height);
             window.Close();
         }
-    
+
         [AvaloniaFact]
         public void Theme_IsLightWhateverTheOsUses()
         {

@@ -1,6 +1,5 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
 using Hider.Areas;
 using Hider.Core.Capture;
 using Hider.Core.Model;

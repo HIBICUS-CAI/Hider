@@ -34,12 +34,12 @@ namespace Hider.Areas
 
         public Task SetTransparentRowsAsync(string _areaId, int _y0, int _y1, CancellationToken _ct)
         {
-            return OnUi(_areaId, w => w.SetTransparentRowsAsync(_y0, _y1, _ct), _ct);
+            return OnUi(_areaId, _w => _w.SetTransparentRowsAsync(_y0, _y1, _ct), _ct);
         }
 
         public Task RestoreAsync(string _areaId)
         {
-            return OnUi(_areaId, w => w.RestoreRowsAsync(), CancellationToken.None);
+            return OnUi(_areaId, _w => _w.RestoreRowsAsync(), CancellationToken.None);
         }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace Hider.Areas
             var work = uiInvoke(async () =>
             {
                 // An area deleted meanwhile has nothing left to hide or restore.
-                var area = manager?.Areas.FirstOrDefault(a => a.Model.Id == _areaId);
+                var area = manager?.Areas.FirstOrDefault(_a => _a.Model.Id == _areaId);
                 if (area is not null)
                 {
                     await _action(area.Window);

@@ -18,11 +18,11 @@ namespace Hider.App.Tests.Tray
         public void GT16_MenuModel_FourItemsAndSeparator()
         {
             var empty = TrayMenuModel.Build(0, false);
-            Assert.Equal(new[] { TrayCommand.AddArea, TrayCommand.EditAll, TrayCommand.DeleteAll, TrayCommand.Exit }, empty.Select(i => i.Command));
-            Assert.Equal(new[] { true, false, false, true }, empty.Select(i => i.IsEnabled));
-            Assert.Equal(new[] { false, false, false, true }, empty.Select(i => i.SeparatorBefore));
-            Assert.Equal(new[] { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "終了" }, empty.Select(i => i.Label));
-            Assert.All(TrayMenuModel.Build(2, false), i => Assert.True(i.IsEnabled));
+            Assert.Equal(new[] { TrayCommand.AddArea, TrayCommand.EditAll, TrayCommand.DeleteAll, TrayCommand.Exit }, empty.Select(_i => _i.Command));
+            Assert.Equal(new[] { true, false, false, true }, empty.Select(_i => _i.IsEnabled));
+            Assert.Equal(new[] { false, false, false, true }, empty.Select(_i => _i.SeparatorBefore));
+            Assert.Equal(new[] { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "終了" }, empty.Select(_i => _i.Label));
+            Assert.All(TrayMenuModel.Build(2, false), _i => Assert.True(_i.IsEnabled));
 
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -82,7 +82,7 @@ namespace Hider.App.Tests.Tray
             f.Add(new PhysicalRect(100, 100, 300, 200));
             tray.ShowPopup();
             var buttons = tray.PopupWindow!.Buttons;
-            var native = tray.Menu.Items.Where(i => i is not NativeMenuItemSeparator).Cast<NativeMenuItem>().ToArray();
+            var native = tray.Menu.Items.Where(_i => _i is not NativeMenuItemSeparator).Cast<NativeMenuItem>().ToArray();
             Assert.Equal(native.Length, buttons.Count);
             for (int i = 0; i < buttons.Count; i++)
             {
@@ -126,7 +126,7 @@ namespace Hider.App.Tests.Tray
             var window = tray.FallbackWindow;
             Assert.NotNull(window);
             Assert.True(window!.IsVisible);
-            Assert.Equal(tray.Items.Select(i => i.Command), window.Buttons.Select(b => (TrayCommand)b.Tag!));
+            Assert.Equal(tray.Items.Select(_i => _i.Command), window.Buttons.Select(_b => (TrayCommand)_b.Tag!));
             Assert.Equal("Hider — エリア 0 個", window.StatusText);
 
             // The buttons work and the window follows the menu state (FR-03, FR-07).

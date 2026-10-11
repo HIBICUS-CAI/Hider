@@ -120,11 +120,11 @@ namespace Hider.Core.Tests.Mosaic
             // The other order (pixelate, then blur the cells) gives a different picture.
             using var pixelated = Render.Mosaic("pixelate");
             using var pixelatedImage = SKImage.FromBitmap(pixelated);
-            using var reversed = Render.Draw(pixelated.Width, pixelated.Height, c =>
+            using var reversed = Render.Draw(pixelated.Width, pixelated.Height, _c =>
             {
                 using var blur = SKImageFilter.CreateBlur(8 * MosaicPipeline.SigmaPerRadius, 8 * MosaicPipeline.SigmaPerRadius, SKShaderTileMode.Clamp);
                 using var paint = new SKPaint { ImageFilter = blur };
-                c.DrawImage(pixelatedImage, 0, 0, paint);
+                _c.DrawImage(pixelatedImage, 0, 0, paint);
             });
             Assert.True(Golden.MaxDiff(pipeline, reversed) > 8, "blur → pixelate should differ from pixelate → blur");
             AssertCells(pipeline, 12);
@@ -153,7 +153,7 @@ namespace Hider.Core.Tests.Mosaic
                     Assert.Equal(small.GetPixel(x, y), wide.GetPixel(x, y));
                 }
             }
-            var newCells = Enumerable.Range(0, 120 / 12).Select(r => wide.GetPixel(250, r * 12 + 6)).Distinct().Count();
+            var newCells = Enumerable.Range(0, 120 / 12).Select(_r => wide.GetPixel(250, _r * 12 + 6)).Distinct().Count();
             Assert.True(newCells > 1, "the added columns have cells too");
         }
 

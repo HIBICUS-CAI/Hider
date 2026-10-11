@@ -10,7 +10,7 @@ namespace Hider.Platform
     /// </summary>
     public class AvaloniaWindowHost : IAreaWindowHost
     {
-        protected readonly Window window;
+        private readonly Window window;
 
         public AvaloniaWindowHost(Window _window)
         {

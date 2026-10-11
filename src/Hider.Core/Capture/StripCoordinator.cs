@@ -49,7 +49,7 @@ namespace Hider.Core.Capture
             {
                 // Mosaic areas over the requested rectangle (the requester among them) hide what is below; fill and generated
                 // areas stay in the picture, as they would for a person looking at the screen (CT-83).
-                var cover = areas().Where(a => a.Kind == PatternKind.Mosaic && a.Rect.Intersects(rect)).ToList();
+                var cover = areas().Where(_a => _a.Kind == PatternKind.Mosaic && _a.Rect.Intersects(rect)).ToList();
                 try
                 {
                     // No grabber can deliver: fail before any strip is exposed.

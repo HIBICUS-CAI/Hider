@@ -73,5 +73,5 @@ namespace Hider.Core.Tests.Model
             Assert.Equal(AreaDefaults.FillColor, ColorText.OrDefault(null));
         }
 
-   }
+    }
 }

@@ -18,18 +18,26 @@ namespace Hider.Platform
     {
         public static ScreenInfo? Primary(this IScreenService _service)
         {
-            return _service.Screens.FirstOrDefault(s => s.IsPrimary) ?? _service.Screens.FirstOrDefault();
+            var screens = _service.Screens;
+            foreach (var screen in screens)
+            {
+                if (screen.IsPrimary)
+                {
+                    return screen;
+                }
+            }
+            return screens.Count > 0 ? screens[0] : null;
         }
 
         /// <summary>The screen containing a point, else the primary screen.</summary>
         public static ScreenInfo? ScreenAt(this IScreenService _service, int _x, int _y)
         {
-            return _service.Screens.FirstOrDefault(s => s.Bounds.Intersects(new PhysicalRect(_x, _y, 1, 1))) ?? _service.Primary();
+            return _service.Screens.FirstOrDefault(_s => _s.Bounds.Intersects(new PhysicalRect(_x, _y, 1, 1))) ?? _service.Primary();
         }
 
         public static int PrimaryIndex(this IScreenService _service)
         {
-            int index = _service.Screens.ToList().FindIndex(s => s.IsPrimary);
+            int index = _service.Screens.ToList().FindIndex(_s => _s.IsPrimary);
             return index < 0 ? 0 : index;
         }
     }

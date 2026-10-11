@@ -16,9 +16,9 @@ namespace Hider.Core.Model
             {
                 return rect;
             }
-            if (_screens.Any(s => s.Intersects(rect)))
+            if (_screens.Any(_s => _s.Intersects(rect)))
             {
-                var all = _screens.Aggregate((a, b) => a.Union(b));
+                var all = _screens.Aggregate((_a, _b) => _a.Union(_b));
                 return rect.Width > all.Width || rect.Height > all.Height ? rect.Intersect(all) : rect;
             }
             var primary = _screens[Math.Clamp(_primaryIndex, 0, _screens.Count - 1)];

@@ -30,10 +30,10 @@ namespace Hider.Core.Capture
     /// <summary>A captured image: premultiplied BGRA8888, physical pixels, opaque.</summary>
     public sealed class FrameBuffer
     {
-        public int Width;
-        public int Height;
-        public int Stride;
-        public Memory<byte> Bgra;
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int Stride { get; set; }
+        public Memory<byte> Bgra { get; set; }
 
         public static FrameBuffer Allocate(int _width, int _height)
         {

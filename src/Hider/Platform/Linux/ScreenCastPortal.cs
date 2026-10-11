@@ -49,38 +49,38 @@ namespace Hider.Platform.Linux
                     return null;
                 }
                 string sessionToken = $"hider{Environment.ProcessId}s{Interlocked.Increment(ref sessions)}";
-                var created = Check("CreateSession", await portal.RequestAsync(bus, Interface, "CreateSession", "a{sv}", (ref MessageWriter w, string token) =>
+                var created = Check("CreateSession", await portal.RequestAsync(bus, Interface, "CreateSession", "a{sv}", (ref MessageWriter _w, string _token) =>
                 {
-                    var d = w.WriteDictionaryStart();
-                    PortalClient.Entry(ref w, "handle_token", token);
-                    PortalClient.Entry(ref w, "session_handle_token", sessionToken);
-                    w.WriteDictionaryEnd(d);
+                    var d = _w.WriteDictionaryStart();
+                    PortalClient.Entry(ref _w, "handle_token", _token);
+                    PortalClient.Entry(ref _w, "session_handle_token", sessionToken);
+                    _w.WriteDictionaryEnd(d);
                 }, _ct).ConfigureAwait(false));
                 session = created["session_handle"].GetString();
 
-                Check("SelectSources", await portal.RequestAsync(bus, Interface, "SelectSources", "oa{sv}", (ref MessageWriter w, string token) =>
+                Check("SelectSources", await portal.RequestAsync(bus, Interface, "SelectSources", "oa{sv}", (ref MessageWriter _w, string _token) =>
                 {
-                    w.WriteObjectPath(session);
-                    var d = w.WriteDictionaryStart();
-                    PortalClient.Entry(ref w, "handle_token", token);
-                    w.WriteDictionaryEntryStart(); w.WriteString("types"); w.WriteVariantUInt32(1);        // monitor
-                    w.WriteDictionaryEntryStart(); w.WriteString("multiple"); w.WriteVariantBool(false);
-                    w.WriteDictionaryEntryStart(); w.WriteString("cursor_mode"); w.WriteVariantUInt32(1);  // hidden
-                    w.WriteDictionaryEntryStart(); w.WriteString("persist_mode"); w.WriteVariantUInt32(2); // until revoked
+                    _w.WriteObjectPath(session);
+                    var d = _w.WriteDictionaryStart();
+                    PortalClient.Entry(ref _w, "handle_token", _token);
+                    _w.WriteDictionaryEntryStart(); _w.WriteString("types"); _w.WriteVariantUInt32(1);        // monitor
+                    _w.WriteDictionaryEntryStart(); _w.WriteString("multiple"); _w.WriteVariantBool(false);
+                    _w.WriteDictionaryEntryStart(); _w.WriteString("cursor_mode"); _w.WriteVariantUInt32(1);  // hidden
+                    _w.WriteDictionaryEntryStart(); _w.WriteString("persist_mode"); _w.WriteVariantUInt32(2); // until revoked
                     if (_restoreToken is not null)
                     {
-                        PortalClient.Entry(ref w, "restore_token", _restoreToken);
+                        PortalClient.Entry(ref _w, "restore_token", _restoreToken);
                     }
-                    w.WriteDictionaryEnd(d);
+                    _w.WriteDictionaryEnd(d);
                 }, _ct).ConfigureAwait(false));
 
-                var started = Check("Start", await portal.RequestAsync(bus, Interface, "Start", "osa{sv}", (ref MessageWriter w, string token) =>
+                var started = Check("Start", await portal.RequestAsync(bus, Interface, "Start", "osa{sv}", (ref MessageWriter _w, string _token) =>
                 {
-                    w.WriteObjectPath(session);
-                    w.WriteString("");
-                    var d = w.WriteDictionaryStart();
-                    PortalClient.Entry(ref w, "handle_token", token);
-                    w.WriteDictionaryEnd(d);
+                    _w.WriteObjectPath(session);
+                    _w.WriteString("");
+                    var d = _w.WriteDictionaryStart();
+                    PortalClient.Entry(ref _w, "handle_token", _token);
+                    _w.WriteDictionaryEnd(d);
                 }, _ct).ConfigureAwait(false));
                 var (node, rect) = FirstStream(started["streams"]);
                 string? restore = started.TryGetValue("restore_token", out var t) ? t.GetString() : null;
@@ -94,7 +94,7 @@ namespace Hider.Platform.Linux
                     w.WriteDictionaryEnd(d);
                     open = w.CreateMessage();
                 }
-                var fd = await bus.CallMethodAsync(open, (Message m, object? _) => m.GetBodyReader().ReadHandle<SafeFileHandle>()!).ConfigureAwait(false);
+                var fd = await bus.CallMethodAsync(open, (Message _m, object? _) => _m.GetBodyReader().ReadHandle<SafeFileHandle>()!).ConfigureAwait(false);
                 Log.Verbose($"screencast: node {node}, stream {rect}, new restore token: {restore is not null}");
                 return new ScreenCastSession(session, node, rect, restore, fd);
             }

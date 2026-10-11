@@ -2,7 +2,7 @@ namespace Hider.Core.Capture
 {
     /// <summary>
     /// Double buffer between the capture thread and the render thread (work instructions §3.5). The capture side fills
-    /// <see cref="Back"/> without locking and then <see cref="Publish"/>es it; the render side reads <see cref="Front"/> only
+    /// <see cref="Back"/> without locking and then <see cref="Publish"/>es it; the render side reads the front frame only
     /// inside <see cref="Read{T}"/>. Publishing waits for a read in progress, so the buffer being read is never written.
     /// </summary>
     public sealed class FrameExchange

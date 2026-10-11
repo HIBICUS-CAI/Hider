@@ -43,7 +43,10 @@ namespace Hider.Platform.Windows
                     continue;
                 }
                 int cloaked = 0;
-                Win32Native.DwmGetWindowAttribute(hwnd, Win32Native.DWMWA_CLOAKED, &cloaked, sizeof(int));
+                if (Win32Native.DwmGetWindowAttribute(hwnd, Win32Native.DWMWA_CLOAKED, &cloaked, sizeof(int)) != 0)
+                {
+                    cloaked = 0; // no answer (e.g. DWM restarting): treat as shown, as before Windows 8
+                }
                 Win32Native.Rect frame;
                 if (Win32Native.DwmGetWindowAttribute(hwnd, Win32Native.DWMWA_EXTENDED_FRAME_BOUNDS, &frame, sizeof(Win32Native.Rect)) != 0)
                 {
@@ -118,10 +121,10 @@ namespace Hider.Platform.Windows
             {
                 if (bitmap != 0)
                 {
-                    Win32Native.DeleteObject(bitmap);
+                    _ = Win32Native.DeleteObject(bitmap);
                 }
-                Win32Native.DeleteDC(dc);
-                Win32Native.ReleaseDC(0, screen);
+                _ = Win32Native.DeleteDC(dc);
+                _ = Win32Native.ReleaseDC(0, screen); // cleanup: nothing to do when one fails
             }
         }
 
@@ -131,14 +134,14 @@ namespace Hider.Platform.Windows
             var alive = new HashSet<nint>(_alive);
             lock (images)
             {
-                foreach (nint handle in images.Keys.Where(h => !alive.Contains(h)).ToArray())
+                foreach (nint handle in images.Keys.Where(_h => !alive.Contains(_h)).ToArray())
                 {
                     images.Remove(handle);
                 }
             }
             lock (inFlight)
             {
-                foreach (nint handle in inFlight.Keys.Where(h => !alive.Contains(h) && inFlight[h].IsCompleted).ToArray())
+                foreach (nint handle in inFlight.Keys.Where(_h => !alive.Contains(_h) && inFlight[_h].IsCompleted).ToArray())
                 {
                     inFlight.Remove(handle);
                 }

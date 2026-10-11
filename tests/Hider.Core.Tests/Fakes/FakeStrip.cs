@@ -3,7 +3,7 @@ using Hider.Core.Model;
 
 namespace Hider.Core.Tests.Fakes
 {
-    /// <summary>A screen whose pixel (x, y) encodes its coordinates: B = x, G = y, R = (x >> 8) | (y >> 8) << 4.</summary>
+    /// <summary>A screen whose pixel (x, y) encodes its coordinates: B = x, G = y, R = (x &gt;&gt; 8) | (y &gt;&gt; 8) &lt;&lt; 4.</summary>
     public static class CoordinateFrame
     {
         public static FrameBuffer Create(int _width, int _height)

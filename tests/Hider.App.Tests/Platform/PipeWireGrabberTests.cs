@@ -13,8 +13,8 @@ namespace Hider.App.Tests.Platform
     [SupportedOSPlatform("linux")]
     public sealed class PipeWireGrabberTests : IDisposable
     {
-        private static readonly ScreenInfo Primary = new(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);
-        private static readonly ScreenInfo Right = new(new PhysicalRect(1920, 0, 2560, 1440), new PhysicalRect(1920, 0, 2560, 1400), 1.0, false);
+        private static readonly ScreenInfo primary = new(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);
+        private static readonly ScreenInfo right = new(new PhysicalRect(1920, 0, 2560, 1440), new PhysicalRect(1920, 0, 2560, 1400), 1.0, false);
 
         private readonly string dir = Path.Combine(Path.GetTempPath(), "hider-pw-" + Guid.NewGuid().ToString("N"));
         private readonly List<string> log = new();
@@ -122,20 +122,20 @@ namespace Hider.App.Tests.Platform
 
         private PipeWireGrabber Create(params ScreenInfo[] _screens)
         {
-            var screens = _screens.Length == 0 ? new[] { Primary } : _screens;
+            var screens = _screens.Length == 0 ? new[] { primary } : _screens;
             return new PipeWireGrabber(portal, helper, tokens, () => screens, time);
         }
 
         private static Task<ScreenFrame?> Grab(PipeWireGrabber _g, long _notBefore = 0, PhysicalRect? _needed = null)
         {
-            return _g.GrabAfterAsync(_notBefore, _needed ?? Needed, TestContext.Current.CancellationToken);
+            return _g.GrabAfterAsync(_notBefore, _needed ?? defaultNeeded, TestContext.Current.CancellationToken);
         }
 
-        private static readonly PhysicalRect Needed = new(100, 100, 200, 100);
+        private static readonly PhysicalRect defaultNeeded = new(100, 100, 200, 100);
 
         private static Task<bool> Prepare(PipeWireGrabber _g, PhysicalRect? _needed = null)
         {
-            return _g.PrepareAsync(_needed ?? Needed, TestContext.Current.CancellationToken);
+            return _g.PrepareAsync(_needed ?? defaultNeeded, TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -294,11 +294,11 @@ namespace Hider.App.Tests.Platform
         public async Task AreaOnAnotherMonitor_IsNull()
         {
             portal.StreamRect = new PhysicalRect(1920, 0, 2560, 1440);
-            using var g = Create(Primary, Right);
+            using var g = Create(primary, right);
             Assert.True(await Prepare(g, new PhysicalRect(2000, 100, 200, 100)));
             Assert.Null(await Grab(g, 0, new PhysicalRect(100, 100, 200, 100)));
             var frame = await Grab(g, 0, new PhysicalRect(2000, 100, 200, 100));
-            Assert.Equal(Right.Bounds, frame!.Covers);
+            Assert.Equal(right.Bounds, frame!.Covers);
         }
 
         [Fact]
@@ -363,7 +363,7 @@ namespace Hider.App.Tests.Platform
         public async Task Prepare_OpensTheSessionAndWaitsForAFrame_BeforeAnyStrip()
         {
             portal.StreamRect = new PhysicalRect(1920, 0, 2560, 1440);
-            using var g = Create(Primary, Right);
+            using var g = Create(primary, right);
             var ct = TestContext.Current.CancellationToken;
             Assert.True(await g.PrepareAsync(new PhysicalRect(2000, 100, 200, 100), ct));
             Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log); // the first grab grows the buffer

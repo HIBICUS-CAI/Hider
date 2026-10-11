@@ -19,7 +19,7 @@ namespace Hider.Core.Model
 
         public static bool IsValid(string? _id)
         {
-            return _id is { Length: 8 } && _id.All(c => char.IsAsciiHexDigitLower(c) || char.IsAsciiDigit(c));
+            return _id is { Length: 8 } && _id.All(_c => char.IsAsciiHexDigitLower(_c) || char.IsAsciiDigit(_c));
         }
     }
 }

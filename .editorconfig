@@ -23,22 +23,51 @@ trim_trailing_whitespace = false
 [*.cs]
 csharp_style_namespace_declarations = block_scoped:warning
 csharp_new_line_before_open_brace = all
+# Short object initializers stay on one line (dotnet format would otherwise put every member on its own line).
+csharp_new_line_before_members_in_object_initializers = false
+csharp_new_line_before_members_in_anonymous_types = false
+# A braced case body sits at the case label's indentation.
+csharp_indent_case_contents_when_block = false
 csharp_prefer_braces = true:suggestion
 dotnet_style_qualification_for_field = false:suggestion
 dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 
-# Naming: parameters use a leading underscore (existing convention), private fields are plain camelCase.
-dotnet_naming_rule.parameters_underscore.severity = suggestion
+# Unused usings (needs GenerateDocumentationFile to run in the build, see Directory.Build.props).
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Underscores in names are the convention here (parameters "_name", test names "CT12_..."), so CA1707 does not apply, and
+# overrides keep that convention instead of the base parameter names (CA1725). No Visual Basic callers exist, and the
+# helper's methods mirror its C API names (CA1716).
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1725.severity = none
+dotnet_diagnostic.CA1716.severity = none
+
+# Naming (CLAUDE.md): constants PascalCase (.NET standard), parameters with a leading underscore, private fields (static
+# readonly included) plain camelCase. The constant rule comes first: the private field rule would match constants too.
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_naming_rule.constants_pascal.severity = warning
+dotnet_naming_rule.constants_pascal.symbols = constants
+dotnet_naming_rule.constants_pascal.style = pascal
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.applicable_accessibilities = *
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+dotnet_naming_rule.parameters_underscore.severity = warning
 dotnet_naming_rule.parameters_underscore.symbols = parameters
 dotnet_naming_rule.parameters_underscore.style = underscore_camel
 dotnet_naming_symbols.parameters.applicable_kinds = parameter
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
-dotnet_naming_rule.private_fields_camel.severity = suggestion
+dotnet_naming_rule.private_fields_camel.severity = warning
 dotnet_naming_rule.private_fields_camel.symbols = private_fields
 dotnet_naming_rule.private_fields_camel.style = plain_camel
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_style.plain_camel.capitalization = camel_case
+
+[tests/**.cs]
+# Expected values are written inline as array literals; these are not hot paths (CA1861).
+dotnet_diagnostic.CA1861.severity = none

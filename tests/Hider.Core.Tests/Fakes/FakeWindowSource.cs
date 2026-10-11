@@ -21,13 +21,13 @@ namespace Hider.Core.Tests.Fakes
 
         public IReadOnlyList<WindowInfo> EnumerateTopDown()
         {
-            return TopDown.Select(e => e.Info).ToArray();
+            return TopDown.Select(_e => _e.Info).ToArray();
         }
 
         public WindowImage Capture(WindowInfo _window, TimeSpan _timeout)
         {
             Captured.Add(_window.Handle);
-            var entry = TopDown.Single(e => e.Info.Handle == _window.Handle);
+            var entry = TopDown.Single(_e => _e.Info.Handle == _window.Handle);
             if (entry.Failure != CaptureFailure.None)
             {
                 return new WindowImage(null, entry.Failure);

@@ -21,7 +21,7 @@ namespace Hider.App.Tests.Settings
             return (f, area, area.Window.Settings!);
         }
 
-        private static ParamRow Row(SettingsPanel _panel, string _key) => _panel.ParamRows.Single(r => r.Spec.Key == _key);
+        private static ParamRow Row(SettingsPanel _panel, string _key) => _panel.ParamRows.Single(_r => _r.Spec.Key == _key);
 
         private static void Type(ParamRow _row, string _text)
         {
@@ -41,13 +41,13 @@ namespace Hider.App.Tests.Settings
             using (f2)
             {
                 Assert.Equal(new[] { "透明度", "手法", "ブロック", "ぼかし", "色数", "更新間隔", "帯の高さ" }, mosaic.RowLabels);
-                Assert.Equal(new[] { "%", "px", "px", "色", "ms", "px" }, mosaic.ParamRows.Select(r => r.Unit.Text));
+                Assert.Equal(new[] { "%", "px", "px", "色", "ms", "px" }, mosaic.ParamRows.Select(_r => _r.Unit.Text));
             }
             var (f3, _, generated) = Open(PatternKind.Generated);
             using (f3)
             {
                 Assert.Equal(new[] { "透明度", "手法", "ベース色", "セルサイズ", "色のばらつき", "目地幅", "シード" }, generated.RowLabels);
-                Assert.Equal(new[] { "%", "px", "%", "px" }, generated.ParamRows.Select(r => r.Unit.Text));
+                Assert.Equal(new[] { "%", "px", "%", "px" }, generated.ParamRows.Select(_r => _r.Unit.Text));
             }
         }
 
@@ -63,8 +63,8 @@ namespace Hider.App.Tests.Settings
                     Assert.Equal(label, Avalonia.Automation.AutomationProperties.GetName(row.Slider));
                     Assert.Equal(label, Avalonia.Automation.AutomationProperties.GetName(row.Input));
                 }
-                var names = panel.GetLogicalDescendants().OfType<Control>().Where(c => c is ComboBox or TextBox)
-                    .Select(c => Avalonia.Automation.AutomationProperties.GetName(c)).ToList();
+                var names = panel.GetLogicalDescendants().OfType<Control>().Where(_c => _c is ComboBox or TextBox)
+                    .Select(_c => Avalonia.Automation.AutomationProperties.GetName(_c)).ToList();
                 Assert.Contains("手法", names);
                 Assert.Contains("シード", names);
                 Assert.DoesNotContain(null, names);
@@ -192,7 +192,7 @@ namespace Hider.App.Tests.Settings
             using (f)
             {
                 Assert.Equal(new[] { "#68768A", "#2B2F36", "#4B4F57", "#8A8F99", "#C8CED8", "#3E5A7A", "#5B4B6E", "#6E5B3E" },
-                    panel.PresetButtons.Select(b => (string)b.Tag!));
+                    panel.PresetButtons.Select(_b => (string)_b.Tag!));
                 int saves = f.Manager.SaveCount;
                 panel.PresetButtons[5].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal("#3E5A7A", area.Model.Fill.Color);
@@ -209,7 +209,7 @@ namespace Hider.App.Tests.Settings
                 var strip = Row(panel, CommonParams.StripPx);
                 Assert.NotNull(strip.Badge);
                 Assert.Equal("Linux", ((TextBlock)strip.Badge!.Child!).Text);
-                Assert.All(panel.ParamRows.Where(r => r != strip), r => Assert.Null(r.Badge));
+                Assert.All(panel.ParamRows.Where(_r => _r != strip), _r => Assert.Null(_r.Badge));
             }
         }
 
@@ -242,14 +242,14 @@ namespace Hider.App.Tests.Settings
                 var kind = _pattern == PatternKind.Mosaic ? MethodKind.Mosaic : MethodKind.Generated;
                 var methods = MethodRegistry.Filter(MethodRegistry.OfKind(kind), MethodRegistry.CurrentPlatform);
                 Assert.Equal(kind == MethodKind.Mosaic ? new[] { "pixelate", "hexcell", "blur" } : new[] { "block", "noise" },
-                    methods.Select(m => m.Id));
+                    methods.Select(_m => _m.Id));
                 for (int i = 0; i < methods.Count; i++)
                 {
                     var panel = area.Window.Settings!;
                     panel.MethodBox!.SelectedIndex = i;
                     panel = area.Window.Settings!;
-                    var labels = methods[i].Params.Select(p => Hider.Core.Strings.Get(p.LabelKey)).ToList();
-                    Assert.All(labels, l => Assert.Contains(l, panel.RowLabels));
+                    var labels = methods[i].Params.Select(_p => Hider.Core.Strings.Get(_p.LabelKey)).ToList();
+                    Assert.All(labels, _l => Assert.Contains(_l, panel.RowLabels));
                     area.Window.PatternView.InvalidateVisual();
                     using var frame = area.Window.CaptureRenderedFrame();
                     Assert.NotNull(frame);

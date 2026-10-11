@@ -20,8 +20,8 @@ namespace Hider.Core.Mosaic
         public static IReadOnlyList<string> All()
         {
             return typeof(ShaderSource).Assembly.GetManifestResourceNames()
-                .Where(n => n.StartsWith(Prefix, StringComparison.Ordinal) && n.EndsWith(Suffix, StringComparison.Ordinal))
-                .Select(n => n.Substring(Prefix.Length, n.Length - Prefix.Length - Suffix.Length))
+                .Where(_n => _n.StartsWith(Prefix, StringComparison.Ordinal) && _n.EndsWith(Suffix, StringComparison.Ordinal))
+                .Select(_n => _n.Substring(Prefix.Length, _n.Length - Prefix.Length - Suffix.Length))
                 .Order(StringComparer.Ordinal)
                 .ToArray();
         }

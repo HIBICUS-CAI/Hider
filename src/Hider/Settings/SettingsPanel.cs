@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Hider.Areas;
@@ -73,10 +72,10 @@ namespace Hider.Settings
             double min = model.Pattern == PatternKind.Mosaic ? 0.0 : Area.MinAlphaOpacity;
             var opacity = new ParamRow(new ParamSpec("opacity", "settings.opacity", ParamUnit.Percent, min, 1, min, 1, 1));
             opacity.SetValue(model.EffectiveOpacity);
-            opacity.ValueChanged += (v, typed) =>
+            opacity.ValueChanged += (_v, _typed) =>
             {
-                model.Opacity = v;
-                Changed(typed);
+                model.Opacity = _v;
+                Changed(_typed);
             };
             Add(opacity, labels, rows);
             content.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.Parse("#E1E1E1")) });
@@ -85,7 +84,7 @@ namespace Hider.Settings
             {
                 case PatternKind.Fill:
                     content.Children.Add(Header(Strings.SettingsFillSection));
-                    AddColorRow(Strings.SettingsColor, () => model.Fill.Color, c => model.Fill.Color = c, labels);
+                    AddColorRow(Strings.SettingsColor, () => model.Fill.Color, _c => model.Fill.Color = _c, labels);
                     AddPresets(labels);
                     break;
 
@@ -93,16 +92,16 @@ namespace Hider.Settings
                 {
                     content.Children.Add(Header(Strings.SettingsMosaicSection));
                     var method = MethodRegistry.Find(model.Mosaic.Method) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
-                    AddMethodBox(MethodKind.Mosaic, method, id => model.Mosaic.Method = id, labels);
+                    AddMethodBox(MethodKind.Mosaic, method, _id => model.Mosaic.Method = _id, labels);
                     var values = model.Mosaic.ParamsFor(method.Id);
                     foreach (var spec in method.Params)
                     {
                         var row = new ParamRow(spec);
                         row.SetValue(values.TryGetValue(spec.Key, out double v) ? v : spec.Default);
-                        row.ValueChanged += (value, typed) =>
+                        row.ValueChanged += (_value, _typed) =>
                         {
-                            values[spec.Key] = value;
-                            Changed(typed);
+                            values[spec.Key] = _value;
+                            Changed(_typed);
                         };
                         Add(row, labels, rows);
                     }
@@ -111,10 +110,10 @@ namespace Hider.Settings
                         bool linuxOnly = spec.Key == CommonParams.StripPx;
                         var row = new ParamRow(spec, linuxOnly ? Strings.LinuxBadge : null, spec.Key == CommonParams.IntervalMs ? 64 : 56);
                         row.SetValue(GetCommon(model.Mosaic.Common, spec.Key));
-                        row.ValueChanged += (value, typed) =>
+                        row.ValueChanged += (_value, _typed) =>
                         {
-                            SetCommon(model.Mosaic.Common, spec.Key, value);
-                            Changed(typed);
+                            SetCommon(model.Mosaic.Common, spec.Key, _value);
+                            Changed(_typed);
                         };
                         Add(row, labels, rows);
                     }
@@ -125,17 +124,17 @@ namespace Hider.Settings
                 {
                     content.Children.Add(Header(Strings.SettingsGeneratedSection));
                     var method = MethodRegistry.Find(model.Generated.Method) ?? MethodRegistry.Find(AreaDefaults.GeneratedMethod)!;
-                    AddMethodBox(MethodKind.Generated, method, id => model.Generated.Method = id, labels);
-                    AddColorRow(Strings.SettingsBaseColor, () => model.Generated.Common.BaseColor, c => model.Generated.Common.BaseColor = c, labels);
+                    AddMethodBox(MethodKind.Generated, method, _id => model.Generated.Method = _id, labels);
+                    AddColorRow(Strings.SettingsBaseColor, () => model.Generated.Common.BaseColor, _c => model.Generated.Common.BaseColor = _c, labels);
                     var values = model.Generated.ParamsFor(method.Id);
                     foreach (var spec in method.Params)
                     {
                         var row = new ParamRow(spec);
                         row.SetValue(values.TryGetValue(spec.Key, out double v) ? v : spec.Default);
-                        row.ValueChanged += (value, typed) =>
+                        row.ValueChanged += (_value, _typed) =>
                         {
-                            values[spec.Key] = value;
-                            Changed(typed);
+                            values[spec.Key] = _value;
+                            Changed(_typed);
                         };
                         Add(row, labels, rows);
                     }
@@ -165,8 +164,8 @@ namespace Hider.Settings
             var methods = MethodRegistry.Filter(MethodRegistry.OfKind(_kind), MethodRegistry.CurrentPlatform);
             var box = new ComboBox
             {
-                ItemsSource = methods.Select(m => Strings.Get(m.LabelKey)).ToArray(),
-                SelectedIndex = Math.Max(0, methods.ToList().FindIndex(m => m.Id == _current.Id)),
+                ItemsSource = methods.Select(_m => Strings.Get(_m.LabelKey)).ToArray(),
+                SelectedIndex = Math.Max(0, methods.ToList().FindIndex(_m => _m.Id == _current.Id)),
                 HorizontalAlignment = HorizontalAlignment.Stretch, Height = 30, MinHeight = 30, FontSize = 13,
             };
             Avalonia.Automation.AutomationProperties.SetName(box, Strings.SettingsMethod);
@@ -200,9 +199,9 @@ namespace Hider.Settings
                 }
             }
             var view = new ColorView { Color = Color.Parse(_get()), IsAlphaEnabled = false, IsAlphaVisible = false, Width = 300 };
-            view.ColorChanged += (_, e) =>
+            view.ColorChanged += (_, _e) =>
             {
-                string color = $"#{e.NewColor.R:X2}{e.NewColor.G:X2}{e.NewColor.B:X2}";
+                string color = $"#{_e.NewColor.R:X2}{_e.NewColor.G:X2}{_e.NewColor.B:X2}";
                 if (color != _get())
                 {
                     _set(color);
@@ -280,12 +279,12 @@ namespace Hider.Settings
                 box.Text = common.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             box.LostFocus += (_, _) => CommitSeed();
-            box.KeyDown += (_, e) =>
+            box.KeyDown += (_, _e) =>
             {
-                if (e.Key == Avalonia.Input.Key.Enter)
+                if (_e.Key == Avalonia.Input.Key.Enter)
                 {
                     CommitSeed();
-                    e.Handled = true;
+                    _e.Handled = true;
                 }
             };
             var reseed = new Button
@@ -311,7 +310,7 @@ namespace Hider.Settings
             _labels.Add(Strings.SettingsSeed);
         }
 
-        private static Control LabeledRow(string _label, Control _control)
+        private static Grid LabeledRow(string _label, Control _control)
         {
             var grid = new Grid { Height = 36, ColumnDefinitions = new ColumnDefinitions("88,*"), ColumnSpacing = 10 };
             var label = new TextBlock { Text = _label, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
@@ -326,7 +325,7 @@ namespace Hider.Settings
             return grid;
         }
 
-        private static Control Header(string _text)
+        private static TextBlock Header(string _text)
         {
             return new TextBlock { Text = _text, FontSize = 12, FontWeight = FontWeight.Medium, Foreground = new SolidColorBrush(Color.Parse("#666666")), Height = 18 };
         }

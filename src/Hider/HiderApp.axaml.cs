@@ -6,7 +6,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Hider.Areas;
-using Hider.Core;
 using Hider.Core.Capture;
 using Hider.Core.Persistence;
 using Hider.Platform;
@@ -16,7 +15,7 @@ using Hider.Tray;
 
 namespace Hider
 {
-    public partial class HiderApp : Application
+    public sealed partial class HiderApp : Application, IDisposable
     {
         private AreaManager? areas;
         private TrayController? tray;
@@ -51,8 +50,8 @@ namespace Hider
             // Screens need a top level; this window is never shown.
             screenProbe = new Window();
             var screens = new AvaloniaScreenService(() => screenProbe.Screens);
-            Action<Action> uiPost = a => Dispatcher.UIThread.Post(a);
-            var stripHost = new AreaStripHost(f => Dispatcher.UIThread.InvokeAsync(f));
+            Action<Action> uiPost = _a => Dispatcher.UIThread.Post(_a);
+            var stripHost = new AreaStripHost(_f => Dispatcher.UIThread.InvokeAsync(_f));
             capture = _capture ?? CreateCapture(stripHost);
             areas = new AreaManager(new AreaServices(screens, _hostFactory, _areasPath, TimeProvider.System,
                 uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));
@@ -65,9 +64,9 @@ namespace Hider
             _desktop.Exit += (_, _) => Stop();
             if (_handleSignals && !OperatingSystem.IsWindows())
             {
-                sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
+                sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ctx =>
                 {
-                    ctx.Cancel = true;
+                    _ctx.Cancel = true;
                     Dispatcher.UIThread.Post(() => _desktop.Shutdown());
                 });
             }
@@ -110,6 +109,12 @@ namespace Hider
                 return new X11WindowHost(_window);
             }
             throw new PlatformNotSupportedException("Hider runs on Windows and Linux (win-x64, linux-x64, linux-arm64)");
+        }
+
+        /// <summary>Same as <see cref="Stop"/> (the lifetime's Exit normally calls it).</summary>
+        public void Dispose()
+        {
+            Stop();
         }
 
         internal void Stop()

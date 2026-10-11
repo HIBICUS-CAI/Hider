@@ -29,7 +29,8 @@ spikes/            スパイク（sln に含めない。一覧は spikes/README.
 ## コマンド
 
 ```sh
-dotnet build -c Release -warnaserror
+dotnet build -c Release -warnaserror         # アナライザー（latest-recommended）とコードスタイル（命名・名前空間・不要な using）も検査
+dotnet format Hider.slnx --verify-no-changes # 書式（CI は linux-x64 で実行）
 dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
 python scripts/build.py <rid>                 # bin/publish/<rid>/

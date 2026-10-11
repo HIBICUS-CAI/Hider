@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Hider.Areas;
 using Hider.Core;
 using Hider.Dialogs;
-using Hider.Platform;
 
 namespace Hider.Tray
 {
@@ -51,7 +50,7 @@ namespace Hider.Tray
                 return;
             }
             fallback = new TrayFallbackWindow();
-            fallback.CommandSelected += c => ExecuteAsync(c).Forget($"tray: {c}");
+            fallback.CommandSelected += _c => ExecuteAsync(_c).Forget($"tray: {_c}");
             Update();
             fallback.Show();
         }
@@ -129,7 +128,7 @@ namespace Hider.Tray
             var window = new TrayPopupWindow();
             popup = window;
             window.SetItems(Items);
-            window.CommandSelected += c => ExecuteAsync(c).Forget($"tray: {c}");
+            window.CommandSelected += _c => ExecuteAsync(_c).Forget($"tray: {_c}");
             if (_cursor is { } cursor)
             {
                 // The window's size is in DIP: convert it with the cursor monitor's scale before placing it in physical px.

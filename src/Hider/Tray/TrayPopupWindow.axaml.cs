@@ -9,10 +9,10 @@ namespace Hider.Tray
         {
             InitializeComponent();
             Deactivated += (_, _) => Close();
-            Items.CommandSelected += c =>
+            Items.CommandSelected += _c =>
             {
                 Close();
-                CommandSelected?.Invoke(c);
+                CommandSelected?.Invoke(_c);
             };
         }
 

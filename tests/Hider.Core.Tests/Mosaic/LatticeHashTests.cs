@@ -66,7 +66,7 @@ namespace Hider.Core.Tests.Mosaic
             };
             using var shader = effect.ToShader(uniforms);
             using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.Src };
-            using var image = Render.Draw(300, 300, c => c.DrawRect(0, 0, 300, 300, paint));
+            using var image = Render.Draw(300, 300, _c => _c.DrawRect(0, 0, 300, 300, paint));
             for (int y = 0; y < 300; y++)
             {
                 for (int x = 0; x < 300; x++)
