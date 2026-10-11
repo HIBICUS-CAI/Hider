@@ -25,6 +25,9 @@ namespace Hider.Areas
         /// <summary>The areas at the start of the latest capture (safe to read on any thread).</summary>
         public IReadOnlyList<StripArea> Areas => manager?.StripAreas ?? Array.Empty<StripArea>();
 
+        /// <summary>The virtual screen in physical px at the start of the latest capture (safe to read on any thread).</summary>
+        public Hider.Core.Model.PhysicalRect Screen => manager?.StripScreen ?? default;
+
         public Task SetTransparentRowsAsync(string _areaId, int _y0, int _y1, CancellationToken _ct)
         {
             return OnUi(_areaId, w => w.SetTransparentRowsAsync(_y0, _y1, _ct));

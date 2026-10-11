@@ -79,7 +79,7 @@ namespace Hider.App.Tests.Areas
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(1920, 1080));
             var bridge = new AreaStripHost(a => Dispatcher.UIThread.Post(a));
             using var coordinator = new StripCoordinator(grabber, bridge, () => bridge.Areas, () => new PhysicalRect(0, 0, 1920, 1080));
-            using var f = new AreaFixture(_capture: new UnavailableCapture());
+            using var f = new AreaFixture(_capture: new UnavailableCapture(), _isWindows: false);
             bridge.Attach(f.Manager);
             var me = f.Add(new PhysicalRect(100, 200, 120, 16), PatternKind.Mosaic);
             var over = f.Add(new PhysicalRect(150, 208, 120, 80), PatternKind.Mosaic);
@@ -94,6 +94,7 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(new[] { "(0, 8)||", "(8, 16)|(0, 8)|" }, seen);
             Assert.Null(me.Window.TransparentRows);
             Assert.Null(over.Window.TransparentRows);
+            Assert.Equal(new PhysicalRect(0, 0, 1920, 1080), f.Manager.StripScreen);
             var frame = task.Result.Frame!;
             Assert.Equal((100, 200), CoordinateFrame.Decode(frame, 0, 0));
             Assert.Equal((219, 215), CoordinateFrame.Decode(frame, 119, 15));

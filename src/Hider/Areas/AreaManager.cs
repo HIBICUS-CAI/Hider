@@ -19,6 +19,7 @@ namespace Hider.Areas
         private readonly string areasPath;
         private ITimer? saveTimer;
         private StripArea[] stripAreas = Array.Empty<StripArea>();
+        private PhysicalRect stripScreen;
 
         public AreaManager(AreaServices _services)
         {
@@ -125,9 +126,31 @@ namespace Hider.Areas
         /// <summary>Areas as the Linux strip capture sees them: refreshed on the UI thread whenever a capture starts.</summary>
         public IReadOnlyList<StripArea> StripAreas => Volatile.Read(ref stripAreas);
 
+        /// <summary>The virtual screen (union of all monitors, physical px) at the start of the latest capture.</summary>
+        public PhysicalRect StripScreen
+        {
+            get
+            {
+                lock (areas)
+                {
+                    return stripScreen;
+                }
+            }
+        }
+
         public void CaptureStarting()
         {
+            if (Services.IsWindows)
+            {
+                return; // only the strip capture (Linux) reads these
+            }
             Volatile.Write(ref stripAreas, areas.Select(a => new StripArea(a.Model.Id, a.Model.Rect, a.Model.Pattern)).ToArray());
+            var bounds = Screens.Screens.Select(s => s.Bounds).ToList();
+            var union = bounds.Count == 0 ? default : PhysicalRect.FromEdges(bounds.Min(b => b.X), bounds.Min(b => b.Y), bounds.Max(b => b.Right), bounds.Max(b => b.Bottom));
+            lock (areas)
+            {
+                stripScreen = union;
+            }
         }
 
         public void SaveNow()

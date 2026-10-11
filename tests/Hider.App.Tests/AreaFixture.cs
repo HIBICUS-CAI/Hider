@@ -13,7 +13,7 @@ namespace Hider.App.Tests
         private readonly string dir = Path.Combine(Path.GetTempPath(), "hider-gui-" + Guid.NewGuid().ToString("N"));
 
         public AreaFixture(double _scale = 1.0, FakeScreenService? _screens = null, Func<AreaWindow, IAreaWindowHost>? _hostFactory = null,
-            IUnderlayCapture? _capture = null)
+            IUnderlayCapture? _capture = null, bool _isWindows = true)
         {
             Directory.CreateDirectory(dir);
             Scale = _scale;
@@ -25,7 +25,7 @@ namespace Hider.App.Tests
                 var host = new FakeAreaWindowHost(w, _scale);
                 Hosts.Add(host);
                 return host;
-            }), AreasPath, Time, a => a(), true, Capture, c => c()));
+            }), AreasPath, Time, a => a(), _isWindows, Capture, c => c()));
         }
 
         public IUnderlayCapture Capture { get; }

@@ -21,6 +21,7 @@ namespace Hider
         private TrayController? tray;
         private Window? screenProbe;
         private PosixSignalRegistration? sigterm;
+        private IUnderlayCapture? capture;
 
         public override void Initialize()
         {
@@ -46,8 +47,12 @@ namespace Hider
             // Screens need a top level; this window is never shown.
             screenProbe = new Window();
             var screens = new AvaloniaScreenService(() => screenProbe.Screens);
+            Action<Action> uiPost = a => Dispatcher.UIThread.Post(a);
+            var stripHost = new AreaStripHost(uiPost);
+            capture = CreateCapture(stripHost);
             areas = new AreaManager(new AreaServices(screens, _hostFactory, _areasPath, TimeProvider.System,
-                a => Dispatcher.UIThread.Post(a), OperatingSystem.IsWindows(), CreateCapture(), AreaServices.OnThreadPool));
+                uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));
+            stripHost.Attach(areas);
             areas.Restore();
             tray = new TrayController(this, areas, () => _desktop.Shutdown());
 
@@ -65,11 +70,16 @@ namespace Hider
         }
 
         /// <summary>The platform's underlay capture: Windows window capture (design §5.2); Linux from Step 7 (until then FR-52).</summary>
-        private static IUnderlayCapture CreateCapture()
+        /// <summary>Windows: window capture (design §5.2). Linux: strips over the Screenshot portal (stage 1, design §5.3).</summary>
+        private static IUnderlayCapture CreateCapture(AreaStripHost _stripHost)
         {
             if (OperatingSystem.IsWindows())
             {
                 return new Win32UnderlayCapture();
+            }
+            if (OperatingSystem.IsLinux())
+            {
+                return new StripCoordinator(new PortalScreenshotGrabber(), _stripHost, () => _stripHost.Areas, () => _stripHost.Screen);
             }
             return new UnavailableCapture();
         }
@@ -84,9 +94,11 @@ namespace Hider
             sigterm?.Dispose();
             tray?.Dispose();
             areas?.Dispose();
+            capture?.Dispose();
             screenProbe?.Close();
             tray = null;
             areas = null;
+            capture = null;
         }
     }
 }
