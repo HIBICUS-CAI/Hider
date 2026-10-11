@@ -37,9 +37,11 @@ namespace Hider.Platform.Linux
 
         public async Task<ScreenCastSession?> StartAsync(string? _restoreToken, CancellationToken _ct)
         {
+            DBusConnection? bus = null;
+            string? session = null;
             try
             {
-                var bus = await portal.ConnectAsync(_ct).ConfigureAwait(false);
+                bus = await portal.ConnectAsync(_ct).ConfigureAwait(false);
                 if (bus is null)
                 {
                     return null;
@@ -52,7 +54,7 @@ namespace Hider.Platform.Linux
                     PortalClient.Entry(ref w, "session_handle_token", sessionToken);
                     w.WriteDictionaryEnd(d);
                 }, _ct).ConfigureAwait(false));
-                string session = created["session_handle"].GetString();
+                session = created["session_handle"].GetString();
 
                 Check("SelectSources", await portal.RequestAsync(bus, Interface, "SelectSources", "oa{sv}", (ref MessageWriter w, string token) =>
                 {
@@ -94,8 +96,18 @@ namespace Hider.Platform.Linux
                 Log.Verbose($"screencast: node {node}, stream {rect}, new restore token: {restore is not null}");
                 return new ScreenCastSession(session, node, rect, restore, fd);
             }
-            catch (Exception e) when (e is not (OperationCanceledException or CaptureDeniedException))
+            catch (Exception e)
             {
+                // Whatever went wrong after CreateSession (cancelled, refused, failed), the half-made session must not stay
+                // around: otherwise a dialog answered later starts a share that runs until Hider exits.
+                if (bus is not null && session is not null)
+                {
+                    await PortalClient.CloseObjectAsync(bus, session, "org.freedesktop.portal.Session").ConfigureAwait(false);
+                }
+                if (e is OperationCanceledException or CaptureDeniedException)
+                {
+                    throw;
+                }
                 Log.Verbose($"screencast portal: {e.GetType().Name}: {e.Message}");
                 portal.Reset();
                 return null;
@@ -108,17 +120,10 @@ namespace Hider.Platform.Linux
             try
             {
                 var bus = await portal.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
-                if (bus is null)
+                if (bus is not null)
                 {
-                    return;
+                    await PortalClient.CloseObjectAsync(bus, _session.Handle, "org.freedesktop.portal.Session").ConfigureAwait(false);
                 }
-                MessageBuffer close;
-                using (var w = bus.GetMessageWriter())
-                {
-                    w.WriteMethodCallHeader(PortalClient.Destination, _session.Handle, "org.freedesktop.portal.Session", "Close", null);
-                    close = w.CreateMessage();
-                }
-                await bus.CallMethodAsync(close).ConfigureAwait(false);
             }
             catch (Exception e)
             {

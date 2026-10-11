@@ -102,7 +102,35 @@ namespace Hider.Platform.Linux
                 writer.Dispose();
             }
             await _bus.CallMethodAsync(call).ConfigureAwait(false);
-            return await response.Task.WaitAsync(ResponseTimeout, _ct).ConfigureAwait(false);
+            try
+            {
+                return await response.Task.WaitAsync(ResponseTimeout, _ct).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is OperationCanceledException or TimeoutException)
+            {
+                // Nobody waits any more: dismiss the dialog, or the user could still start a screen share no one stops.
+                await CloseObjectAsync(_bus, requestPath, "org.freedesktop.portal.Request").ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>Calls Close on a portal Request or Session object; failures are only logged.</summary>
+        public static async Task CloseObjectAsync(DBusConnection _bus, string _path, string _interface)
+        {
+            try
+            {
+                MessageBuffer close;
+                using (var writer = _bus.GetMessageWriter())
+                {
+                    writer.WriteMethodCallHeader(Destination, _path, _interface, "Close", null);
+                    close = writer.CreateMessage();
+                }
+                await _bus.CallMethodAsync(close).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Hider.Core.Log.Verbose($"portal: closing {_path} failed: {e.Message}");
+            }
         }
 
         /// <summary>Writes a string entry of an a{sv} options dictionary.</summary>
