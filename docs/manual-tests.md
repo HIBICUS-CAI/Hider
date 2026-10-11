@@ -59,8 +59,24 @@ python scripts/install.py          # 既定のフォルダへ（Windows はデ�
 | PT-19 | 設定 → プライバシー → スクリーンショットの許可を取り消し（または初回ダイアログで「拒否」）、エリアを作る | パターン（生成）に自動で切り替わり、ツールバーに「取得できません」 | スクリーンショット |
 | PT-20 | ディスプレイ設定で 125%、150% にして、それぞれエリアを置いて ✓（ピクセル化 12、ぼかし 0） | モザイクのセルの境目が下の内容の位置と合う（目で見てずれなし）。合わない場合はずれの向きと量（px） | スクリーンショット 2 枚、`Hider --verbose` の出力 |
 
+## Ubuntu 26.04 第 2 段階（Step 8）
+
+`Hider --verbose` を端末から起動して行う。第 2 段階の撮影ではログに `screencast: frame …x… seq N, X ms after the strip (pts)` が帯ごとに出る（`(receive time)` と出る場合は Mutter のフレーム時刻が使えていない）。撮影中は GNOME の画面共有表示（上部のオレンジのアイコン）が出て、撮り終えて約 3 秒で消える。
+
+| ID | 手順 | 合格基準 | 記録するもの |
+|---|---|---|---|
+| PT-21 | 初回: エリアを作る → 画面共有ダイアログでモニタを選び「共有」。Hider を終了して起動し直し、エリアを動かして ✓ | 2 回目以降はダイアログなしで撮れる（~/.hider/restore_token が毎回更新される） | 結果メモ |
+| PT-22 | 240 px 高・帯 8 px のエリアで撮り直し、ログの帯ごとの行を見る | 各帯の `ms after the strip` が 3 フレーム以内（60 Hz なら 50 ms 以内）で `(pts)` | ログ 30 行 |
+| PT-23 | PT-22 と同じ撮り直しの、最初と最後の `screencast: frame` の時刻差 | 2 秒以内 | 秒数 |
+| PT-24 | linux-arm64 実機で PT-15〜23 | 同じ基準 | 機材名と結果 |
+| PT-25 | libhidercap.so を実行ファイルの隣から外して起動し、撮り直す | Screenshot ポータル（第 1 段階）で撮れる。ログに `libhidercap.so could not be loaded` | ログの該当行 |
+| PT-26 | Firefox（Google Meet 等）と Zoom で画面全体を共有し、モザイクのエリアを置いて撮り直す | 共有先にもモザイクが映り、帯の撮影中も中身が 1 本分を超えて見えない | 共有先のスクリーンショット |
+| PT-27（追加） | エリアを 2 枚目のモニタに置き、ダイアログで 1 枚目を選んだ状態で撮り直す | 2 枚目のエリアは第 1 段階で撮れる（ログに `is not on the shared monitor`） | ログの該当行 |
+
 ## 作業コンテナでの確認（参考）
 
 Xvfb（コンポジタなし）で、起動時の復元、画面外エリアの主画面中央への補正、ダブルクリックでの編集モード、ツールバー表示（日本語）、本体ドラッグ、Esc での終了と保存を確認済み（2026-10-11）。コンポジタがないため編集時の余白は白く見える（実機では透明）。
 
 Step 7 の帯方式（2026-10-11）: Xvfb + xcompmgr（コンポジタ）+ 専用セッションバス + 偽の Screenshot ポータル（tools/fakeportal、`import -window root` で撮影）で、240 px 高 / 帯 8 px のエリアが 30 回の撮影で下の内容のモザイクになること、撮影 PNG が毎回削除されること（FR-53）、拒否（応答 1）とポータル不在で生成パターンに切り替わること、トレイが無いと D-9 の窓が出ることを確認。トリミング後の単一ファイル（linux-x64）でも同じ。手順は scripts/xvfb-strip-smoke.sh。
+
+Step 8 の第 2 段階（2026-10-11）: 上記に専用の PipeWire + WirePlumber を足し、Xvfb の画面を GStreamer（ximagesrc ! pipewiresink）で映像ノードにして、偽ポータルの ScreenCast から libhidercap で 30 帯すべて撮れること、restore_token が保存され次回の SelectSources に渡り、新しいものに置き換わること、撮り終えて約 3 秒でセッションが閉じることを確認（`scripts/xvfb-strip-smoke.sh --screencast`、CI の Linux GUI ジョブでも実行）。GStreamer の PTS は CLOCK_MONOTONIC ではないため受信時刻で判定され、30 fps の映像で 30 帯 約 2.1 s。
