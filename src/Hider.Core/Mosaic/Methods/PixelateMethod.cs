@@ -41,8 +41,11 @@ namespace Hider.Core.Mosaic.Methods
 
         protected override SKShader SourceShader(MosaicInputs _inputs, ParamValues _p)
         {
-            int block = EffectiveBlock(_p);
-            int level = Math.Min(_inputs.Pyramid.Count - 1, (int)Math.Floor(Math.Log2(block)));
+            int level = (int)Math.Floor(Math.Log2(EffectiveBlock(_p)));
+            if (level > 0)
+            {
+                level = Math.Min(_inputs.Pyramid.Count - 1, level); // only read the pyramid when it is sampled
+            }
             if (level <= 0)
             {
                 return base.SourceShader(_inputs, _p);

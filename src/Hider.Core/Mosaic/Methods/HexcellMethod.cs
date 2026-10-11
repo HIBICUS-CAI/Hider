@@ -46,7 +46,11 @@ namespace Hider.Core.Mosaic.Methods
         {
             // A hexagon of radius r is about 1.73 r wide: sample the level whose texels are the largest power of two below it.
             double width = Math.Sqrt(3) * _p.Effective("radius");
-            int level = width <= 1.0 ? 0 : Math.Min(_inputs.Pyramid.Count - 1, (int)Math.Floor(Math.Log2(width)));
+            int level = width <= 1.0 ? 0 : (int)Math.Floor(Math.Log2(width));
+            if (level > 0)
+            {
+                level = Math.Min(_inputs.Pyramid.Count - 1, level); // only read the pyramid when it is sampled
+            }
             if (level <= 0)
             {
                 return base.SourceShader(_inputs, _p);

@@ -30,7 +30,8 @@ namespace Hider.Core.Mosaic
             return new MosaicInputs
             {
                 Source = source,
-                Pyramid = BuildPyramid(source, MaxPyramidLevels, _context),
+                // Built on first use: methods that never sample it (blur, pass-through values) skip ~30 ms per 1080p frame on the CPU.
+                Pyramid = new LazyPyramid(source, _context),
                 AreaSize = new SKSizeI(_source.Width, _source.Height),
                 AreaOrigin = _areaOrigin,
             };
@@ -39,7 +40,16 @@ namespace Hider.Core.Mosaic
         /// <summary>Disposes the images <see cref="Prepare"/> created (never the original capture).</summary>
         public static void Release(MosaicInputs _inputs, SKImage _original)
         {
-            foreach (var image in _inputs.Pyramid.Distinct())
+            var images = new List<SKImage>();
+            if (_inputs.Source is not null)
+            {
+                images.Add(_inputs.Source);
+            }
+            if (_inputs.Pyramid is not LazyPyramid { IsBuilt: false })
+            {
+                images.AddRange(_inputs.Pyramid);
+            }
+            foreach (var image in images.Distinct())
             {
                 if (!ReferenceEquals(image, _original))
                 {
@@ -151,6 +161,38 @@ namespace Hider.Core.Mosaic
         {
             return (_context is not null ? SKSurface.Create(_context, false, _info) : null) ?? SKSurface.Create(_info)
                 ?? throw new InvalidOperationException($"Cannot create a {_info.Width}x{_info.Height} surface");
+        }
+
+        /// <summary>The pyramid of <see cref="BuildPyramid(SKImage, int, GRRecordingContext?)"/>, built when first read.</summary>
+        private sealed class LazyPyramid : IReadOnlyList<SKImage>
+        {
+            private readonly SKImage source;
+            private readonly GRRecordingContext? context;
+            private IReadOnlyList<SKImage>? levels;
+
+            public LazyPyramid(SKImage _source, GRRecordingContext? _context)
+            {
+                source = _source;
+                context = _context;
+            }
+
+            public bool IsBuilt => levels is not null;
+
+            private IReadOnlyList<SKImage> Levels => levels ??= BuildPyramid(source, MaxPyramidLevels, context);
+
+            public SKImage this[int _index] => Levels[_index];
+
+            public int Count => Levels.Count;
+
+            public IEnumerator<SKImage> GetEnumerator()
+            {
+                return Levels.GetEnumerator();
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
         }
     }
 }
