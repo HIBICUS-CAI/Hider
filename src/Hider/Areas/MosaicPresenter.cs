@@ -22,6 +22,7 @@ namespace Hider.Areas
     {
         /// <summary>GPU images of closed areas, freed by the next draw on the render thread (where the GrContext lives).</summary>
         private static readonly List<SKImage> retired = new();
+        private static int backendLogged;
 
         private readonly object cacheGate = new();
         private readonly GeneratedCache generated = new();
@@ -87,6 +88,10 @@ namespace Hider.Areas
         {
             FreeRetired();
             var context = _canvas.Context;
+            if (Interlocked.Exchange(ref backendLogged, 1) == 0)
+            {
+                Log.Verbose($"pattern drawing: {(context is null ? "CPU raster" : $"GPU ({context.Backend})")}, render thread {Environment.CurrentManagedThreadId}");
+            }
             var dst = SKRect.Create((float)_op.Bounds.Width, (float)_op.Bounds.Height);
             using var paint = new SKPaint { BlendMode = SKBlendMode.Src };
             var sampling = new SKSamplingOptions(SKFilterMode.Nearest);
