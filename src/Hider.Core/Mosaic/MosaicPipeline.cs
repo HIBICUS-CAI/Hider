@@ -18,11 +18,14 @@ namespace Hider.Core.Mosaic
 
         /// <summary>
         /// Builds the method inputs from a captured image: blurred by the common "blur" value (effective, so it fades with
-        /// the opacity a) and its pyramid. The caller disposes the result with <see cref="Release"/>.
+        /// the opacity a), combined with the method's own radius for <see cref="IPreBlurMethod"/>, and its pyramid. The caller
+        /// disposes the result with <see cref="Release"/>.
         /// </summary>
-        public static MosaicInputs Prepare(SKImage _source, SKPointI _areaOrigin, ParamValues _p, GRRecordingContext? _context = null)
+        public static MosaicInputs Prepare(SKImage _source, SKPointI _areaOrigin, ParamValues _p, GRRecordingContext? _context = null, IMosaicMethod? _method = null)
         {
-            double radius = _p.Effective(CommonParams.Blur);
+            double common = _p.Effective(CommonParams.Blur);
+            double own = _method is IPreBlurMethod preBlur ? Math.Max(0, preBlur.PreBlurRadius(_p)) : 0;
+            double radius = Math.Sqrt(common * common + own * own);
             var source = radius > 0.01 ? Blur(_source, (float)radius * SigmaPerRadius, _context) : _source;
             return new MosaicInputs
             {

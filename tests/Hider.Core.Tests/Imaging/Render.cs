@@ -22,7 +22,7 @@ namespace Hider.Core.Tests.Imaging
             var p = ParamValues.ForMosaic(method, settings, _opacity);
             using var owned = _source is null ? SyntheticImage.CreateImage() : null;
             var source = _source ?? owned!;
-            var inputs = MosaicPipeline.Prepare(source, _origin, p);
+            var inputs = MosaicPipeline.Prepare(source, _origin, p, null, method);
             try
             {
                 return Draw(source.Width, source.Height, canvas => new MosaicPipeline().Draw(canvas, SKRect.Create(source.Width, source.Height), inputs, method, p, _levels));

@@ -120,7 +120,7 @@ namespace Hider.Areas
             }
             using (source)
             {
-                var inputs = MosaicPipeline.Prepare(source, _op.Origin, _op.Values, _context);
+                var inputs = MosaicPipeline.Prepare(source, _op.Origin, _op.Values, _context, _op.Method);
                 try
                 {
                     using var surface = MosaicSurface(info, _context);
