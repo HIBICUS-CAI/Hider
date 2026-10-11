@@ -64,9 +64,13 @@ namespace Hider
             }
         }
 
-        /// <summary>The platform's underlay capture (Windows: Step 5, Linux: Step 7). Until then nothing can be captured (FR-52).</summary>
+        /// <summary>The platform's underlay capture: Windows window capture (design §5.2); Linux from Step 7 (until then FR-52).</summary>
         private static IUnderlayCapture CreateCapture()
         {
+            if (OperatingSystem.IsWindows())
+            {
+                return new Win32UnderlayCapture();
+            }
             return new UnavailableCapture();
         }
 

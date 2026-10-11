@@ -253,7 +253,10 @@ namespace Hider.Areas
                 return;
             }
             scheduler.BeginRun();
-            var request = new CaptureRequest(Model.Rect, owner.OwnWindows, Model.Mosaic.Common.StripPx);
+            // ExcludeWindows[0] is this area's own window: the capture only looks at what lies below it.
+            var exclude = new List<nint> { Host.Handle };
+            exclude.AddRange(owner.OwnWindows.Where(h => h != Host.Handle));
+            var request = new CaptureRequest(Model.Rect, exclude, Model.Mosaic.Common.StripPx);
             var cancel = new CancellationTokenSource();
             captureCancel = cancel;
             var capture = owner.Services.Capture;
