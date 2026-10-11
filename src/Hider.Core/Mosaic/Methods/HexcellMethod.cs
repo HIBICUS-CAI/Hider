@@ -37,6 +37,11 @@ namespace Hider.Core.Mosaic.Methods
             return (_radius * Math.Sqrt(3) * (rx + rz / 2), _radius * 1.5 * rz);
         }
 
+        protected internal override bool IsPassThrough(ParamValues _p)
+        {
+            return _p.Effective("radius") <= 1.0;
+        }
+
         protected override SKShader SourceShader(MosaicInputs _inputs, ParamValues _p)
         {
             // A hexagon of radius r is about 1.73 r wide: sample the level whose texels are the largest power of two below it.

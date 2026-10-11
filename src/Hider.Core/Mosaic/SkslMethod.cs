@@ -26,6 +26,14 @@ namespace Hider.Core.Mosaic
             {
                 throw new ArgumentException($"{Id} needs a captured image", nameof(_inputs));
             }
+            // A pass-through shader costs a full-resolution SkSL evaluation on the CPU (tens of ms per 1080p frame) for an
+            // unchanged picture: hand the child over directly (RegistryTests.PassThrough_MatchesTheShader checks both give the same pixels).
+            return Kind == MethodKind.Mosaic && IsPassThrough(_p) ? SourceShader(_inputs, _p) : CreateEffectShader(_inputs, _p);
+        }
+
+        /// <summary>The method's SkSL shader, even when <see cref="IsPassThrough"/> would skip it.</summary>
+        internal SKShader CreateEffectShader(MosaicInputs _inputs, ParamValues _p)
+        {
             var uniforms = new SKRuntimeEffectUniforms(Effect);
             foreach (var spec in Params)
             {
@@ -48,6 +56,12 @@ namespace Hider.Core.Mosaic
                 children["src"] = SourceShader(_inputs, _p);
             }
             return Effect.ToShader(uniforms, children);
+        }
+
+        /// <summary>True when the shader returns <c>src.eval(p)</c> for these values (mosaic methods only).</summary>
+        protected internal virtual bool IsPassThrough(ParamValues _p)
+        {
+            return false;
         }
 
         /// <summary>Uniform value for a parameter; the effective value unless a method needs its own rounding.</summary>

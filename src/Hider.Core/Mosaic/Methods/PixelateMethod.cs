@@ -28,6 +28,12 @@ namespace Hider.Core.Mosaic.Methods
             return EffectiveBlock(_p);
         }
 
+        /// <summary>1 px cells sample each pixel at its own centre (opacity 0, CT-43).</summary>
+        protected internal override bool IsPassThrough(ParamValues _p)
+        {
+            return EffectiveBlock(_p) <= 1;
+        }
+
         protected override double UniformValue(string _key, ParamValues _p)
         {
             return _key == "block" ? EffectiveBlock(_p) : base.UniformValue(_key, _p);

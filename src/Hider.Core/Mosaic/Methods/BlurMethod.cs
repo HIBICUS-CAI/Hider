@@ -15,6 +15,12 @@ namespace Hider.Core.Mosaic.Methods
             new ParamSpec("radius", "param.radius", "px", 0, 128, 0, 32, 8, LerpWithOpacity: true, LerpFloor: 0),
         };
 
+        /// <summary>The blur is done by the pre-blur stage; the shader never changes the picture.</summary>
+        protected internal override bool IsPassThrough(ParamValues _p)
+        {
+            return true;
+        }
+
         public double PreBlurRadius(ParamValues _p)
         {
             return _p.Effective("radius");

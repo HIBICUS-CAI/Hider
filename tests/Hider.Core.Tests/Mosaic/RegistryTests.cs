@@ -1,5 +1,7 @@
 using Hider.Core.Model;
 using Hider.Core.Mosaic;
+using Hider.Core.Tests.Fakes;
+using Hider.Core.Tests.Imaging;
 using SkiaSharp;
 
 namespace Hider.Core.Tests.Mosaic
@@ -78,6 +80,48 @@ namespace Hider.Core.Tests.Mosaic
         {
             Assert.Null(MethodRegistry.Find("does-not-exist"));
             Assert.NotNull(MethodRegistry.Find("pixelate"));
+        }
+
+        [Fact]
+        public void PassThrough_MatchesTheShader()
+        {
+            // The pass-through shortcut (CT-43, CT-73, CT-75 rely on it) must give exactly what the method's SkSL gives.
+            using var source = SyntheticImage.CreateImage(97, 61);
+            var checkedMethods = new HashSet<string>();
+            foreach (var method in MethodRegistry.OfKind(MethodKind.Mosaic).OfType<SkslMethod>())
+            {
+                foreach (double opacity in new[] { 0.0, 1.0 })
+                {
+                    var p = ParamValues.ForMosaic(method, new MethodSettings<MosaicCommon> { Method = method.Id }, opacity);
+                    if (!method.IsPassThrough(p))
+                    {
+                        continue;
+                    }
+                    var inputs = MosaicPipeline.Prepare(source, default, p, null, method);
+                    try
+                    {
+                        using var fast = DrawShader(method.CreateShader(inputs, p), source);
+                        using var effect = DrawShader(method.CreateEffectShader(inputs, p), source);
+                        Assert.True(Golden.MaxDiff(fast, effect) == 0, $"{method.Id} at opacity {opacity}");
+                        checkedMethods.Add(method.Id);
+                    }
+                    finally
+                    {
+                        MosaicPipeline.Release(inputs, source);
+                    }
+                }
+            }
+            // Overriding IsPassThrough is optional for new methods; the built-in ones all use it at opacity 0.
+            Assert.Superset(new HashSet<string> { "pixelate", "hexcell", "blur" }, checkedMethods);
+        }
+
+        private static SKBitmap DrawShader(SKShader _shader, SKImage _size)
+        {
+            using (_shader)
+            {
+                using var paint = new SKPaint { Shader = _shader, BlendMode = SKBlendMode.Src };
+                return Render.Draw(_size.Width, _size.Height, c => c.DrawRect(0, 0, _size.Width, _size.Height, paint));
+            }
         }
 
         [Fact]
