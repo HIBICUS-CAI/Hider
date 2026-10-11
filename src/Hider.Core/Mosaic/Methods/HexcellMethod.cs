@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace Hider.Core.Mosaic.Methods
@@ -7,7 +8,7 @@ namespace Hider.Core.Mosaic.Methods
     /// the area origin. Each cell shows one linear sample of the pyramid level that approximates its average (design §4.2).
     /// The effective radius lerp(a, 1, radius); at 1 px the method is the identity (decision 13).
     /// </summary>
-    public sealed class HexcellMethod : SkslMethod
+    public sealed class HexcellMethod : SkslMethod, ICpuRenderer
     {
         public override string Id => "hexcell";
         public override string LabelKey => "method.hexcell";
@@ -42,15 +43,71 @@ namespace Hider.Core.Mosaic.Methods
             return _p.Effective("radius") <= 1.0;
         }
 
+        /// <summary>A hexagon of radius r is about 1.73 r wide: the level whose texels are the largest power of two below it.</summary>
+        private static int Level(MosaicInputs _inputs, double _radius)
+        {
+            double width = Math.Sqrt(3) * _radius;
+            int level = width <= 1.0 ? 0 : (int)Math.Floor(Math.Log2(width));
+            return level > 0 ? Math.Min(_inputs.Pyramid.Count - 1, level) : 0; // only read the pyramid when it is sampled
+        }
+
+        /// <summary>The shader's rule with one sample per hexagon (a run of pixels in a row shares it).</summary>
+        public bool TryRender(SKPixmap _dst, MosaicInputs _inputs, ParamValues _p)
+        {
+            float radius = (float)_p.Effective("radius");
+            if (radius <= 1f)
+            {
+                return false; // pass-through
+            }
+            int level = Level(_inputs, radius);
+            var image = level > 0 ? _inputs.Pyramid[level] : _inputs.Source!;
+            using var sampler = RasterSampler.Create(image, 1 << level, level > 0);
+            if (sampler is null)
+            {
+                return false;
+            }
+            int w = _dst.Width, h = _dst.Height;
+            float maxX = _inputs.AreaSize.Width - 0.5f, maxY = _inputs.AreaSize.Height - 0.5f;
+            var pixels = _dst.GetPixelSpan();
+            for (int y = 0; y < h; y++)
+            {
+                var row = MemoryMarshal.Cast<byte, uint>(pixels.Slice(y * _dst.RowBytes, w * 4));
+                float py = y + 0.5f;
+                float lastX = float.NaN, lastZ = float.NaN;
+                uint color = 0;
+                for (int x = 0; x < w; x++)
+                {
+                    // Same float arithmetic as hexcell.sksl.
+                    float px = x + 0.5f;
+                    float cx = (0.57735027f * px - 0.33333333f * py) / radius;
+                    float cz = (0.66666667f * py) / radius;
+                    float cy = -cx - cz;
+                    float rx = MathF.Floor(cx + 0.5f), ry = MathF.Floor(cy + 0.5f), rz = MathF.Floor(cz + 0.5f);
+                    float dx = MathF.Abs(rx - cx), dy = MathF.Abs(ry - cy), dz = MathF.Abs(rz - cz);
+                    if (dx > dy && dx > dz)
+                    {
+                        rx = -ry - rz;
+                    }
+                    else if (dy <= dz)
+                    {
+                        rz = -rx - ry;
+                    }
+                    if (rx != lastX || rz != lastZ)
+                    {
+                        lastX = rx;
+                        lastZ = rz;
+                        float sx = radius * (1.7320508f * (rx + rz * 0.5f)), sy = radius * (1.5f * rz);
+                        color = sampler.Sample(Math.Clamp(sx, 0.5f, maxX), Math.Clamp(sy, 0.5f, maxY));
+                    }
+                    row[x] = color;
+                }
+            }
+            return true;
+        }
+
         protected override SKShader SourceShader(MosaicInputs _inputs, ParamValues _p)
         {
-            // A hexagon of radius r is about 1.73 r wide: sample the level whose texels are the largest power of two below it.
-            double width = Math.Sqrt(3) * _p.Effective("radius");
-            int level = width <= 1.0 ? 0 : (int)Math.Floor(Math.Log2(width));
-            if (level > 0)
-            {
-                level = Math.Min(_inputs.Pyramid.Count - 1, level); // only read the pyramid when it is sampled
-            }
+            int level = Level(_inputs, _p.Effective("radius"));
             if (level <= 0)
             {
                 return base.SourceShader(_inputs, _p);
