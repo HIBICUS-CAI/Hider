@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Tmds.DBus.Protocol;
 
 namespace Hider.Platform.Linux
@@ -7,6 +8,7 @@ namespace Hider.Platform.Linux
     /// object at once and answers later with its Response signal (code 0 = ok, 1 = cancelled by the user, 2 = other). The
     /// connection is made on first use and dropped by <see cref="Reset"/> after an error.
     /// </summary>
+    [SupportedOSPlatform("linux")]
     public sealed class PortalClient : IDisposable
     {
         public const string Destination = "org.freedesktop.portal.Desktop";

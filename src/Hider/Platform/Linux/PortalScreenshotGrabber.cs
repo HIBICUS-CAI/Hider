@@ -1,6 +1,7 @@
-using Hider.Core;
+using System.Runtime.Versioning;
 using Hider.Core.Capture;
 using Hider.Core.Model;
+using Hider.Core;
 using SkiaSharp;
 using Tmds.DBus.Protocol;
 
@@ -11,6 +12,7 @@ namespace Hider.Platform.Linux
     /// remembers it (S-5). The portal writes a PNG and returns its URI; it is read and deleted at once, so no snapshot stays
     /// on disk (FR-53). Each call takes 0.1 .. 0.3 s (design §5.3), which is why stage 2 exists.
     /// </summary>
+    [SupportedOSPlatform("linux")]
     public sealed class PortalScreenshotGrabber : IScreenGrabber
     {
         private readonly Func<PhysicalRect> screen;

@@ -1,9 +1,12 @@
+using System.Runtime.Versioning;
 using Hider.Core.Tests.Fakes;
 using Hider.Platform.Linux;
 using SkiaSharp;
 
 namespace Hider.App.Tests.Platform
 {
+    // Linux-only classes with fakes (no PipeWire, no portal): the tests run on every OS.
+    [SupportedOSPlatform("linux")]
     public class PortalGrabberTests
     {
         [Fact]

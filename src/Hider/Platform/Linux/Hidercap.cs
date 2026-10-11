@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Hider.Core;
 
 namespace Hider.Platform.Linux
@@ -33,6 +34,7 @@ namespace Hider.Platform.Linux
     }
 
     /// <summary>The real libhidercap.so next to the executable (scripts/build.py builds it; Hider.csproj ships it).</summary>
+    [SupportedOSPlatform("linux")]
     public sealed partial class Hidercap : IHidercap
     {
         public const int Ok = 0;

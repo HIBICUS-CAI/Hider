@@ -1,7 +1,8 @@
-using Hider.Core;
+using System.Runtime.Versioning;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Persistence;
+using Hider.Core;
 
 namespace Hider.Platform.Linux
 {
@@ -13,6 +14,7 @@ namespace Hider.Platform.Linux
     /// so GNOME shows its screen sharing indicator only while Hider captures. Returns null (the next grabber takes over)
     /// when the helper is missing, the portal fails, or the area is not on the shared monitor.
     /// </summary>
+    [SupportedOSPlatform("linux")]
     public sealed class PipeWireGrabber : IScreenGrabber
     {
         public static readonly TimeSpan IdleClose = TimeSpan.FromSeconds(3);

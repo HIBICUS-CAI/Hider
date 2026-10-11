@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Persistence;
@@ -8,6 +9,8 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Hider.App.Tests.Platform
 {
+    // Linux-only classes with fakes (no PipeWire, no portal): the tests run on every OS.
+    [SupportedOSPlatform("linux")]
     public sealed class PipeWireGrabberTests : IDisposable
     {
         private static readonly ScreenInfo Primary = new(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);

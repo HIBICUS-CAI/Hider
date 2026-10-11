@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -134,6 +135,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
+        [SupportedOSPlatform("linux")] // a managed D-Bus client: runs anywhere, but is Linux-only code
         public async Task D9_ProbeWithoutBus_ReportsNoTray()
         {
             Assert.False(await Hider.Platform.Linux.StatusNotifierProbe.HasWatcherAsync("unix:path=/nonexistent/hider-test-bus"));

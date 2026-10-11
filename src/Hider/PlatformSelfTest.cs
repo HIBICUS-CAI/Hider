@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Platform.Windows;
@@ -37,6 +38,7 @@ namespace Hider
             }
         }
 
+        [SupportedOSPlatform("linux")]
         private static int RunLinux(TextWriter _output)
         {
             string path = Path.Combine(AppContext.BaseDirectory, "libhidercap.so");

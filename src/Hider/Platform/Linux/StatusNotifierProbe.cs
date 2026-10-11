@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Hider.Core;
 using Tmds.DBus.Protocol;
 
@@ -7,6 +8,7 @@ namespace Hider.Platform.Linux
     /// Whether a tray exists on Linux: Avalonia's TrayIcon is a StatusNotifierItem, shown only when something owns
     /// org.kde.StatusNotifierWatcher (GNOME: the AppIndicator extension). Without it Hider shows the D-9 window.
     /// </summary>
+    [SupportedOSPlatform("linux")]
     public static class StatusNotifierProbe
     {
         public const string WatcherName = "org.kde.StatusNotifierWatcher";

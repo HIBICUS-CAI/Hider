@@ -1,6 +1,7 @@
-using Hider.Core;
+using System.Runtime.Versioning;
 using Hider.Core.Capture;
 using Hider.Core.Model;
+using Hider.Core;
 using Microsoft.Win32.SafeHandles;
 using Tmds.DBus.Protocol;
 
@@ -23,6 +24,7 @@ namespace Hider.Platform.Linux
         Task CloseAsync(ScreenCastSession _session);
     }
 
+    [SupportedOSPlatform("linux")]
     public sealed class ScreenCastPortal : IScreenCastPortal
     {
         private const string Interface = "org.freedesktop.portal.ScreenCast";

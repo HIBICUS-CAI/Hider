@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -54,8 +55,7 @@ namespace Hider
                 uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));
             stripHost.Attach(areas);
             areas.Restore();
-            tray = new TrayController(this, areas, () => _desktop.Shutdown(),
-                OperatingSystem.IsLinux() ? () => StatusNotifierProbe.HasWatcherAsync() : null);
+            tray = new TrayController(this, areas, () => _desktop.Shutdown(), OperatingSystem.IsLinux() ? ProbeTray : null);
 
             // Save on exit and session end (FR-06, FR-61); every change is also saved as it happens.
             _desktop.ShutdownRequested += (_, _) => areas.SaveNow();
@@ -90,9 +90,23 @@ namespace Hider
             return new UnavailableCapture();
         }
 
+        [SupportedOSPlatform("linux")]
+        private static Task<bool> ProbeTray()
+        {
+            return StatusNotifierProbe.HasWatcherAsync();
+        }
+
         private static IAreaWindowHost CreateHost(AreaWindow _window)
         {
-            return OperatingSystem.IsWindows() ? new Win32WindowHost(_window) : new X11WindowHost(_window);
+            if (OperatingSystem.IsWindows())
+            {
+                return new Win32WindowHost(_window);
+            }
+            if (OperatingSystem.IsLinux())
+            {
+                return new X11WindowHost(_window);
+            }
+            throw new PlatformNotSupportedException("Hider runs on Windows and Linux (win-x64, linux-x64, linux-arm64)");
         }
 
         internal void Stop()
