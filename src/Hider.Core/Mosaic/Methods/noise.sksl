@@ -1,0 +1,30 @@
+// noise (generated): value noise on a lattice of `scale` * 4 px anchored to the area origin, quantised to `levels` steps
+// spread over base color ± 0.15 on every channel (same shift, so the hue is kept). Opaque output: the window applies the
+// opacity.
+// uniforms: scale (lattice step / 4 px), levels (integer >= 2), areaSize (px), areaOrigin (px; unused, the lattice follows
+//           the area), baseColor (rgb 0..1), seed (0..65535)
+// children: none
+uniform float scale;
+uniform float levels;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform float3 baseColor;
+uniform float seed;
+
+// Same hash as block.sksl (stable across backends for small integer inputs).
+float hash(float2 cell) {
+    float3 p3 = fract(float3(cell.xyx + seed * float3(0.731, 0.137, 0.419)) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+half4 main(float2 p) {
+    float2 q = p / (scale * 4.0);
+    float2 i = floor(q);
+    float2 f = q - i;
+    float2 u = f * f * (3.0 - 2.0 * f);
+    float v = mix(mix(hash(i), hash(i + float2(1, 0)), u.x), mix(hash(i + float2(0, 1)), hash(i + float2(1, 1)), u.x), u.y);
+    float step = min(floor(v * levels), levels - 1.0);
+    float shift = 0.3 * (step / (levels - 1.0) - 0.5);
+    return half4(half3(clamp(baseColor + shift, 0.0, 1.0)), 1);
+}

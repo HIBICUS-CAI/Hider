@@ -11,6 +11,7 @@ namespace Hider.Core.Mosaic
             new HexcellMethod(),
             new BlurMethod(),
             new BlockMethod(),
+            new NoiseMethod(),
         };
 
         public static IMosaicMethod? Find(string _id)
