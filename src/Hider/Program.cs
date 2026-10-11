@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Hider.Core;
+using Hider.Core.Persistence;
 
 namespace Hider
 {
@@ -19,11 +20,20 @@ namespace Hider
             {
                 return SelfTest.Run(Console.Out);
             }
+            Log.Enabled = _args.Contains("--verbose");
 
+            // Single instance (FR-08): a second process does nothing and exits.
+            using var instance = SingleInstance.TryAcquire(StoragePaths.InstanceLock);
+            if (instance is null)
+            {
+                Log.Verbose("another instance is running");
+                return 0;
+            }
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(_args, ShutdownMode.OnExplicitShutdown);
         }
 
         // Also used by the Avalonia previewer.
+        // XWAYLAND-ASSUMPTION: Linux runs as an X11 client (D-1); platform selection lives only here.
         public static AppBuilder BuildAvaloniaApp()
         {
             return AppBuilder.Configure<HiderApp>()
