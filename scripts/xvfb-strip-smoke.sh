@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Linux strip capture end to end without a GNOME desktop (docs/manual-tests.md, "作業コンテナでの確認"):
 # Xvfb + xcompmgr (per-pixel alpha needs a compositor) + a private session bus + tools/fakeportal, then Hider restores one
-# mosaic area (240 px high, strips of 8 px) over a test image. Passes when all 30 strips were grabbed, no screenshot file
+# mosaic area (240 px high, strips of 8 px) over a test image. Passes when every strip was grabbed, no screenshot file
 # was left (FR-53) and the area shows the image's pixelated colours.
 #
 #   scripts/xvfb-strip-smoke.sh [--screencast] [path/to/Hider or Hider.dll]
@@ -20,21 +20,37 @@ if [ "${1:-}" = "--screencast" ]; then
 fi
 hider=${1:-$repo/src/Hider/bin/Release/net10.0/Hider.dll}
 work=$(mktemp -d)
-display_no=:57
-cleanup() { kill $(jobs -p) 2>/dev/null || true; [ -n "${bus_pid:-}" ] && kill "$bus_pid" 2>/dev/null; rm -rf "$work"; }
+# The area: 240 rows in strips of 8 (areas.json below). Stage 1 also takes one screenshot before the first strip
+# (PortalScreenshotGrabber.PrepareAsync); stage 2 opens its session there instead.
+area_height=240
+strip_px=8
+strips=$((area_height / strip_px))
+expected_grabs=$((screencast == 1 ? strips : strips + 1))
+# Every step may fail (a process already gone): the temporary directory goes first and the trap never stops early.
+cleanup() {
+    rm -rf "$work"
+    jobs -p | xargs -r kill 2>/dev/null || true
+    if [ -n "${bus_pid:-}" ]; then kill "$bus_pid" 2>/dev/null || true; fi
+}
 trap cleanup EXIT
 
 dotnet build "$repo/tools/fakeportal" -c Release -o "$work/portal" >/dev/null
 mkdir -p "$work/home/.hider" "$work/shots"
 cat > "$work/home/.hider/areas.json" <<JSON
-{ "version": 1, "areas": [ { "id": "0f3b8d2e", "x": 200, "y": 150, "width": 400, "height": 240, "opacity": 1.0, "pattern": "mosaic",
-  "mosaic": { "method": "pixelate", "common": { "intervalMs": 300000, "stripPx": 8 }, "params": { "pixelate": { "block": 12 } } } } ] }
+{ "version": 1, "areas": [ { "id": "0f3b8d2e", "x": 200, "y": 150, "width": 400, "height": $area_height, "opacity": 1.0, "pattern": "mosaic",
+  "mosaic": { "method": "pixelate", "common": { "intervalMs": 300000, "stripPx": $strip_px }, "params": { "pixelate": { "block": 12 } } } } ] }
 JSON
 convert -size 1280x720 gradient:red-blue \( -size 160x90 pattern:checkerboard -scale 800% \) -compose multiply -composite "$work/bg.png"
 
-Xvfb $display_no -screen 0 1280x720x24 >/dev/null 2>&1 &
-sleep 1
-export DISPLAY=$display_no
+# A free display number from Xvfb itself, written once it accepts connections.
+Xvfb -displayfd 9 -screen 0 1280x720x24 9>"$work/display" >/dev/null 2>&1 &
+for _ in $(seq 50); do
+    [ -s "$work/display" ] && break
+    sleep 0.1
+done
+[ -s "$work/display" ] || { echo "Xvfb did not start"; exit 1; }
+DISPLAY=":$(tr -d '[:space:]' < "$work/display")"
+export DISPLAY
 xcompmgr >/dev/null 2>&1 &
 display -geometry +0+0 -backdrop "$work/bg.png" >/dev/null 2>&1 &
 read -r DBUS_SESSION_BUS_ADDRESS bus_pid < <(dbus-daemon --session --fork --print-address=1 --print-pid=1 | paste -sd' ')
@@ -70,36 +86,42 @@ if [[ "$hider" == *.dll ]]; then run=(dotnet "$hider"); else run=("$hider"); fi
 HOME="$work/home" "${run[@]}" --verbose > "$work/hider.log" 2>&1 &
 grabbed() { echo $(( $(grep -c '^shot' "$work/portal.log" || true) + $(grep -c 'screencast: frame' "$work/hider.log" || true) )); }
 for _ in $(seq 60); do
-    [ "$(grabbed)" -ge $((screencast == 1 ? 30 : 31)) ] && break
+    [ "$(grabbed)" -ge "$expected_grabs" ] && break
     sleep 0.5
 done
 sleep 2
 shots=$(grep -c '^shot' "$work/portal.log" || true)
 frames=$(grep -c 'screencast: frame' "$work/hider.log" || true)
-left=$(ls "$work/shots" | wc -l)
+left=$(find "$work/shots" -type f | wc -l)
 import -window root "$work/after.png"
 # Pixel (230, 200) lies in the 12 px cell starting at area-local (24, 48) = screen (224, 198): it should show that cell's
 # average of the image (pyramid approximation: within a few levels).
 rgb='%[fx:round(255*r)] %[fx:round(255*g)] %[fx:round(255*b)]\n'
 read -r ir ig ib < <(convert "$work/after.png" -crop 1x1+230+200 -format "$rgb" info:)
 read -r er eg eb < <(convert "$work/bg.png" -crop 12x12+224+198 -scale 1x1\! -format "$rgb" info:)
-echo "screenshots: $shots, screencast frames: $frames (30 strips; stage 1 adds one screenshot before them), files left: $left, area pixel: $ir $ig $ib, image cell average: $er $eg $eb"
+echo "screenshots: $shots, screencast frames: $frames ($strips strips; stage 1 adds one screenshot before them), files left: $left, area pixel: $ir $ig $ib, image cell average: $er $eg $eb"
 grep -v '^$' "$work/hider.log" | grep -v 'screencast: frame' | tail -4
 # Every check fails the script on its own (set -e does not stop on a failed command inside an && list or after "!").
 failures=0
-check() { if ! eval "$2"; then echo "FAIL: $1"; failures=$((failures + 1)); fi; }
-close() { local d=$(( $1 - $2 )); [ ${d#-} -le 6 ]; }
-# Stage 1 takes one extra screenshot before the first strip (PortalScreenshotGrabber.PrepareAsync: a permission dialog must
-# not wait with a strip transparent); stage 2 opens its session there instead.
-check "all 30 strips grabbed" '[ $((shots + frames)) -eq $((screencast == 1 ? 30 : 31)) ]'
-check "no screenshot file left (FR-53)" '[ "$left" -eq 0 ]'
-check "no failed capture in the log" '! grep -q "capture failed" "$work/hider.log"'
+check() {
+    local name=$1
+    shift
+    if ! "$@"; then
+        echo "FAIL: $name"
+        failures=$((failures + 1))
+    fi
+}
+not() { ! "$@"; }
+close() { local d=$(($1 - $2)); [ "${d#-}" -le 6 ]; }
+check "all $strips strips grabbed" [ $((shots + frames)) -eq "$expected_grabs" ]
+check "no screenshot file left (FR-53)" [ "$left" -eq 0 ]
+check "no failed capture in the log" not grep -q "capture failed" "$work/hider.log"
 if [ $screencast = 1 ]; then
-    check "every strip through ScreenCast" '[ "$frames" -eq 30 ]'
-    check "restore token stored" '[ -s "$work/home/.hider/restore_token" ]'
+    check "every strip through ScreenCast" [ "$frames" -eq "$strips" ]
+    check "restore token stored" [ -s "$work/home/.hider/restore_token" ]
 fi
-check "red within 6 of the cell average" 'close "$ir" "$er"'
-check "green within 6 of the cell average" 'close "$ig" "$eg"'
-check "blue within 6 of the cell average" 'close "$ib" "$eb"'
+check "red within 6 of the cell average" close "$ir" "$er"
+check "green within 6 of the cell average" close "$ig" "$eg"
+check "blue within 6 of the cell average" close "$ib" "$eb"
 [ $failures -eq 0 ] || exit 1
 echo "xvfb strip smoke$( [ $screencast = 1 ] && echo ' (screencast)'): passed"
