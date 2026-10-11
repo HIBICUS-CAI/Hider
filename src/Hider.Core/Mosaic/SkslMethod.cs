@@ -43,8 +43,7 @@ namespace Hider.Core.Mosaic
             uniforms[CommonParams.AreaOriginUniform] = new[] { (float)_inputs.AreaOrigin.X, _inputs.AreaOrigin.Y };
             if (Kind == MethodKind.Generated)
             {
-                // Kept small so the shader sees it exactly as a float.
-                uniforms[CommonParams.SeedUniform] = (float)(((long)_p.Raw(CommonParams.Seed) % 65536 + 65536) % 65536);
+                uniforms[CommonParams.SeedUniform] = SeedUniformValue(_p);
                 uniforms[CommonParams.BaseColorUniform] = new[]
                 {
                     (float)_p.Raw(CommonParams.BaseColorR), (float)_p.Raw(CommonParams.BaseColorG), (float)_p.Raw(CommonParams.BaseColorB),
@@ -56,6 +55,12 @@ namespace Hider.Core.Mosaic
                 children["src"] = SourceShader(_inputs, _p);
             }
             return Effect.ToShader(uniforms, children);
+        }
+
+        /// <summary>The "seed" uniform: kept small so the shader sees it exactly as a float.</summary>
+        protected static float SeedUniformValue(ParamValues _p)
+        {
+            return (float)(((long)_p.Raw(CommonParams.Seed) % 65536 + 65536) % 65536);
         }
 
         /// <summary>True when the shader returns <c>src.eval(p)</c> for these values (mosaic methods only).</summary>
