@@ -54,7 +54,10 @@ namespace Hider.Core.Capture
         }
     }
 
-    /// <summary>What to capture: the area rectangle (physical px), Hider's own windows to leave out, the Linux strip height.</summary>
+    /// <summary>
+    /// What to capture: the area rectangle (physical px), Hider's own windows to leave out — the first one is the requesting
+    /// area's window, the rest are the other areas — and the Linux strip height.
+    /// </summary>
     public sealed record CaptureRequest(PhysicalRect Rect, IReadOnlyList<nint> ExcludeWindows, int StripPx);
 
     public sealed record CaptureResult(FrameBuffer? Frame, CaptureFailure Failure)
