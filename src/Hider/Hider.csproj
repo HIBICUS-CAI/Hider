@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Hider</RootNamespace>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Listed so packages.lock.json covers every publish target and CI can restore them in locked mode. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- Self-contained trimmed single file: targets need no .NET runtime. Native libs stay next to the
+       executable instead of being extracted to a temp folder on every launch. Only applies to RID-specific
+       builds so that a plain "dotnet build" / "dotnet test" of the solution keeps working. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Hider.Core/Hider.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Used by the Linux desktop entry written by scripts/install.py. -->
+    <None Update="Assets/hider.svg" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hider.App.Tests" />
+  </ItemGroup>
+
+  <!-- SkiaSharp/HarfBuzzSharp ship ~100MB of native .pdb files for Windows; they are useless to end users. -->
+  <Target Name="RemoveNativePdbFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+</Project>
