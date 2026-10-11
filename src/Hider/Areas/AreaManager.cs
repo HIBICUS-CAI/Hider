@@ -18,6 +18,7 @@ namespace Hider.Areas
         private readonly List<AreaController> areas = new();
         private readonly string areasPath;
         private ITimer? saveTimer;
+        private bool disposed;
         private bool saveBlocked;
         private StripArea[] stripAreas = Array.Empty<StripArea>();
         private PhysicalRect stripScreen;
@@ -195,6 +196,11 @@ namespace Hider.Areas
         {
             saveTimer?.Dispose();
             saveTimer = null;
+            // A debounced save posted before Dispose may run after it, when the list is empty: it must not wipe the file.
+            if (disposed)
+            {
+                return;
+            }
             if (saveBlocked)
             {
                 Log.Verbose("not saving: areas.json could not be read at start and is left untouched");
@@ -222,6 +228,10 @@ namespace Hider.Areas
 
         public void SaveSoon()
         {
+            if (disposed)
+            {
+                return;
+            }
             saveTimer?.Dispose();
             saveTimer = Services.Time.CreateTimer(_ => Services.UiPost(SaveNow), null, SaveDebounce, Timeout.InfiniteTimeSpan);
         }
@@ -236,8 +246,13 @@ namespace Hider.Areas
         /// <summary>Saves (FR-06) and closes every window.</summary>
         public void Dispose()
         {
+            if (disposed)
+            {
+                return;
+            }
             saveTimer?.Dispose();
             SaveNow();
+            disposed = true;
             foreach (var area in areas)
             {
                 area.Dispose();

@@ -247,5 +247,20 @@ namespace Hider.App.Tests.Areas
         {
             Assert.Equal(_keepOpen, AreaWindow.KeepOpen(_allowed, _reason));
         }
+    
+        [AvaloniaFact]
+        public void SaveAfterDispose_DoesNotEmptyTheFile()
+        {
+            // A debounced save already posted to the UI thread may run after Dispose cleared the list.
+            using var f = new AreaFixture();
+            f.Add(new PhysicalRect(100, 100, 400, 240));
+            f.Add(new PhysicalRect(600, 100, 400, 240));
+            f.Manager.SaveSoon();
+            f.Manager.Dispose();
+            f.Manager.SaveNow();
+            f.Manager.SaveSoon();
+            f.Time.Advance(TimeSpan.FromSeconds(5));
+            Assert.Equal(2, Hider.Core.Persistence.AreasFile.Load(f.AreasPath, out _).Areas.Count);
+        }
     }
 }
