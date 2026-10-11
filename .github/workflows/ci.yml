@@ -163,6 +163,10 @@ jobs:
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
           "$exe" --version
           "$exe" --selftest
+      # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
+      - if: ${{ startsWith(matrix.rid, 'win') }}
+        shell: pwsh
+        run: scripts/windows-stress.ps1 -Exe bin/publish/${{ matrix.rid }}/Hider.exe -Seconds 90
       - uses: actions/upload-artifact@v7
         with:
           name: Hider-${{ matrix.rid }}
