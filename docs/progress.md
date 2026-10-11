@@ -545,7 +545,7 @@ Step 8（ScreenCast + PipeWire ヘルパ）へ。spikes/S-6 の libhidercap 原�
 | c4d5fd7 | Linux の配線（ScreenCast + ヘルパ → Screenshot） |
 | c7cc7e4 / 0d2134a | Xvfb 確認の第 2 段階モード（偽ポータルの ScreenCast、専用 PipeWire）、CI で実行 |
 | 69d4947 | 帯の描画完了待ちを Rendered + 1 フレームに |
-| 7849879 / 最新 | PT-21〜27、docs/perf.md |
+| 7849879 / 5588795 | PT-21〜27、docs/perf.md |
 
 新規 NuGet 依存なし。CI の Linux GUI ジョブに apt の pipewire / wireplumber / gstreamer1.0-pipewire / gstreamer1.0-plugins-good / gstreamer1.0-tools / libpipewire-0.3-dev を追加。全コミットが単体でビルド・テストでき、ヘルパもビルドできることを確認済み。
 
