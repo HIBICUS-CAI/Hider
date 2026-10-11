@@ -14,12 +14,24 @@ namespace Hider.Core.Mosaic
         private readonly bool linear;
         private readonly bool swapRedBlue;
 
+        // Every SKPixmap property is a native call: read once, the pixels stay where they are while the pixmap lives.
+        private readonly int width;
+        private readonly int height;
+        private readonly int rowBytes;
+        private readonly nint pixels;
+        private readonly int length;
+
         private RasterSampler(SKPixmap _pixmap, float _scale, bool _linear)
         {
             pixmap = _pixmap;
             invScale = 1f / _scale;
             linear = _linear;
             swapRedBlue = _pixmap.ColorType == SKColorType.Rgba8888;
+            width = _pixmap.Width;
+            height = _pixmap.Height;
+            rowBytes = _pixmap.RowBytes;
+            pixels = _pixmap.GetPixels();
+            length = checked(rowBytes * (height - 1) + width * 4);
         }
 
         /// <summary>Null when the image has no CPU pixels (a GPU texture) or an unsupported format.</summary>
@@ -42,7 +54,7 @@ namespace Hider.Core.Mosaic
         public uint Sample(float _x, float _y)
         {
             float u = _x * invScale, v = _y * invScale;
-            int w = pixmap.Width, h = pixmap.Height;
+            int w = width, h = height;
             if (!linear)
             {
                 return Texel(Math.Clamp((int)MathF.Floor(u), 0, w - 1), Math.Clamp((int)MathF.Floor(v), 0, h - 1));
@@ -70,9 +82,10 @@ namespace Hider.Core.Mosaic
             return (_pixel >> _shift) & 0xFF;
         }
 
-        private uint Texel(int _x, int _y)
+        private unsafe uint Texel(int _x, int _y)
         {
-            uint p = BinaryPrimitives.ReadUInt32LittleEndian(pixmap.GetPixelSpan().Slice(_y * pixmap.RowBytes + _x * 4, 4));
+            var span = new ReadOnlySpan<byte>((void*)pixels, length);
+            uint p = BinaryPrimitives.ReadUInt32LittleEndian(span.Slice(_y * rowBytes + _x * 4, 4));
             return swapRedBlue ? (p & 0xFF00FF00) | ((p & 0xFF) << 16) | ((p >> 16) & 0xFF) : p;
         }
 

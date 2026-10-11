@@ -3,6 +3,8 @@
   <!-- Model, mosaic methods, capture abstractions, scheduling and persistence. Knows nothing about Avalonia. -->
   <PropertyGroup>
     <RootNamespace>Hider.Core</RootNamespace>
+    <!-- RasterSampler reads pixels straight from Skia's memory (one texel read per sample on the CPU paths). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
