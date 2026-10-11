@@ -34,6 +34,7 @@ if ($alive) {
     Write-Host "Hider exited with code $($process.ExitCode)"
 }
 Write-Host "alive after $Seconds s: $alive, successful captures: $captures"
+Select-String -Path $log -Pattern 'pattern drawing:' | Select-Object -First 1 | ForEach-Object { Write-Host $_.Line }
 Get-Content $log -Tail 15
 if (-not $alive -or $captures -lt 50) {
     exit 1
