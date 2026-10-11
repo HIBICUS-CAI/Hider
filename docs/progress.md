@@ -365,3 +365,79 @@ docs/manual-tests.md の PT-09〜14（Windows 11 実機）。特に PT-11（CPU 
 ### 8. 次 Step の前提
 
 Step 6（hexcell / blur / noise）へ。
+
+## Step 6: 手法の追加（六角セル平均・ぼかし・ノイズ）（2026-10-11）
+
+### 1. 結果
+
+完了（CI は下記の実行で確認）。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| 3 手法 + 2 生成がツールバー・設定・JSON で選べる | 達成 | `AllMethods_SelectableDrawnAndSaved`（設定ポップアップで各手法を選び、描画し、areas.json に保存されることを確認）。ツールバーはパターン種別（塗り / モザイク / パターン）だけを選び、手法は設定の登録一覧から自動で並ぶ |
+| ゴールデン緑 | 達成 | CT-71（hexcell）、CT-75（blur は CT-48 のゴールデンと一致） |
+| 追加手順が 5 手順で済む（CT-78） | 達成 | 下表 |
+
+CT-78（手法 1 つの追加で触ったファイル）:
+
+| 手法 | コミット | ファイル数 | 内訳 |
+|---|---|---|---|
+| hexcell | bbaef7e | 5 | hexcell.sksl、HexcellMethod.cs、MethodRegistry.cs（1 行）、HexcellTests.cs、ゴールデン PNG |
+| blur | d375f40 | 4 | blur.sksl、BlurMethod.cs、MethodRegistry.cs（1 行）、BlurTests.cs |
+| noise | 7a6fc4e | 4 | noise.sksl、NoiseMethod.cs、MethodRegistry.cs（1 行）、NoiseTests.cs |
+
+表示名（Strings）は Step 2 で 5 手法分を先に入れてあったため、今回は触っていない（手順としては 5 番目）。UI・永続化・パイプラインの変更は不要だった。
+
+ただし基盤側に 3 点手を入れた（§4.3「済まなければ基盤側を直す」）:
+
+1. 手法固有の前段ぼかし（IPreBlurMethod）: blur 手法を「前段ぼかしのみ」で実現するため。共通ぼかしとは sqrt(a²+b²) で 1 回にまとめる（ガウスの合成則。2 回掛けるより速く同じ結果）。
+2. 素通し省略とピラミッドの遅延生成: blur 手法を追加したら CPU で 131 ms かかった（使わないピラミッド約 25 ms + 素通しシェーダの全画素評価約 50 ms）。どちらも手法側の追加作業なしで効く。
+3. CPU 描画用の任意の高速経路（ICpuRenderer）: hexcell・noise の SkSL は CPU ラスタで 1080p あたり 0.7〜1.1 s（分岐・ハッシュが 1 画素 300〜550 ns）。CPU キャンバスでのみ C# の画素ループで描く。実装は任意なので追加手順は増えない。
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| 6cc3631 / 936ffe6 | CT-13 を一時的に部分集合判定にし、5 手法が揃った時点で完全一致に戻した |
+| bcd8c7f | IPreBlurMethod |
+| bbaef7e / d375f40 / 7a6fc4e | hexcell / blur / noise |
+| f66b99c | 素通しになる値ではシェーダを通さない（SkSL と同じ画素になることをテスト） |
+| fbaef45 | ピラミッドを初めて読まれた時に作る |
+| 94d0698 | ICpuRenderer と RasterSampler（子シェーダと同じ座標・クランプ・線形補間で読む） |
+| 3b954ab / 551fff3 / bb9ac85 | hexcell・noise の CPU 経路、画素ループを最初から最適化コンパイル |
+| ea57493 / 522cf7e / 9e9f589 | CT-58 の計測追加、docs/perf.md |
+| 974ca3e | 完了条件の GUI テスト |
+
+新規依存なし。全コミットが単体でビルド・テストできることを確認済み。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| 作業コンテナ（linux-x64） | 115 / 0 / 0 | 44 / 0 / 0 |
+
+追加: CT-71〜77、素通し・CPU 経路とシェーダの一致（MethodConsistencyTests）、RasterSampler と Skia の差 1 以内、全手法の選択・描画・保存。ゴールデン: CT71_hexcell_radius10（作業コンテナの CPU ラスタで生成し目視確認）。
+
+### 5. 性能
+
+1080p の CPU ラスタ（作業コンテナ）: blur 手法 131〜139 → 58〜66 ms、hexcell 685〜700 → 61〜72 ms、noise 1114〜1147 → 31〜41 ms。詳細は docs/perf.md。
+
+### 6. 提案
+
+なし。判断メモ:
+
+- CPU 経路は「シェーダが基準、C# は CPU 専用の高速版」とし、一致をテストで縛る。却下案: (1) GPU でも幾何（六角形の頂点）や表で描く → SkSL 1 本で済むという追加手順が崩れ、六角形はテクスチャ座標が退化して Skia の DrawVertices で描けない。(2) CPU でも縮小評価で近似 → 六角セルは正方格子に乗らない。
+- hexcell の CPU 経路はシェーダと同じ float 演算にしたので、作業コンテナでは全画素一致。テストは CPU の FMA 差に備えて 0.5% まで許容。
+- noise は値ノイズ（格子 scale × 4 px、smoothstep 補間）を levels 段に量子化し、ベース色 ±0.15 に割り当てる。格子はエリア原点基準なのでリサイズで模様が崩れない（CT-76）。ブロックと同じハッシュは最後が fract(x·y)（x·y が数千）のため実装間で 1e-3 程度ずれ、段の境目の画素が入れ替わる（作業コンテナで 0.3% 以下）。見た目には影響しないので許容した（テストは 2% まで）。
+- noise の「scale」は単位なし（値 × 4 px が格子間隔）。仕様書に単位の定義がなかったため、既定 4 で 16 px の模様になるよう決めた。
+- blur 手法の半径は 0〜128（スライダー 0〜32、既定 8、不透明度 0 で素通し）。
+
+### 7. 人間への依頼
+
+なし（GPU 経路の確認は Step 4 の S-3 `--window` に含まれる。実機で hexcell・noise を選んで表示が崩れないかを PT の際に見てもらえると確実）。
+
+### 8. 次 Step の前提
+
+Step 7（Linux 第 1 段階: Screenshot ポータル + 横帯）へ。
