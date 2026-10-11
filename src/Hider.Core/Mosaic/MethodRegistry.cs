@@ -9,6 +9,7 @@ namespace Hider.Core.Mosaic
         {
             new PixelateMethod(),
             new HexcellMethod(),
+            new BlurMethod(),
             new BlockMethod(),
         };
 
