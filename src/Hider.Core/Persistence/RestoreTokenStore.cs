@@ -30,6 +30,7 @@ namespace Hider.Core.Persistence
         /// <summary>Keeps <paramref name="_token"/>, or forgets the old one when null.</summary>
         public void Save(string? _token)
         {
+            string temp = path + ".tmp";
             try
             {
                 if (_token is null)
@@ -38,18 +39,37 @@ namespace Hider.Core.Persistence
                     return;
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                string temp = path + ".tmp";
-                File.WriteAllText(temp, _token);
+                // A left-over temp file would keep its old mode: start from none.
+                File.Delete(temp);
+                var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
                 if (!OperatingSystem.IsWindows())
                 {
-                    // It lets anyone with the file start screen capture without asking: owner only.
-                    File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                    // It lets anyone with the file start screen capture without asking: owner only, from the moment it exists.
+                    options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                }
+                using (var stream = new FileStream(temp, options))
+                using (var writer = new StreamWriter(stream))
+                {
+                    writer.Write(_token);
                 }
                 File.Move(temp, path, true);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 Log.Verbose($"restore token not saved: {e.Message}");
+                TryDelete(temp);
+            }
+        }
+
+        private static void TryDelete(string _path)
+        {
+            try
+            {
+                File.Delete(_path);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Log.Verbose($"could not delete {_path}: {e.Message}");
             }
         }
     }

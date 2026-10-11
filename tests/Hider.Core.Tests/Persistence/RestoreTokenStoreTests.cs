@@ -36,6 +36,33 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void CT91_TempFile_NewWithOwnerOnlyMode_NeverLeftBehind()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            string temp = FilePath + ".tmp";
+            File.WriteAllText(temp, "old");
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+            }
+            var store = new RestoreTokenStore(FilePath);
+            store.Save("token");
+            Assert.Equal("token", store.Load());
+            Assert.False(File.Exists(temp));
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(FilePath));
+            }
+
+            // The rename fails (a directory is in the way): the token does not stay behind in the temp file.
+            File.Delete(FilePath);
+            Directory.CreateDirectory(FilePath);
+            Directory.CreateDirectory(Path.Combine(FilePath, "x"));
+            store.Save("second");
+            Assert.False(File.Exists(temp));
+        }
+
+        [Fact]
         public void CT91_EmptyFile_IsNoToken()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
