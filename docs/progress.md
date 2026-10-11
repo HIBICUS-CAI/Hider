@@ -513,3 +513,75 @@ docs/manual-tests.md の PT-15〜20（Ubuntu 26.04 実機）と spikes/S-5。特
 ### 8. 次 Step の前提
 
 Step 8（ScreenCast + PipeWire ヘルパ）へ。spikes/S-6 の libhidercap 原型（P-2 の 4 関数 API）を native/hidercap に移す。
+
+## Step 8: Linux 第 2 段階（ScreenCast + PipeWire ヘルパ）（2026-10-11）
+
+### 1. 結果
+
+実装完了。完了条件（Ubuntu 26.04 / arm64 実機での帯 1 本 3 フレーム以内、再起動後ダイアログなし）は人間待ち。実機の代わりに、作業コンテナと CI（x64 / arm64）で専用の PipeWire を立て、偽ポータルの ScreenCast → libhidercap → 帯の貼り合わせを通しで確認した。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| 帯 1 本あたり 3 フレーム以内 | 人間待ち | PT-22。Xvfb（30 fps、PTS なし）では約 2 フレーム |
+| 再起動後にダイアログなしで撮れる | 人間待ち（Xvfb では達成） | PT-21。偽ポータルで restore_token が「無し → token-1 → token-2」と渡り、置き換わることを確認。CT-91 |
+| linux-arm64 実機でも同様 | 人間待ち（CI の arm64 ランナーの Xvfb では達成） | PT-24、https://github.com/HIBICUS-CAI/Hider/actions/runs/38170573443 の test-gui (linux-arm64) |
+| CT-89〜92 | 達成 | 同上の CI（3 ランナー） |
+| ヘルパ不在で第 1 段階 | 達成 | CT-92（FallbackGrabber、PipeWireGrabber）。Xvfb: ヘルパなしの dll とヘルパ同梱の単一ファイル（偽ポータルが ScreenCast 非対応）の両方で第 1 段階で撮れた |
+| CI の native ジョブ | 達成 | native (linux-x64 / linux-arm64) が実ヘルパをビルド |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| 93d1e21 | IScreenGrabber が必要な範囲を受け取り、写した範囲（ScreenFrame.Covers）を返す形に変更 |
+| c3751ec | FallbackGrabber（第 2 段階 → 第 1 段階） |
+| 0a614f4 / 564f6cb | native/hidercap（pending: P-2）、CLOCK_MONOTONIC でない PTS の扱い |
+| 38e5059 | P/Invoke 層（LibraryImport、IHidercap） |
+| 3dc6b19 | RestoreTokenStore |
+| f628f62 / 6a45ea5 | PortalClient の切り出し、ScreenCastPortal |
+| 82be6c7 / ce5a2cf | PipeWireGrabber、失敗・拒否後の抑止 |
+| c4d5fd7 | Linux の配線（ScreenCast + ヘルパ → Screenshot） |
+| c7cc7e4 / 0d2134a | Xvfb 確認の第 2 段階モード（偽ポータルの ScreenCast、専用 PipeWire）、CI で実行 |
+| 69d4947 | 帯の描画完了待ちを Rendered + 1 フレームに |
+| 7849879 / 最新 | PT-21〜27、docs/perf.md |
+
+新規 NuGet 依存なし。CI の Linux GUI ジョブに apt の pipewire / wireplumber / gstreamer1.0-pipewire / gstreamer1.0-plugins-good / gstreamer1.0-tools / libpipewire-0.3-dev を追加。全コミットが単体でビルド・テストでき、ヘルパもビルドできることを確認済み。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 135 / 0 / 0 | 65 / 0 / 0 |
+| linux-x64 | 135 / 0 / 0 | 65 / 0 / 0（+ Xvfb 第 1 段階・第 2 段階 合格） |
+| linux-arm64 | 135 / 0 / 0 | 65 / 0 / 0（+ Xvfb 第 1 段階・第 2 段階 合格） |
+
+追加: CT-89〜92、FallbackGrabber、フレームが範囲外なら Unavailable、ScreenCast のストリーム位置と X11 モニタの対応付け、失敗・拒否後の抑止、hidercap_frame の構造体配置。
+
+### 5. 性能
+
+Xvfb の参考値は docs/perf.md「Linux 撮り直し」（第 2 段階で 30 帯 約 2.1 s、30 fps の映像ノードで PTS が無いため）。実機の PT-22〜23 待ち。
+
+### 6. 提案
+
+P-2（libhidercap の公開関数を 4 つ）を実装し、コミットに `pending: P-2` を付けた。作業指示書の「関数 2 つ」に `hidercap_last_sequence`（PT-22 の「帯 1 本のフレーム数」をログに出すため）と `hidercap_stop` を足したもの。
+
+判断メモ:
+
+- ヘルパは毎フレーム複写せず、最新バッファを dequeue したまま保持し、grab_after の時だけ BGRA に変換して複写する。原型は動画再生中など画面が動く間ずっと 1 フレームごとに全画面を複写していた。
+- ScreenCast のセッションは撮影時に開き、最後の帯から 3 s で閉じる。常時開くと GNOME の画面共有表示が出続ける。却下案: 常時開いて PipeWire だけ止める → 表示は消えない。毎帯開閉 → 遅い。
+- ScreenCast はダイアログで選んだ 1 モニタだけを写すため、Grabber の契約を「必要な範囲を受け取り、写した範囲を返す」に変えた。共有モニタ外のエリアは第 1 段階で撮る（PT-27 を追加）。複数モニタを同時に共有する案（multiple=true）はヘルパが複数ストリームを扱う必要があり見送り。
+- ポータルのストリーム位置（コンポジタの論理座標）と X11 のモニタは「原点が同じ、または倍率を掛けると同じ」で対応付ける（XWAYLAND-ASSUMPTION、PT-20 / S-6 で確認）。
+- Mutter のフレーム時刻（PTS）は CLOCK_MONOTONIC の前提。直近 500 ms に入らない PTS は信用せず受信時刻（−2 フレーム）で判定する。Xvfb の通し確認で GStreamer が別の時計を使っていて見つかった（全フレームが古いと判定され、帯ごとに 1 s 待っていた）。
+- ScreenCast の失敗後 1 分は第 1 段階に任せ、ダイアログを取り消した場合はその起動中は二度と尋ねない（帯の数だけダイアログが出るのを防ぐ）。
+- restore_token は ~/.hider/restore_token に所有者のみ読み書き可で保存（持っていれば無許可で画面を撮れるため）。
+- 偽ポータルによる確認は GNOME の代わりではない（Mutter の PTS、DMA-BUF を選ばないか、XWayland の座標は実機でしか分からない）が、ポータル呼び出し・fd の受け渡し・PipeWire の購読・PTS 判定・貼り合わせの配線は CI で毎回確かめられる。
+
+### 7. 人間への依頼
+
+docs/manual-tests.md の PT-21〜27（Ubuntu 26.04、arm64 実機）と spikes/S-6。特に PT-22 のログが `(pts)` になっているか（`(receive time)` なら Mutter の PTS の扱いを見直す）。
+
+### 8. 次 Step の前提
+
+Step 9（アイコン、README、ドキュメント、CI 全緑）へ。
