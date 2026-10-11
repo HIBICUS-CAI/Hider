@@ -42,6 +42,7 @@ namespace Hider.Areas
         {
             controller = _controller;
             Pattern.Model = _controller.Model;
+            Pattern.Frames = _controller.Frames;
         }
 
         /// <summary>↻ pressed (wired to the refresh scheduler from Step 5).</summary>
@@ -52,13 +53,10 @@ namespace Hider.Areas
 
         public EditChrome Chrome => chrome;
         public EditToolbar Toolbar => chrome.Toolbar;
-        public PatternView PatternView => Pattern;
+        public MosaicPresenter PatternView => Pattern;
 
         /// <summary>True when the edit chrome is part of the visual tree (GT-02).</summary>
         public bool ChromeAttached => Root.Children.Contains(chrome);
-
-        /// <summary>Set by the mosaic presenter when the underlay cannot be captured (FR-52).</summary>
-        public bool CaptureFailed { get; set; }
 
         /// <summary>Lays the content out for the controller's mode and window rectangle (all DIP).</summary>
         public void ApplyLayout()
@@ -97,13 +95,14 @@ namespace Hider.Areas
             Opacity = editing ? 1.0 : alpha;
             Pattern.Opacity = editing ? alpha : 1.0;
             Pattern.InvalidateVisual();
-            chrome.Toolbar.Update(model.Pattern, model.Rect, CaptureFailed);
+            chrome.Toolbar.Update(model.Pattern, model.Rect, controller.CaptureFailed);
         }
 
         public void CloseFromController()
         {
             closingAllowed = true;
             Close();
+            Pattern.ReleaseCaches();
         }
 
         private PixelPoint ScreenPoint(PointerEventArgs _e)

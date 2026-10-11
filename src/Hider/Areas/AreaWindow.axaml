@@ -31,6 +31,6 @@
         </Style>
     </Window.Styles>
     <Canvas x:Name="Root">
-        <areas:PatternView x:Name="Pattern" />
+        <areas:MosaicPresenter x:Name="Pattern" />
     </Canvas>
 </Window>
