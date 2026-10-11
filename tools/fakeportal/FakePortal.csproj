@@ -3,7 +3,7 @@
   <!-- Development tool, not part of Hider.sln: a fake org.freedesktop.portal.Screenshot for Xvfb (scripts/xvfb-strip-smoke.sh). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>FakePortal</RootNamespace>
+    <RootNamespace>Hider.Tools.FakePortal</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
