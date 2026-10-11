@@ -257,5 +257,31 @@ namespace Hider.App.Tests.Platform
             Assert.Equal(_expected < 0 ? null : screens[_expected].Bounds, mapped);
             Assert.Equal(screens[0].Bounds, PipeWireGrabber.MapStream(new PhysicalRect(9, 9, 1, 1), screens.Take(1).ToList()));
         }
+
+        [Fact]
+        public async Task Prepare_OpensTheSessionAndWaitsForAFrame_BeforeAnyStrip()
+        {
+            portal.StreamRect = new PhysicalRect(1920, 0, 2560, 1440);
+            using var g = Create(Primary, Right);
+            var ct = TestContext.Current.CancellationToken;
+            Assert.True(await g.PrepareAsync(new PhysicalRect(2000, 100, 200, 100), ct));
+            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log);
+            Assert.True(g.IsOpen);
+            // Already open: nothing more to do. An area on the other monitor is not this grabber's.
+            log.Clear();
+            Assert.False(await g.PrepareAsync(new PhysicalRect(100, 100, 200, 100), ct));
+            Assert.Empty(log);
+        }
+
+        [Fact]
+        public async Task Prepare_Denied_RefusesFromThenOn()
+        {
+            portal.Deny = true;
+            using var g = Create();
+            var ct = TestContext.Current.CancellationToken;
+            await Assert.ThrowsAsync<CaptureDeniedException>(() => g.PrepareAsync(new PhysicalRect(1, 1, 10, 10), ct));
+            Assert.False(await g.PrepareAsync(new PhysicalRect(1, 1, 10, 10), ct));
+            Assert.Single(log, "portal start");
+        }
     }
 }

@@ -15,6 +15,7 @@ namespace Hider.Platform.Linux
     {
         private readonly Func<PhysicalRect> screen;
         private readonly PortalClient portal;
+        private bool answered;
 
         /// <param name="_screen">The virtual screen in physical px: what a screenshot shows.</param>
         /// <param name="_address">D-Bus address; null for the session bus.</param>
@@ -56,6 +57,7 @@ namespace Hider.Platform.Linux
                 {
                     case 0:
                         var frame = path is null ? null : ReadPng(path);
+                        answered |= frame is not null;
                         return frame is null ? null : new ScreenFrame(frame, screen());
                     case 1:
                         throw new CaptureDeniedException("screenshot portal: cancelled by the user");
@@ -77,6 +79,19 @@ namespace Hider.Platform.Linux
                     TryDelete(path);
                 }
             }
+        }
+
+        /// <summary>
+        /// The first capture of a run takes one throwaway screenshot while everything is still covered: GNOME may ask for
+        /// permission then, and that dialog must not wait with a strip transparent (NFR-05). Later captures need nothing.
+        /// </summary>
+        public async Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
+        {
+            if (answered)
+            {
+                return true;
+            }
+            return await GrabAfterAsync(0, _needed, _ct).ConfigureAwait(false) is not null;
         }
 
         /// <summary>Decodes the portal's PNG into a premultiplied BGRA frame (null if it cannot be read).</summary>

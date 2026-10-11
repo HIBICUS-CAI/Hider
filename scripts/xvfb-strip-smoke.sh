@@ -70,7 +70,7 @@ if [[ "$hider" == *.dll ]]; then run=(dotnet "$hider"); else run=("$hider"); fi
 HOME="$work/home" "${run[@]}" --verbose > "$work/hider.log" 2>&1 &
 grabbed() { echo $(( $(grep -c '^shot' "$work/portal.log" || true) + $(grep -c 'screencast: frame' "$work/hider.log" || true) )); }
 for _ in $(seq 60); do
-    [ "$(grabbed)" -ge 30 ] && break
+    [ "$(grabbed)" -ge $((screencast == 1 ? 30 : 31)) ] && break
     sleep 0.5
 done
 sleep 2
@@ -83,13 +83,15 @@ import -window root "$work/after.png"
 rgb='%[fx:round(255*r)] %[fx:round(255*g)] %[fx:round(255*b)]\n'
 read -r ir ig ib < <(convert "$work/after.png" -crop 1x1+230+200 -format "$rgb" info:)
 read -r er eg eb < <(convert "$work/bg.png" -crop 12x12+224+198 -scale 1x1\! -format "$rgb" info:)
-echo "screenshots: $shots, screencast frames: $frames (expected 30 in total), files left: $left, area pixel: $ir $ig $ib, image cell average: $er $eg $eb"
+echo "screenshots: $shots, screencast frames: $frames (30 strips; stage 1 adds one screenshot before them), files left: $left, area pixel: $ir $ig $ib, image cell average: $er $eg $eb"
 grep -v '^$' "$work/hider.log" | grep -v 'screencast: frame' | tail -4
 # Every check fails the script on its own (set -e does not stop on a failed command inside an && list or after "!").
 failures=0
 check() { if ! eval "$2"; then echo "FAIL: $1"; failures=$((failures + 1)); fi; }
 close() { local d=$(( $1 - $2 )); [ ${d#-} -le 6 ]; }
-check "all 30 strips grabbed" '[ $((shots + frames)) -eq 30 ]'
+# Stage 1 takes one extra screenshot before the first strip (PortalScreenshotGrabber.PrepareAsync: a permission dialog must
+# not wait with a strip transparent); stage 2 opens its session there instead.
+check "all 30 strips grabbed" '[ $((shots + frames)) -eq $((screencast == 1 ? 30 : 31)) ]'
 check "no screenshot file left (FR-53)" '[ "$left" -eq 0 ]'
 check "no failed capture in the log" '! grep -q "capture failed" "$work/hider.log"'
 if [ $screencast = 1 ]; then

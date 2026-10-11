@@ -18,6 +18,17 @@ namespace Hider.Core.Capture
         /// when the user refused.
         /// </summary>
         Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct);
+
+        /// <summary>
+        /// Called once per capture before any strip turns transparent: anything slow or interactive (a portal session, a
+        /// permission dialog) happens here, while the area still covers the content (NFR-05). Returns whether this grabber
+        /// expects to deliver frames for <paramref name="_needed"/>; throws <see cref="CaptureDeniedException"/> when the user
+        /// refused.
+        /// </summary>
+        Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
+        {
+            return Task.FromResult(true);
+        }
     }
 
     /// <summary>The area windows' part of the strip method: draw some rows fully transparent, and back.</summary>

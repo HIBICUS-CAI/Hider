@@ -61,7 +61,7 @@ namespace Hider.Core.Tests.Capture
             var result = await s.Capture(rect, 0);
             Assert.Equal(CaptureFailure.None, result.Failure);
             Assert.Equal(1, s.Grabber.Calls);
-            Assert.Equal(new[] { "set a 0-240", "grab", "restore a" }, s.Log);
+            Assert.Equal(new[] { "prepare", "set a 0-240", "grab", "restore a" }, s.Log);
         }
 
         [Fact]
@@ -73,6 +73,7 @@ namespace Hider.Core.Tests.Capture
             await s.Capture(rect, 8);
             Assert.Equal(new[]
             {
+                "prepare",
                 "set a 0-8", "grab", "restore a",
                 "set a 8-16", "grab", "restore a",
                 "set a 16-20", "grab", "restore a",
@@ -110,6 +111,7 @@ namespace Hider.Core.Tests.Capture
             await s.Capture(rect, 8);
             Assert.Equal(new[]
             {
+                "prepare",
                 "set me 0-8", "grab", "restore me",
                 "set me 8-16", "set over 0-8", "grab", "restore me", "restore over",
             }, s.Log);
@@ -170,7 +172,7 @@ namespace Hider.Core.Tests.Capture
             s.Grabber.Hang = true;
             using var cancel = new CancellationTokenSource();
             var task = s.Capture(rect, 8, cancel.Token);
-            Assert.Equal(new[] { "set a 0-8", "grab" }, s.Log);
+            Assert.Equal(new[] { "prepare", "set a 0-8", "grab" }, s.Log);
             Assert.Contains("a", s.Host.Transparent);
             cancel.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
@@ -193,6 +195,7 @@ namespace Hider.Core.Tests.Capture
             Assert.Equal(1, s.Grabber.MaxConcurrent);
             // Whole captures are serial too: a's strips are not interleaved with b's.
             var order = s.Log.Where(e => e.StartsWith("set")).Select(e => e.Split(' ')[1]).ToList();
+            Assert.Equal(2, s.Log.Count(e => e == "prepare"));
             Assert.True(order.Take(3).Distinct().Count() == 1 && order.Skip(3).Distinct().Count() == 1, string.Join(",", order));
         }
 
@@ -213,6 +216,24 @@ namespace Hider.Core.Tests.Capture
             var result = await s.Capture(rect, 8);
             Assert.Equal(CaptureFailure.None, result.Failure);
             Assert.Equal((500 + 1920, 20), CoordinateFrame.Decode(result.Frame!, 0, 0));
+        }
+
+        [Fact]
+        public async Task Prepare_BeforeAnyStrip_FailureExposesNothing()
+        {
+            // Slow or interactive grabber work (portal session, permission dialog) happens before a strip turns transparent.
+            var rect = new PhysicalRect(10, 20, 100, 16);
+            var notReady = new Setup();
+            notReady.Add("a", rect);
+            notReady.Grabber.Ready = false;
+            Assert.Equal(CaptureFailure.Unavailable, (await notReady.Capture(rect, 8)).Failure);
+            Assert.Equal(new[] { "prepare" }, notReady.Log);
+
+            var denied = new Setup();
+            denied.Add("a", rect);
+            denied.Grabber.DenyPrepare = true;
+            Assert.Equal(CaptureFailure.Denied, (await denied.Capture(rect, 8)).Failure);
+            Assert.Equal(new[] { "prepare" }, denied.Log);
         }
 
         [Theory]

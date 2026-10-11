@@ -8,7 +8,8 @@ namespace Hider.Platform.Linux
     /// <summary>
     /// Linux stage 2 (D-6, design §5.3): a ScreenCast session (persist_mode 2, restore token kept in ~/.hider) feeding
     /// libhidercap, which returns the first frame shown after the strip turned transparent (2 .. 3 frames instead of a
-    /// 0.1 .. 0.3 s screenshot). The session is opened for a capture and closed <see cref="IdleClose"/> after the last grab,
+    /// 0.1 .. 0.3 s screenshot). The session is opened before a capture's first strip (<see cref="PrepareAsync"/>) and closed
+    /// <see cref="IdleClose"/> after the last grab,
     /// so GNOME shows its screen sharing indicator only while Hider captures. Returns null (the next grabber takes over)
     /// when the helper is missing, the portal fails, or the area is not on the shared monitor.
     /// </summary>
@@ -93,11 +94,54 @@ namespace Hider.Platform.Linux
             }
             finally
             {
-                if (session is not null && !disposed)
-                {
-                    idle = time.CreateTimer(_ => _ = CloseIdleAsync(), null, IdleClose, Timeout.InfiniteTimeSpan);
-                }
+                ArmIdleClose();
                 gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Opens the session (portal round trips, the first-time dialog, the stream start) and waits for its first frame
+        /// before the coordinator makes any strip transparent, so none of that time shows uncovered content (NFR-05).
+        /// </summary>
+        public async Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
+        {
+            if (!helper.IsAvailable || refused || time.GetTimestamp() < retryAt)
+            {
+                return false;
+            }
+            await gate.WaitAsync(_ct).ConfigureAwait(false);
+            try
+            {
+                idle?.Dispose();
+                idle = null;
+                if (disposed)
+                {
+                    return false;
+                }
+                if (session is null)
+                {
+                    if (!await OpenAsync(_ct).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                    await Task.Run(() => Grab(0), CancellationToken.None).ConfigureAwait(false);
+                }
+                return covers is { } shown && shown.Intersect(_needed) == _needed;
+            }
+            finally
+            {
+                ArmIdleClose();
+                gate.Release();
+            }
+        }
+
+        /// <summary>Caller holds the gate.</summary>
+        private void ArmIdleClose()
+        {
+            if (session is not null && !disposed)
+            {
+                idle?.Dispose();
+                idle = time.CreateTimer(_ => _ = CloseIdleAsync(), null, IdleClose, Timeout.InfiniteTimeSpan);
             }
         }
 

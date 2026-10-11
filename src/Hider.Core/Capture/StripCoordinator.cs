@@ -50,6 +50,19 @@ namespace Hider.Core.Capture
                 // Mosaic areas over the requested rectangle (the requester among them) hide what is below; fill and generated
                 // areas stay in the picture, as they would for a person looking at the screen (CT-83).
                 var cover = areas().Where(a => a.Kind == PatternKind.Mosaic && a.Rect.Intersects(rect)).ToList();
+                try
+                {
+                    // No grabber can deliver: fail before any strip is exposed.
+                    if (!await grabber.PrepareAsync(rect, _ct).ConfigureAwait(false))
+                    {
+                        return CaptureResult.Failed(CaptureFailure.Unavailable);
+                    }
+                }
+                catch (CaptureDeniedException e)
+                {
+                    Log.Verbose($"strip capture denied: {e.Message}");
+                    return CaptureResult.Failed(CaptureFailure.Denied);
+                }
                 var result = FrameBuffer.Allocate(rect.Width, rect.Height);
                 foreach (var (y0, y1) in Strips(rect.Height, _request.StripPx))
                 {

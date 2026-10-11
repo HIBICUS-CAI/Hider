@@ -56,5 +56,27 @@ namespace Hider.Core.Tests.Capture
                 Assert.Null(await grabber.GrabAfterAsync(0, Needed, TestContext.Current.CancellationToken));
             }
         }
+
+        [Fact]
+        public async Task Prepare_StopsAtTheFirstReadyGrabber()
+        {
+            // Stage 1 must not open its own dialog when stage 2 is ready; it is prepared when stage 2 is not.
+            var log = new List<string>();
+            var first = new FakeScreenGrabber(log, null);
+            var second = new FakeScreenGrabber(log, null);
+            using var grabber = new FallbackGrabber(first, second);
+            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            Assert.Single(log);
+            first.Ready = false;
+            log.Clear();
+            Assert.True(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            Assert.Equal(2, log.Count);
+            first.DenyPrepare = true;
+            second.Ready = false;
+            await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+            first.DenyPrepare = false;
+            first.Ready = false;
+            Assert.False(await grabber.PrepareAsync(Needed, TestContext.Current.CancellationToken));
+        }
     }
 }

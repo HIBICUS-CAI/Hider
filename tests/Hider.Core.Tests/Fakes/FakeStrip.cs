@@ -64,6 +64,19 @@ namespace Hider.Core.Tests.Fakes
         /// <summary>Called inside each grab (e.g. to look at the windows while their strip is transparent).</summary>
         public Action? OnGrab { get; set; }
 
+        /// <summary>What <see cref="PrepareAsync"/> answers; DenyPrepare makes it throw a refusal.</summary>
+        public bool Ready { get; set; } = true;
+        public bool DenyPrepare { get; set; }
+
+        public Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
+        {
+            lock (log)
+            {
+                log.Add("prepare");
+            }
+            return DenyPrepare ? throw new CaptureDeniedException("test") : Task.FromResult(Ready);
+        }
+
         public int Calls { get; private set; }
         public int MaxConcurrent { get; private set; }
         public List<long> NotBefore { get; } = new();
