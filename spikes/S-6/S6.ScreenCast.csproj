@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- S-6 (Ubuntu 26.04): ScreenCast portal + PipeWire helper. restore_token reuse, PTS ordering, frames per strip, coordinates. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Spike</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Built with "make -C native" first. -->
+    <None Include="native/out/libhidercap.so" Condition="Exists('native/out/libhidercap.so')" Link="libhidercap.so" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
