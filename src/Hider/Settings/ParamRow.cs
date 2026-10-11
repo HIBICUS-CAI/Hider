@@ -43,6 +43,7 @@ namespace Hider.Settings
             Children.Add(label);
 
             Slider = new Slider { Minimum = 0, Maximum = SliderSteps, VerticalAlignment = VerticalAlignment.Center };
+            Avalonia.Automation.AutomationProperties.SetName(Slider, Strings.Get(_spec.LabelKey));
             SetColumn(Slider, 1);
             Children.Add(Slider);
 

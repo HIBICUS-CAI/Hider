@@ -7,7 +7,8 @@ namespace Hider.Dialogs
     /// <summary>"N 個のエリアをすべて削除します。" with Cancel / Delete (FR-05, design canvas 5).</summary>
     public partial class ConfirmDeleteWindow : Window
     {
-        private readonly TaskCompletionSource<bool> result = new();
+        // Continuations run later, not inside the Click handler before Close() returns.
+        private readonly TaskCompletionSource<bool> result = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ConfirmDeleteWindow()
         {
@@ -16,6 +17,8 @@ namespace Hider.Dialogs
             NoteText.Text = Strings.ConfirmCannotUndo;
             CancelButton.Content = Strings.ConfirmCancel;
             DeleteButton.Content = Strings.ConfirmDelete;
+            ToolTip.SetTip(CloseButton, Strings.ConfirmClose);
+            Avalonia.Automation.AutomationProperties.SetName(CloseButton, Strings.ConfirmClose);
             AppIcon.Source = AppIcons.Image;
             CancelButton.Click += (_, _) => Finish(false);
             CloseButton.Click += (_, _) => Finish(false);

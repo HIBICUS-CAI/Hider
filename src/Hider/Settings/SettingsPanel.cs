@@ -169,6 +169,7 @@ namespace Hider.Settings
                 SelectedIndex = Math.Max(0, methods.ToList().FindIndex(m => m.Id == _current.Id)),
                 HorizontalAlignment = HorizontalAlignment.Stretch, Height = 30, MinHeight = 30, FontSize = 13,
             };
+            Avalonia.Automation.AutomationProperties.SetName(box, Strings.SettingsMethod);
             box.SelectionChanged += (_, _) =>
             {
                 if (box.SelectedIndex >= 0 && methods[box.SelectedIndex].Id != _current.Id)
@@ -268,6 +269,7 @@ namespace Hider.Settings
                 Text = common.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture), Width = 110, Height = 30, MinHeight = 30, FontSize = 12,
                 VerticalContentAlignment = VerticalAlignment.Center, FontFamily = UiFonts.Mono,
             };
+            Avalonia.Automation.AutomationProperties.SetName(box, Strings.SettingsSeed);
             void CommitSeed()
             {
                 if (int.TryParse(box.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int seed) && seed != common.Seed)

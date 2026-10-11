@@ -62,8 +62,14 @@ namespace Hider.App.Tests.Tray
             Assert.False(await ask);
             Assert.Equal(3, f.Manager.Areas.Count);
 
+            Assert.Equal("閉じる", Avalonia.Automation.AutomationProperties.GetName(dialog.CloseButton));
+
             var again = tray.ExecuteAsync(TrayCommand.DeleteAll);
-            tray.ConfirmWindow!.DeleteButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var second = tray.ConfirmWindow!;
+            second.DeleteButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            // The deletion runs after the Click handler (and its Close) returned, not inside it.
+            Assert.Equal(3, f.Manager.Areas.Count);
+            Assert.False(second.IsVisible);
             await again;
             Assert.Empty(f.Manager.Areas);
         }

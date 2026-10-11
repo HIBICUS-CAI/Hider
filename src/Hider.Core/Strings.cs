@@ -24,6 +24,7 @@ namespace Hider.Core
             ["confirm.cannotUndo"] = "この操作は元に戻せません。",
             ["confirm.cancel"] = "キャンセル",
             ["confirm.delete"] = "削除",
+            ["confirm.close"] = "閉じる",
 
             // Edit toolbar (FR-34, FR-52)
             ["pattern.fill"] = "塗りつぶし",
@@ -119,6 +120,7 @@ namespace Hider.Core
         public static string ConfirmCannotUndo => Get("confirm.cannotUndo");
         public static string ConfirmCancel => Get("confirm.cancel");
         public static string ConfirmDelete => Get("confirm.delete");
+        public static string ConfirmClose => Get("confirm.close");
         public static string PatternFill => Get("pattern.fill");
         public static string PatternMosaic => Get("pattern.mosaic");
         public static string PatternGenerated => Get("pattern.generated");

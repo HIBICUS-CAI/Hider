@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Hider.Areas;
 using Hider.Core.Model;
 using Hider.Core.Mosaic;
@@ -47,6 +48,26 @@ namespace Hider.App.Tests.Settings
             {
                 Assert.Equal(new[] { "透明度", "手法", "ベース色", "セルサイズ", "色のばらつき", "目地幅", "シード" }, generated.RowLabels);
                 Assert.Equal(new[] { "%", "px", "%", "px" }, generated.ParamRows.Select(r => r.Unit.Text));
+            }
+        }
+
+        [AvaloniaFact]
+        public void Controls_HaveAccessibleNames()
+        {
+            var (f, _, panel) = Open(PatternKind.Generated);
+            using (f)
+            {
+                foreach (var row in panel.ParamRows)
+                {
+                    string label = Hider.Core.Strings.Get(row.Spec.LabelKey);
+                    Assert.Equal(label, Avalonia.Automation.AutomationProperties.GetName(row.Slider));
+                    Assert.Equal(label, Avalonia.Automation.AutomationProperties.GetName(row.Input));
+                }
+                var names = panel.GetLogicalDescendants().OfType<Control>().Where(c => c is ComboBox or TextBox)
+                    .Select(c => Avalonia.Automation.AutomationProperties.GetName(c)).ToList();
+                Assert.Contains("手法", names);
+                Assert.Contains("シード", names);
+                Assert.DoesNotContain(null, names);
             }
         }
 
