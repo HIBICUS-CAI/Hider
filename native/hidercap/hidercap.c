@@ -55,11 +55,28 @@ static void release_held(void)
     g.held_data = NULL;
 }
 
+/* The row stride of a buffer's chunk (the format's width * 4 when the producer leaves it 0). */
+static int32_t chunk_stride(const struct spa_data *_d)
+{
+    return _d->chunk->stride > 0 ? _d->chunk->stride : (int32_t)g.format.size.width * 4;
+}
+
+/* A buffer copy_held can read whole: mapped, not corrupted, and large enough for the current format (a short chunk from
+ * a producer, or one from before a format change, would otherwise be read past its end). */
 static int usable(struct pw_buffer *_b)
 {
     struct spa_data *d = &_b->buffer->datas[0];
-    return g.has_format && d->data != NULL && d->chunk != NULL && d->chunk->size > 0
-        && (d->chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) == 0;
+    if (!g.has_format || d->data == NULL || d->chunk == NULL || d->chunk->size == 0
+        || (d->chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) != 0 || g.format.size.width == 0 || g.format.size.height == 0) {
+        return 0;
+    }
+    uint64_t row = (uint64_t)g.format.size.width * 4;
+    int32_t stride = chunk_stride(d);
+    if (stride < 0 || (uint64_t)stride < row) {
+        return 0;
+    }
+    uint64_t end = (uint64_t)d->chunk->offset + (uint64_t)stride * (g.format.size.height - 1) + row;
+    return end <= d->maxsize;
 }
 
 static void on_process(void *_data)
@@ -96,7 +113,7 @@ static void on_process(void *_data)
     }
     g.held = latest;
     g.held_data = (const uint8_t *)d->data + d->chunk->offset;
-    g.held_stride = d->chunk->stride > 0 ? d->chunk->stride : (int32_t)g.format.size.width * 4;
+    g.held_stride = chunk_stride(d);
     g.sequence++;
     pw_thread_loop_signal(g.loop, false);
 }
