@@ -18,6 +18,9 @@ namespace Hider.Platform.Windows
         // PrintWindow calls per window handle that have not returned yet (a hung window blocks them indefinitely).
         private readonly Dictionary<nint, Task<WindowImage>> inFlight = new();
 
+        /// <summary>Handles of every top-level window seen by the last enumeration.</summary>
+        public IReadOnlyList<nint> LastEnumerated { get; private set; } = Array.Empty<nint>();
+
         public IReadOnlyList<WindowInfo> EnumerateTopDown()
         {
             var handles = new List<nint>();
@@ -30,6 +33,7 @@ namespace Hider.Platform.Windows
             {
                 gc.Free();
             }
+            LastEnumerated = handles;
             var result = new List<WindowInfo>(handles.Count);
             foreach (nint hwnd in handles)
             {

@@ -41,6 +41,13 @@ namespace Hider.Platform.Windows
                 }
                 var sw = Stopwatch.StartNew();
                 var result = composer.Compose(_request, output);
+                // Forget the bitmaps of closed windows and the output buffers of deleted areas (ExcludeWindows lists every
+                // Hider window that still exists).
+                source.Trim(source.LastEnumerated);
+                foreach (nint gone in outputs.Keys.Where(h => !_request.ExcludeWindows.Contains(h)).ToArray())
+                {
+                    outputs.Remove(gone);
+                }
                 Log.Verbose($"capture {_request.Rect.Width}x{_request.Rect.Height}: {result.Failure}, {composer.LastCaptured.Count} window(s), {sw.Elapsed.TotalMilliseconds:F1} ms");
                 return Task.FromResult(result);
             }
