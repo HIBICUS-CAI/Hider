@@ -28,12 +28,12 @@ concurrency:
 env:
   DOTNET_NOLOGO: 1
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   AVALONIA_TELEMETRY_OPTOUT: 1
 
 jobs:
   plan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
       linux_matrix: ${{ steps.set.outputs.linux_matrix }}
@@ -41,9 +41,11 @@ jobs:
     steps:
       - id: set
         shell: bash
+        env:
+          TARGETS: ${{ inputs.targets }}
         run: |
-          all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
-          t='${{ inputs.targets }}'
+          all='[{"rid":"win-x64","os":"windows-2025"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
+          t="$TARGETS"
           if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
           lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
@@ -57,6 +59,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -76,7 +79,7 @@ jobs:
       # Formatting and code style as .editorconfig says (once: Windows checkouts may convert line endings).
       - if: matrix.rid == 'linux-x64'
         run: dotnet format Hider.slnx --verify-no-changes --no-restore
-      - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
+      - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -108,6 +111,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -124,7 +128,7 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
       - run: dotnet build -c Release --no-restore -warnaserror
-      - run: dotnet test tests/Hider.App.Tests -c Release --no-build --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
+      - run: dotnet test tests/Hider.App.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
       # Linux strip capture end to end on Xvfb with a fake portal (scripts/xvfb-strip-smoke.sh): stage 1 (Screenshot), then
       # stage 2 (ScreenCast through a private PipeWire and libhidercap).
       - if: runner.os == 'Linux'
@@ -150,26 +154,25 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.linux_matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+      # A compile check on each architecture (-Werror, hardening flags); publish builds the helper it ships itself.
       - run: make -C native/hidercap RID=${{ matrix.rid }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: hidercap-${{ matrix.rid }}
-          path: native/hidercap/out/${{ matrix.rid }}/libhidercap.so
-          retention-days: 14
 
   publish:
-    if: ${{ inputs.publish }}
-    needs: [plan, test-core]
+    # After every check that ran: a skipped GUI test or native job (not chosen, no Linux target) does not hold it back.
+    if: ${{ inputs.publish && !cancelled() && !failure() }}
+    needs: [plan, test-core, test-gui, native]
     strategy:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -211,6 +214,7 @@ jobs:
     if: always()
     needs: [plan, test-core, test-gui, native, publish, python-lint]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - shell: bash
         run: |
