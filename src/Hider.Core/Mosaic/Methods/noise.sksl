@@ -2,20 +2,37 @@
 // spread over base color ± 0.15 on every channel (same shift, so the hue is kept). Opaque output: the window applies the
 // opacity.
 // uniforms: scale (lattice step / 4 px), levels (integer >= 2), areaSize (px), areaOrigin (px; unused, the lattice follows
-//           the area), baseColor (rgb 0..1), seed (0..65535)
+//           the area), baseColor (rgb 0..1),
+//           seed (float3: LatticeHash.SeedDigits, the seed as three digits base 251)
 // children: none
 uniform float scale;
 uniform float levels;
 uniform float2 areaSize;
 uniform float2 areaOrigin;
 uniform float3 baseColor;
-uniform float seed;
+uniform float3 seed;
 
-// Same hash as block.sksl (stable across backends for small integer inputs).
+// Exact cell hash, the same as LatticeHash.cs: whole numbers below 2^16 only, so every backend computes the same value.
+float mod251(float x) {
+    return x - floor((x + 0.5) * (1.0 / 251.0)) * 251.0;
+}
+
+float permute(float x) {
+    return mod251(mod251(x * x) * x);
+}
+
 float hash(float2 cell) {
-    float3 p3 = fract(float3(cell.xyx + seed * float3(0.731, 0.137, 0.419)) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    float2 q = floor((cell + 0.5) * (1.0 / 251.0));
+    float2 r = cell - q * 251.0;
+    float h = permute(mod251(seed.x + r.x));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + seed.y));
+    h = permute(mod251(h + r.x));
+    h = permute(mod251(h + seed.z));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + q.x));
+    h = permute(mod251(h + q.y));
+    return (h + 0.5) * (1.0 / 251.0);
 }
 
 half4 main(float2 p) {

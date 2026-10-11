@@ -8,8 +8,8 @@ namespace Hider.Core.Tests.Mosaic
 {
     /// <summary>
     /// ICpuRenderer paths against the shader they stand in for (the shader is what the GPU draws). Float rounding may move a
-    /// boundary by a pixel and linear sampling may differ by 1, so a small share of differing pixels is allowed; a logic
-    /// difference changes far more.
+    /// boundary by a pixel and linear sampling may differ by 1, so a small share of scattered differing pixels is allowed; a
+    /// logic difference changes far more, or concentrates in a row or column.
     /// </summary>
     public class MethodConsistencyTests
     {
@@ -53,9 +53,9 @@ namespace Hider.Core.Tests.Mosaic
             settings.ParamsFor("noise")["scale"] = _scale;
             settings.ParamsFor("noise")["levels"] = _levels;
             var p = ParamValues.ForGenerated(method, settings);
-            // The block / noise hash ends in fract(x · y) with x · y in the thousands, so FMA or evaluation order moves its value by
-            // up to ~1e-3 between implementations (also between GPUs): pixels next to a step boundary may change step.
-            AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0.02);
+            // The lattice hash is exact (LatticeHash); only the float interpolation between nodes may put a pixel right at a
+            // step boundary into the neighbouring step.
+            AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0.002);
         }
 
         internal static void AssertClose(IMosaicMethod _method, MosaicInputs _inputs, ParamValues _p, double _maxShare)
@@ -66,6 +66,8 @@ namespace Hider.Core.Tests.Mosaic
             using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.Src };
             using var reference = Render.Draw(w, h, c => c.DrawRect(0, 0, w, h, paint));
             int far = 0;
+            var farInRow = new int[h];
+            var farInColumn = new int[w];
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
@@ -76,10 +78,15 @@ namespace Hider.Core.Tests.Mosaic
                     if (d > 1)
                     {
                         far++;
+                        farInRow[y]++;
+                        farInColumn[x]++;
                     }
                 }
             }
             Assert.True(far <= w * h * _maxShare, $"{_method.Id}: {far} of {w * h} pixels differ by more than 1");
+            // Scattered, not one wrong row or column (an edge handled differently would hide inside the share).
+            Assert.True(farInRow.Max() <= Math.Max(2, w / 20), $"{_method.Id}: {farInRow.Max()} pixels of one row differ");
+            Assert.True(farInColumn.Max() <= Math.Max(2, h / 20), $"{_method.Id}: {farInColumn.Max()} pixels of one column differ");
         }
     }
 }

@@ -26,7 +26,7 @@ namespace Hider.Core.Mosaic.Methods
         {
             float step = (float)UniformValue("scale", _p) * 4f;
             float levels = (float)UniformValue("levels", _p);
-            float seed = SeedUniformValue(_p);
+            var seed = SeedUniformValue(_p);
             int w = _dst.Width, h = _dst.Height;
             int cols = (int)MathF.Floor(w / step) + 2, rows = (int)MathF.Floor(h / step) + 2;
             var lattice = new float[cols * rows];
@@ -34,7 +34,7 @@ namespace Hider.Core.Mosaic.Methods
             {
                 for (int i = 0; i < cols; i++)
                 {
-                    lattice[j * cols + i] = Hash(i, j, seed);
+                    lattice[j * cols + i] = LatticeHash.Hash(i, j, seed);
                 }
             }
             var colors = new uint[(int)levels];
@@ -64,21 +64,6 @@ namespace Hider.Core.Mosaic.Methods
                 }
             }
             return true;
-        }
-
-        private static float Hash(float _x, float _y, float _seed)
-        {
-            float px = Fract((_x + _seed * 0.731f) * 0.1031f), py = Fract((_y + _seed * 0.137f) * 0.1031f), pz = Fract((_x + _seed * 0.419f) * 0.1031f);
-            float d = px * (py + 33.33f) + py * (pz + 33.33f) + pz * (px + 33.33f);
-            px += d;
-            py += d;
-            pz += d;
-            return Fract((px + py) * pz);
-        }
-
-        private static float Fract(float _v)
-        {
-            return _v - MathF.Floor(_v);
         }
 
         private static float Mix(float _a, float _b, float _t)
