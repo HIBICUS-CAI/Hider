@@ -242,7 +242,7 @@ namespace Hider.App.Tests.Settings
         public void GT40_NewMethodsGetRowsWithoutUiCode()
         {
             // Extensibility (CT-19, UI part): the rows come from ParamSpec alone.
-            var spec = new ParamSpec("amount", "param.block", "px", 1, 10, 1, 10, 5);
+            var spec = new ParamSpec("amount", "param.block", ParamUnit.Px, 1, 10, 1, 10, 5);
             var row = new ParamRow(spec);
             row.SetValue(7);
             Assert.Equal("ブロック", row.Label.Text);

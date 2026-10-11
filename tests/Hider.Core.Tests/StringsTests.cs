@@ -14,6 +14,16 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
+        public void CT12_EveryUnitHasAText()
+        {
+            foreach (var unit in Enum.GetValues<Hider.Core.Mosaic.ParamUnit>())
+            {
+                Assert.NotNull(Strings.Unit(unit));
+            }
+            Assert.Equal("%", Strings.Unit(Hider.Core.Mosaic.ParamUnit.Percent));
+        }
+
+        [Fact]
         public void CT97_Strings_FormattedTexts()
         {
             Assert.Equal("Hider — エリア 3 個", Strings.TrayTooltip(3));

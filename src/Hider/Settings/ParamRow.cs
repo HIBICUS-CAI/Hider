@@ -55,7 +55,7 @@ namespace Hider.Settings
             SetColumn(Input, 2);
             Children.Add(Input);
 
-            Unit = new TextBlock { Text = _spec.Unit, FontSize = 12, Foreground = new SolidColorBrush(Color.Parse("#444444")), VerticalAlignment = VerticalAlignment.Center };
+            Unit = new TextBlock { Text = Strings.Unit(_spec.Unit), FontSize = 12, Foreground = new SolidColorBrush(Color.Parse("#444444")), VerticalAlignment = VerticalAlignment.Center };
             SetColumn(Unit, 3);
             Children.Add(Unit);
 

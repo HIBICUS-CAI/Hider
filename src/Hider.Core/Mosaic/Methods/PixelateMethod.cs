@@ -15,7 +15,7 @@ namespace Hider.Core.Mosaic.Methods
 
         public override IReadOnlyList<ParamSpec> Params { get; } = new[]
         {
-            new ParamSpec("block", "param.block", "px", 2, 256, 2, 64, 12, LerpWithOpacity: true, LerpFloor: 1),
+            new ParamSpec("block", "param.block", ParamUnit.Px, 2, 256, 2, 64, 12, LerpWithOpacity: true, LerpFloor: 1),
         };
 
         public static int EffectiveBlock(ParamValues _p)

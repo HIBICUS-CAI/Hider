@@ -19,7 +19,7 @@ namespace Hider.Core.Tests.Mosaic
         public string LabelKey => "method.pixelate";
         public MethodKind Kind { get; }
         public PlatformSupport Support { get; }
-        public IReadOnlyList<ParamSpec> Params { get; } = new[] { new ParamSpec("amount", "param.block", "px", 1, 10, 1, 10, 5, LerpWithOpacity: true) };
+        public IReadOnlyList<ParamSpec> Params { get; } = new[] { new ParamSpec("amount", "param.block", ParamUnit.Px, 1, 10, 1, 10, 5, LerpWithOpacity: true) };
 
         public SKShader CreateShader(MosaicInputs _inputs, ParamValues _p)
         {

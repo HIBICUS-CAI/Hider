@@ -17,7 +17,7 @@ namespace Hider.Core.Mosaic.Methods
 
         public override IReadOnlyList<ParamSpec> Params { get; } = new[]
         {
-            new ParamSpec("radius", "param.radius", "px", 2, 256, 2, 64, 10, LerpWithOpacity: true, LerpFloor: 1),
+            new ParamSpec("radius", "param.radius", ParamUnit.Px, 2, 256, 2, 64, 10, LerpWithOpacity: true, LerpFloor: 1),
         };
 
         /// <summary>Centre of the hexagon containing (x, y), the same arithmetic as hexcell.sksl (for tests).</summary>

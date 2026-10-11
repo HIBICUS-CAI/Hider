@@ -16,8 +16,8 @@ namespace Hider.Core.Mosaic.Methods
 
         public override IReadOnlyList<ParamSpec> Params { get; } = new[]
         {
-            new ParamSpec("scale", "param.noiseScale", "", 1, 64, 1, 16, 4),
-            new ParamSpec("levels", "param.noiseLevels", "段", 2, 64, 2, 16, 6),
+            new ParamSpec("scale", "param.noiseScale", ParamUnit.None, 1, 64, 1, 16, 4),
+            new ParamSpec("levels", "param.noiseLevels", ParamUnit.Steps, 2, 64, 2, 16, 6),
         };
 
         /// <summary>noise.sksl in C#: the lattice hashes once per node, then the same interpolation and steps per pixel.</summary>

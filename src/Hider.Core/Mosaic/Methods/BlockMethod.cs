@@ -16,9 +16,9 @@ namespace Hider.Core.Mosaic.Methods
 
         public override IReadOnlyList<ParamSpec> Params { get; } = new[]
         {
-            new ParamSpec("cellSize", "param.cellSize", "px", 2, 256, 2, 64, 12),
-            new ParamSpec("variance", "param.variance", "%", 0, 1, 0, 1, 0.2),
-            new ParamSpec("gap", "param.gap", "px", 0, 64, 0, 8, 0),
+            new ParamSpec("cellSize", "param.cellSize", ParamUnit.Px, 2, 256, 2, 64, 12),
+            new ParamSpec("variance", "param.variance", ParamUnit.Percent, 0, 1, 0, 1, 0.2),
+            new ParamSpec("gap", "param.gap", ParamUnit.Px, 0, 64, 0, 8, 0),
         };
 
         protected override double UniformValue(string _key, ParamValues _p)

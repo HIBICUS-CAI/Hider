@@ -12,7 +12,7 @@ namespace Hider.Core.Mosaic.Methods
 
         public override IReadOnlyList<ParamSpec> Params { get; } = new[]
         {
-            new ParamSpec("radius", "param.radius", "px", 0, 128, 0, 32, 8, LerpWithOpacity: true, LerpFloor: 0),
+            new ParamSpec("radius", "param.radius", ParamUnit.Px, 0, 128, 0, 32, 8, LerpWithOpacity: true, LerpFloor: 0),
         };
 
         /// <summary>The blur is done by the pre-blur stage; the shader never changes the picture.</summary>

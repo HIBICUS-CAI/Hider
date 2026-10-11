@@ -3,10 +3,10 @@ namespace Hider.Core.Mosaic
     /// <summary>
     /// One numeric setting of a method or of a pattern kind. The settings popup builds a "slider + number box" row from it
     /// (FR-37): the box accepts <see cref="Min"/>..<see cref="Max"/>, the slider covers the usual range
-    /// <see cref="SliderMin"/>..<see cref="SliderMax"/>. A unit of "%" means the stored value is a fraction (0.2 = 20%).
+    /// <see cref="SliderMin"/>..<see cref="SliderMax"/>.
     /// </summary>
     public sealed record ParamSpec(
-        string Key, string LabelKey, string Unit,
+        string Key, string LabelKey, ParamUnit Unit,
         double Min, double Max,
         double SliderMin, double SliderMax,
         double Default, bool LogScale = false,
@@ -15,8 +15,11 @@ namespace Hider.Core.Mosaic
         /// <summary>Share of the slider used for Min..SliderMin when a log slider must also reach Min (e.g. interval 0).</summary>
         public const double LogZeroZone = 0.02;
 
-        /// <summary>Factor from the stored value to the number shown (100 for "%").</summary>
-        public double DisplayFactor => Unit == "%" ? 100.0 : 1.0;
+        /// <summary>Whether the stored value is a fraction shown as a percentage.</summary>
+        public bool IsFraction => Unit == ParamUnit.Percent;
+
+        /// <summary>Factor from the stored value to the number shown (100 for a fraction).</summary>
+        public double DisplayFactor => IsFraction ? 100.0 : 1.0;
 
         public double Clamp(double _value)
         {

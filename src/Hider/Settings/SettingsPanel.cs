@@ -71,7 +71,7 @@ namespace Hider.Settings
 
             // Opacity: alpha for fill / generated (10..100 %), fineness for mosaic (0..100 %), spec §4.5.
             double min = model.Pattern == PatternKind.Mosaic ? 0.0 : Area.MinAlphaOpacity;
-            var opacity = new ParamRow(new ParamSpec("opacity", "settings.opacity", "%", min, 1, min, 1, 1));
+            var opacity = new ParamRow(new ParamSpec("opacity", "settings.opacity", ParamUnit.Percent, min, 1, min, 1, 1));
             opacity.SetValue(model.EffectiveOpacity);
             opacity.ValueChanged += (v, typed) =>
             {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Hider.Core.Mosaic;
 
 namespace Hider.Core
 {
@@ -71,6 +72,17 @@ namespace Hider.Core
             ["fallback.title"] = "Hider（トレイが使えないため窓で表示しています）",
         };
 
+        /// <summary>Units after a number box. Symbols such as "px" are not Japanese words, so they are kept apart from texts.</summary>
+        private static readonly Dictionary<ParamUnit, string> units = new()
+        {
+            [ParamUnit.None] = "",
+            [ParamUnit.Px] = "px",
+            [ParamUnit.Colors] = "色",
+            [ParamUnit.Steps] = "段",
+            [ParamUnit.Percent] = "%",
+            [ParamUnit.Ms] = "ms",
+        };
+
         /// <summary>Platform name shown as a badge next to Linux-only settings. A proper noun, not translated.</summary>
         public const string LinuxBadge = "Linux";
 
@@ -78,6 +90,11 @@ namespace Hider.Core
         public const string AppName = "Hider";
 
         public static IReadOnlyDictionary<string, string> All => texts;
+
+        public static string Unit(ParamUnit _unit)
+        {
+            return units[_unit];
+        }
 
         public static bool Contains(string _key)
         {
