@@ -15,6 +15,9 @@
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- Distro-built SDKs (e.g. Ubuntu's dotnet-sdk-10.0) add a local library-packs source whose ILLink package
+         differs from the nuget.org one, which breaks the lock file hashes. Always restore from nuget.org. -->
+    <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
   </PropertyGroup>
 
 </Project>
