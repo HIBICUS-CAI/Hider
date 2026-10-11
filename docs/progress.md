@@ -124,3 +124,72 @@ spikes/S-1、S-2、S-4、S-5、S-6、S-8 の README の手順を実行し、「�
 ### 8. 次 Step の前提
 
 P-3 により Step 2（Core）へ進む。Step 2 は実機に依存しない。
+
+## Step 2: Core（モデル・登録・永続化・スケジューラ）（2026-10-11）
+
+### 1. 結果
+
+完了。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| 3 ランナーで Core テスト緑 | 達成 | https://github.com/HIBICUS-CAI/Hider/actions/runs/38162760316 （全 12 ジョブ success。実行後に履歴を整えるため 1 コミットだけ書き換え: テストファイルの未使用 using を 1 行削除したのみ） |
+| トリミング警告 0 | 達成 | `python scripts/build.py linux-x64`（CI=true）で IL 警告なし、CI の publish 3 RID も成功 |
+| `--selftest` が JSON 往復を含む | 達成 | AppState（全フィールド・全登録手法・未知手法 ID）をファイル経由で Save → Load して一致を確認、全 .sksl をコンパイル。CI publish 3 RID で `selftest passed` |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| c54c1e5 | モデル（Area、MethodSettings、既定値、色、ID） |
+| 5566d63 | 移動・リサイズの幾何計算 |
+| dcabc2d | 配置計算（Placement.Fit、新規エリア） |
+| 18769d2 | Strings |
+| 93a4d76 | 手法の登録基盤（ParamSpec、ParamValues、IMosaicMethod、MethodRegistry、SkslMethod）と pixelate / block スタブ |
+| 0c9c8e0 | MosaicPipeline の骨格と BuildPyramid |
+| 175789e | RefreshScheduler |
+| a232474 | AppState / HiderJsonContext / AreasFile |
+| 289c6fd | 保存先・単一インスタンス |
+| a478a07 | 拡張性の回帰テスト（CT-19） |
+| ead9c9b | --selftest の更新 |
+
+新規依存なし。全コミットが単体でビルドできることを確認済み（worktree で各コミットをビルド）。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 55 / 0 / 0 | 1 / 0 / 0 |
+| linux-x64 | 55 / 0 / 0 | 1 / 0 / 0 |
+| linux-arm64 | 55 / 0 / 0 | 1 / 0 / 0 |
+
+追加: CT-01〜18、CT-20〜40（CT-19 を含む Step 2 範囲すべて）、CT-50（BuildPyramid、Step 4 の ID だが Step 2 で実装したため前倒し）、CT-94〜98（色・Nudge・スライダー端・文字列書式・ID 補正）。
+
+### 5. 性能
+
+対象外。
+
+### 6. 提案
+
+なし（新規提案はなし。判断した事項は下記）。
+
+判断メモ:
+
+- 透明度は 0..1 で保持し、パターン別の下限（塗りつぶし・生成 0.10）は EffectiveOpacity で適用: パターンを切り替えても値を失わないため（FR-35）。
+- 生成シェーダの固定 uniform に baseColor と seed を含めた: 生成パターンに色とシードが必須なため。CT-15 の「ParamSpec.Key + 固定 uniform」を「種類ごとの固定 uniform」と解釈。
+- 単位 "%" は保存値が比率（JSON 例の variance 0.2 に合わせ、UI で ×100 表示）。ParamSpec に表示係数の項目を足さずに済ませた。
+- 対数スライダーは先頭 2% を 0..SliderMin の線形域にした（更新間隔 0 を扱うため、CT-07）。
+- RefreshScheduler に TimerPaused を追加（契約への追加）: ドラッグ中に Live でない取得のタイマーを止めるため（CT-40、FR-38）。
+- Placement.Fit の縮小は「どの画面とも交差せず移動する時」だけ: 交差しているエリアを縮めると複数モニタにまたがるエリアが壊れるため。
+- MethodSettings の Common / Params は init ではなく set: JSON ソース生成が欠けた init プロパティに null を代入するため（CT-29 で発見）。
+- CT-13 の既知 ID 集合は現時点の {pixelate, block}。Step 6 で 5 手法に更新する。
+
+### 7. 人間への依頼
+
+なし（Step 1 の依頼が未回答のまま）。
+
+### 8. 次 Step の前提
+
+Step 3（App の骨格）へ。ゲート（S-1・S-2）は P-3 により仮通過。Xvfb（コンポジタなし）で起動・復元・編集モード・ドラッグ・Esc・保存の動作を確認しながら進める。
