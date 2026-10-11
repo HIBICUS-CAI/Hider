@@ -35,6 +35,15 @@ namespace Hider.Core.Mosaic
             return image;
         }
 
+        /// <summary>Hands the cached image over (the caller frees it, e.g. on the render thread when it is a GPU texture).</summary>
+        public SKImage? Detach()
+        {
+            var detached = image;
+            image = null;
+            key = null;
+            return detached;
+        }
+
         public void Dispose()
         {
             image?.Dispose();

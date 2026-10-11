@@ -229,6 +229,24 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
+        public void GeneratedCache_Detach_HandsTheImageOver()
+        {
+            // The owner frees a detached image itself (on the render thread for GPU textures); the cache draws anew.
+            var method = MethodRegistry.Find("block")!;
+            var p = ParamValues.ForGenerated(method, new MethodSettings<GeneratedCommon>());
+            using var cache = new GeneratedCache();
+            var first = cache.Get(method, p, new SKSizeI(40, 30));
+            using (var detached = cache.Detach())
+            {
+                Assert.Same(first, detached);
+            }
+            Assert.Null(cache.Detach());
+            var again = cache.Get(method, p, new SKSizeI(40, 30));
+            Assert.NotSame(first, again);
+            Assert.Equal(2, cache.RenderCount);
+        }
+
+        [Fact]
         public void CT58_LargeArea_CpuPathCompletes()
         {
             using var source = SyntheticImage.CreateImage(1920, 1080);

@@ -20,6 +20,9 @@ namespace Hider.Areas
     /// </summary>
     public sealed class MosaicPresenter : Control
     {
+        /// <summary>GPU images of closed areas, freed by the next draw on the render thread (where the GrContext lives).</summary>
+        private static readonly List<SKImage> retired = new();
+
         private readonly object cacheGate = new();
         private readonly GeneratedCache generated = new();
         private readonly MosaicPipeline pipeline = new();
@@ -82,6 +85,7 @@ namespace Hider.Areas
         /// <summary>Draws into <paramref name="_canvas"/> (render thread). Returns false when nothing could be drawn.</summary>
         private void Draw(SKCanvas _canvas, DrawOp _op)
         {
+            FreeRetired();
             var context = _canvas.Context;
             var dst = SKRect.Create((float)_op.Bounds.Width, (float)_op.Bounds.Height);
             using var paint = new SKPaint { BlendMode = SKBlendMode.Src };
@@ -212,14 +216,60 @@ namespace Hider.Areas
             base.OnDetachedFromVisualTree(_e);
         }
 
-        /// <summary>Frees the cached images (window closed).</summary>
+        /// <summary>
+        /// Drops the cached images (window closed; UI thread). Raster images are freed now; GPU textures must be freed on the
+        /// render thread with its GrContext, so they wait for the next draw of any area (crashes seen on Windows otherwise).
+        /// </summary>
         public void ReleaseCaches()
         {
             lock (cacheGate)
             {
-                generated.Dispose();
-                mosaicImage?.Dispose();
+                Retire(generated.Detach());
+                Retire(mosaicImage);
                 mosaicImage = null;
+                mosaicKey = null;
+            }
+        }
+
+        /// <summary>GPU images waiting for the render thread (tests).</summary>
+        public static int RetiredCount
+        {
+            get
+            {
+                lock (retired)
+                {
+                    return retired.Count;
+                }
+            }
+        }
+
+        private static void Retire(SKImage? _image)
+        {
+            if (_image is null)
+            {
+                return;
+            }
+            if (!_image.IsTextureBacked)
+            {
+                _image.Dispose();
+                return;
+            }
+            lock (retired)
+            {
+                retired.Add(_image);
+            }
+        }
+
+        /// <summary>Render thread, inside the Skia lease.</summary>
+        private static void FreeRetired()
+        {
+            lock (retired)
+            {
+                foreach (var image in retired)
+                {
+                    image.Dispose();
+                }
+                retired.Clear();
             }
         }
     }
