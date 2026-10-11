@@ -41,6 +41,10 @@ namespace Hider.Platform.Linux
         private bool refused;
         private long retryAt = long.MinValue;
 
+        /// <summary>How long Dispose (on the UI thread at exit) waits for a running grab and for closing the session.</summary>
+        public static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(3);
+
+        /// <param name="_portal">Owned: disposed with the grabber.</param>
         /// <param name="_screens">Monitors in X11 physical px (safe to call on the capture thread).</param>
         public PipeWireGrabber(IScreenCastPortal _portal, IHidercap _helper, RestoreTokenStore _tokens, Func<IReadOnlyList<ScreenInfo>> _screens,
             TimeProvider? _time = null)
@@ -236,10 +240,21 @@ namespace Hider.Platform.Linux
 
         private async Task CloseIdleAsync()
         {
-            await gate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await gate.WaitAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                return; // the timer fired while the grabber was being disposed; Dispose closed the session
+            }
             try
             {
                 await CloseAsync().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Log.Verbose($"screencast: idle close failed: {e.GetType().Name}: {e.Message}");
             }
             finally
             {
@@ -290,16 +305,35 @@ namespace Hider.Platform.Linux
 
         public void Dispose()
         {
-            gate.Wait();
+            if (disposed)
+            {
+                return;
+            }
+            // Called on the UI thread at exit. A grab still holding the gate is being cancelled (its area was disposed first),
+            // so the wait is short; it is bounded anyway, and the session is closed on the thread pool, where no await can
+            // need the UI thread back and a hung D-Bus call cannot hold up the exit for long.
+            bool entered = gate.Wait(DisposeTimeout);
             try
             {
                 disposed = true;
-                CloseAsync().GetAwaiter().GetResult();
+                if (!Task.Run(CloseAsync).Wait(DisposeTimeout))
+                {
+                    Log.Verbose("screencast: closing the session at exit timed out");
+                }
+            }
+            catch (AggregateException e)
+            {
+                Log.Verbose($"screencast: closing the session at exit failed: {e.InnerException?.Message}");
             }
             finally
             {
-                gate.Release();
+                if (entered)
+                {
+                    gate.Release();
+                    gate.Dispose(); // otherwise the holder still releases it
+                }
             }
+            portal.Dispose();
         }
     }
 }

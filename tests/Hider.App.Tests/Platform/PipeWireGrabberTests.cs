@@ -70,6 +70,7 @@ namespace Hider.App.Tests.Platform
 
             public void Dispose()
             {
+                _log.Add("portal dispose");
             }
         }
 
@@ -161,6 +162,18 @@ namespace Hider.App.Tests.Platform
             Assert.True(await Prepare(g));
             Assert.NotNull(await Grab(g));
             Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log.TakeLast(4));
+        }
+
+        [Fact]
+        public async Task Dispose_ClosesTheSessionAndDisposesThePortal_Once()
+        {
+            var g = Create();
+            Assert.True(await Prepare(g));
+            g.Dispose();
+            g.Dispose();
+            Assert.Equal(new[] { "stop", "portal close", "portal dispose" }, log.TakeLast(3));
+            Assert.Single(log, "portal dispose");
+            Assert.False(g.IsOpen);
         }
 
         [Fact]
