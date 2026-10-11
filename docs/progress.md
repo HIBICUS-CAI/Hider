@@ -585,3 +585,85 @@ docs/manual-tests.md の PT-21〜27（Ubuntu 26.04、arm64 実機）と spikes/S
 ### 8. 次 Step の前提
 
 Step 9（アイコン、README、ドキュメント、CI 全緑）へ。
+
+## Step 9: 仕上げ（2026-10-11）
+
+### 1. 結果
+
+コンテナでできる作業は完了。残りは人間による実機確認（PT 全項目、スパイク S-1 / S-2 / S-4〜S-6 / S-8 と S-3 の GPU）で、これが済むまで完了条件の「PT 全項目合格」「§11 の 11 項目が検証済み」は満たせない。
+
+### 2. 完了条件の達成表
+
+| 条件 | 結果 | 証跡 |
+|---|---|---|
+| CI の全ジョブ（テスト 3 OS、native 2 アーキテクチャ、publish 3 RID + selftest）が緑 | 達成 | https://github.com/HIBICUS-CAI/Hider/actions/runs/38171612913 （plan、test-core ×3、test-gui ×3（Linux は Xvfb の第 1 / 第 2 段階を含む）、native ×2、publish ×3 + selftest、summary） |
+| PT 全項目合格 | 人間待ち | docs/manual-tests.md（PT-01〜29） |
+| 仕様書 §11 の 11 項目が docs/spikes.md で全て「検証済み」 | 未達（人間待ち） | 検証済みは 9（トリミング）のみ。3（BeginMoveDrag）は使わない方針。残りは実機のスパイク / PT の結果待ち。Xvfb・偽ポータルで配線を確かめた項目はその旨を記載 |
+| アイコン（.ico / PNG / svg を scripts で生成、FR-71） | 達成 | scripts/make_icons.py、FR71_IconsLoadFromAssets、win-x64 の exe にアイコンが埋め込まれることを確認 |
+| ツールチップ FR-07 | 達成（Step 3 で実装済み） | GT-20、D-9 の窓の見出しにも同じ文言 |
+| キーボード操作の総点検 FR-33 | 達成 | GT-08〜10。設定ポップアップの入力欄で押したキーがエリア窓に届かない（ポップアップは別のトップレベル）ことも確認し、変更不要と判断 |
+| 画面外復元の実機確認 FR-63 | 人間待ち | CT-32〜34、GT-37、Xvfb では確認済み。実機の手順を PT-28 として追加 |
+| README | 達成 | README.md（使い方 / ビルド / インストール / 設定ファイル / 既知の制約） |
+| docs/ の更新、spikes/ の整理 | 達成 | CLAUDE.md、docs/spikes.md、spikes/README.md（全スパイクがビルドできることを確認） |
+
+### 3. 変更
+
+| コミット | 内容 |
+|---|---|
+| d58b029 | アイコン生成スクリプトと生成物、トレイ・exe・窓での使用 |
+| 2997013 | --selftest に Linux のヘルパ検査、総合結果を最後に出力 |
+| cdf2a80 / 1a71c47 | README、デスクトップエントリの説明を日本語に |
+| 504e293 / 951cd35 / a2304fd | spikes/README.md、CLAUDE.md、docs/spikes.md |
+
+新規依存なし。全コミットが単体でビルド・テストできることを確認済み。
+
+### 4. テスト
+
+| OS | Core pass / fail / skip | GUI pass / fail / skip |
+|---|---|---|
+| win-x64 | 135 / 0 / 0 | 66 / 0 / 0 |
+| linux-x64 | 135 / 0 / 0 | 66 / 0 / 0（+ Xvfb 第 1 段階・第 2 段階 合格） |
+| linux-arm64 | 135 / 0 / 0 | 66 / 0 / 0（+ Xvfb 第 1 段階・第 2 段階 合格） |
+
+追加: FR71_IconsLoadFromAssets。publish 3 RID の selftest 合格（linux はヘルパの読み込みも検査）。
+
+### 5. 性能
+
+変更なし（docs/perf.md）。
+
+### 6. 提案
+
+なし。判断メモ:
+
+- アイコンは 4×4 のモザイク（明るい左上から暗い右下）を角丸の正方形に。.ico は PNG を格納する形式（Vista 以降で全サイズ対応）。Python の画像ライブラリに頼らず標準ライブラリで書き出し、生成物をコミットする。
+- Windows のトレイは .ico を渡して DPI に応じた大きさを OS に選ばせ、Linux は 48 px の PNG を渡す。
+- §11 を「検証済み」にするのは実機の結果が出てから。Xvfb や偽ポータルでの確認は配線の確認であって、GNOME / Windows の挙動の検証ではない。
+
+### 7. 人間への依頼
+
+全体のまとめ（下記「最終確認のお願い」）を参照。
+
+### 8. 次 Step の前提
+
+なし（全 Step の実装が終わり、実機確認待ち）。
+
+## 最終確認のお願い（2026-10-11）
+
+実装・不具合修正・コンテナでの動作確認は終わりました。以下は人間にしかできない、または判断をお願いしたい項目です。
+
+### 実機での確認
+
+| 対象 | 項目 | 手順 |
+|---|---|---|
+| Windows 11 | S-1、S-4、S-3 の `--window`（GPU）、PT-01〜14、PT-28〜29 | spikes/S-n/README.md、docs/manual-tests.md |
+| Ubuntu 26.04（x64） | S-2、S-5、S-6、S-3 の `--window`、PT-15〜23、PT-25〜29 | 同上 |
+| linux-arm64 実機 | S-8、PT-24 | 同上 |
+
+結果（スクリーンショット、ログ、数値）を貼っていただければ docs/spikes.md・docs/perf.md・docs/progress.md に反映し、不具合があれば直します。
+
+### 判断をお願いしたいこと
+
+1. **FR-52 の切り替えの保存**: 取得に失敗するとエリアのパターンを「生成」に変えて保存する実装（Step 4 から）。一時的な失敗でも次回起動時は生成のまま。「表示だけ生成に切り替え、保存はモザイクのまま」に変える案があります。
+2. **pending の提案**: P-1（セル単位評価と結果のキャッシュ）、P-2（libhidercap の 4 関数 API）。いずれも推奨案で実装済み、コミットに `pending: P-n`。
+3. **仕様の解釈で決めたこと**: noise の scale は単位なし（値 × 4 px が格子間隔）、スライダーの保存は 500 ms のデバウンス、`CaptureRequest.ExcludeWindows[0]` は要求したエリア自身の窓（他のエリアは写る）、PT-27〜29 を追加。
+4. **CI の追加**: Linux の GUI ジョブで Xvfb + 偽ポータル（第 1 / 第 2 段階）を実行するため、apt で xvfb / xcompmgr / imagemagick / pipewire / wireplumber / gstreamer 等を入れています（1 ジョブあたり数十秒増）。
