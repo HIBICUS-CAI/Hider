@@ -78,7 +78,7 @@ namespace Hider.App.Tests.Areas
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(1920, 1080));
             var bridge = new AreaStripHost(a => Dispatcher.UIThread.Post(a));
-            using var coordinator = new StripCoordinator(grabber, bridge, () => bridge.Areas, () => new PhysicalRect(0, 0, 1920, 1080));
+            using var coordinator = new StripCoordinator(grabber, bridge, () => bridge.Areas);
             using var f = new AreaFixture(_capture: new UnavailableCapture(), _isWindows: false);
             bridge.Attach(f.Manager);
             var me = f.Add(new PhysicalRect(100, 200, 120, 16), PatternKind.Mosaic);

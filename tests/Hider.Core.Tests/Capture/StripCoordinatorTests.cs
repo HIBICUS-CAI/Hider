@@ -15,14 +15,13 @@ namespace Hider.Core.Tests.Capture
             public readonly FakeScreenGrabber Grabber;
             public readonly FakeStripHost Host;
             public readonly List<StripArea> Areas = new();
-            public PhysicalRect Bounds = Screen;
             public readonly StripCoordinator Coordinator;
 
             public Setup(FrameBuffer? _frame = null)
             {
                 Grabber = new FakeScreenGrabber(Log, _frame ?? CoordinateFrame.Create(Screen.Width, Screen.Height));
                 Host = new FakeStripHost(Log, Time);
-                Coordinator = new StripCoordinator(Grabber, Host, () => Areas.ToList(), () => Bounds, Time);
+                Coordinator = new StripCoordinator(Grabber, Host, () => Areas.ToList(), Time);
             }
 
             public StripArea Add(string _id, PhysicalRect _rect, PatternKind _kind = PatternKind.Mosaic)
@@ -195,6 +194,25 @@ namespace Hider.Core.Tests.Capture
             // Whole captures are serial too: a's strips are not interleaved with b's.
             var order = s.Log.Where(e => e.StartsWith("set")).Select(e => e.Split(' ')[1]).ToList();
             Assert.True(order.Take(3).Distinct().Count() == 1 && order.Skip(3).Distinct().Count() == 1, string.Join(",", order));
+        }
+
+        [Fact]
+        public async Task FrameNotCoveringTheArea_Unavailable()
+        {
+            // A one-monitor grabber (ScreenCast) is asked for the area's rectangle and must cover it.
+            var s = new Setup();
+            var rect = new PhysicalRect(500, 20, 100, 16);
+            s.Add("a", rect);
+            s.Grabber.Covers = new PhysicalRect(0, 0, 550, 480);
+            Assert.Equal(CaptureFailure.Unavailable, (await s.Capture(rect, 8)).Failure);
+            Assert.Equal(rect, s.Grabber.Needed[0]);
+            Assert.Empty(s.Host.Transparent);
+
+            s.Grabber.Frame = CoordinateFrame.Create(2560, 1080);
+            s.Grabber.Covers = new PhysicalRect(-1920, 0, 2560, 1080);
+            var result = await s.Capture(rect, 8);
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((500 + 1920, 20), CoordinateFrame.Decode(result.Frame!, 0, 0));
         }
 
         [Theory]

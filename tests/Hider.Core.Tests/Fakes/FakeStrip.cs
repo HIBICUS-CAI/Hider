@@ -1,4 +1,5 @@
 using Hider.Core.Capture;
+using Hider.Core.Model;
 
 namespace Hider.Core.Tests.Fakes
 {
@@ -44,6 +45,11 @@ namespace Hider.Core.Tests.Fakes
         }
 
         public FrameBuffer? Frame { get; set; }
+
+        /// <summary>What the frame shows; default: the frame's own size at the origin.</summary>
+        public PhysicalRect? Covers { get; set; }
+
+        public List<PhysicalRect> Needed { get; } = new();
         public bool Deny { get; set; }
 
         /// <summary>Fail (return null) on this call number (1-based); 0 = never.</summary>
@@ -62,7 +68,7 @@ namespace Hider.Core.Tests.Fakes
         public int MaxConcurrent { get; private set; }
         public List<long> NotBefore { get; } = new();
 
-        public async Task<FrameBuffer?> GrabAfterAsync(long _notBeforeTimestamp, CancellationToken _ct)
+        public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
             int now = Interlocked.Increment(ref running);
             try
@@ -72,6 +78,7 @@ namespace Hider.Core.Tests.Fakes
                     Calls++;
                     MaxConcurrent = Math.Max(MaxConcurrent, now);
                     NotBefore.Add(_notBeforeTimestamp);
+                    Needed.Add(_needed);
                     log.Add("grab");
                 }
                 OnGrab?.Invoke();
@@ -87,7 +94,11 @@ namespace Hider.Core.Tests.Fakes
                 {
                     throw new CaptureDeniedException("test");
                 }
-                return Calls == FailOnCall ? null : Frame;
+                if (Calls == FailOnCall || Frame is null)
+                {
+                    return null;
+                }
+                return new ScreenFrame(Frame, Covers ?? new PhysicalRect(0, 0, Frame.Width, Frame.Height));
             }
             finally
             {

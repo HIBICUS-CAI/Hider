@@ -80,7 +80,7 @@ namespace Hider
             }
             if (OperatingSystem.IsLinux())
             {
-                return new StripCoordinator(new PortalScreenshotGrabber(), _stripHost, () => _stripHost.Areas, () => _stripHost.Screen);
+                return new StripCoordinator(new PortalScreenshotGrabber(() => _stripHost.Screen), _stripHost, () => _stripHost.Areas);
             }
             return new UnavailableCapture();
         }

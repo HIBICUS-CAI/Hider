@@ -2,18 +2,22 @@ using Hider.Core.Model;
 
 namespace Hider.Core.Capture
 {
+    /// <summary>A grabbed frame and the part of the virtual screen it shows (physical px; the frame may be scaled).</summary>
+    public sealed record ScreenFrame(FrameBuffer Frame, PhysicalRect Covers);
+
     /// <summary>
-    /// Grabs the whole screen (Linux, design §5.3). The frame may be scaled relative to the physical virtual screen
-    /// (fractional scaling); <see cref="StripCoordinator"/> maps the coordinates.
+    /// Grabs the screen (Linux, design §5.3): the whole virtual screen (Screenshot portal) or one monitor (ScreenCast).
+    /// <see cref="StripCoordinator"/> maps area coordinates into the frame by <see cref="ScreenFrame.Covers"/>.
     /// </summary>
     public interface IScreenGrabber : IDisposable
     {
         /// <summary>
         /// A frame shown no earlier than <paramref name="_notBeforeTimestamp"/> (a <see cref="TimeProvider.GetTimestamp"/>
-        /// value of the coordinator's clock; with the system clock on Linux, CLOCK_MONOTONIC). Null when no frame can be had
-        /// (FR-52); throws <see cref="CaptureDeniedException"/> when the user refused.
+        /// value of the coordinator's clock; with the system clock on Linux, CLOCK_MONOTONIC) that covers
+        /// <paramref name="_needed"/>. Null when no such frame can be had (FR-52); throws <see cref="CaptureDeniedException"/>
+        /// when the user refused.
         /// </summary>
-        Task<FrameBuffer?> GrabAfterAsync(long _notBeforeTimestamp, CancellationToken _ct);
+        Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct);
     }
 
     /// <summary>The area windows' part of the strip method: draw some rows fully transparent, and back.</summary>

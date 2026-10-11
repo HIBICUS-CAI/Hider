@@ -13,19 +13,15 @@ namespace Hider.Core.Capture
         private readonly IScreenGrabber grabber;
         private readonly IStripHost host;
         private readonly Func<IReadOnlyList<StripArea>> areas;
-        private readonly Func<PhysicalRect> screenBounds;
         private readonly TimeProvider time;
         private readonly SemaphoreSlim serial = new(1, 1);
 
         /// <param name="_areas">Current areas; called on the capture thread, so it must be safe to call from there.</param>
-        /// <param name="_screenBounds">The virtual screen in physical px (what a full frame covers).</param>
-        public StripCoordinator(IScreenGrabber _grabber, IStripHost _host, Func<IReadOnlyList<StripArea>> _areas, Func<PhysicalRect> _screenBounds,
-            TimeProvider? _time = null)
+        public StripCoordinator(IScreenGrabber _grabber, IStripHost _host, Func<IReadOnlyList<StripArea>> _areas, TimeProvider? _time = null)
         {
             grabber = _grabber;
             host = _host;
             areas = _areas;
-            screenBounds = _screenBounds;
             time = _time ?? TimeProvider.System;
         }
 
@@ -88,21 +84,21 @@ namespace Hider.Core.Capture
                 }
                 // Every window has shown the transparent rows by now: any later frame is free of them (CT-82).
                 long notBefore = time.GetTimestamp();
-                FrameBuffer? frame;
+                ScreenFrame? frame;
                 try
                 {
-                    frame = await grabber.GrabAfterAsync(notBefore, _ct).ConfigureAwait(false);
+                    frame = await grabber.GrabAfterAsync(notBefore, _rect, _ct).ConfigureAwait(false);
                 }
                 catch (CaptureDeniedException e)
                 {
                     Log.Verbose($"strip capture denied: {e.Message}");
                     return CaptureFailure.Denied;
                 }
-                if (frame is null)
+                if (frame is null || frame.Covers.Intersect(_rect) != _rect)
                 {
                     return CaptureFailure.Unavailable;
                 }
-                CopyRows(frame, screenBounds(), _rect, _y0, _y1, _dst);
+                CopyRows(frame.Frame, frame.Covers, _rect, _y0, _y1, _dst);
                 return CaptureFailure.None;
             }
             finally

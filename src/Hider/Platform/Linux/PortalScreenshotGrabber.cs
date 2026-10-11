@@ -1,5 +1,6 @@
 using Hider.Core;
 using Hider.Core.Capture;
+using Hider.Core.Model;
 using SkiaSharp;
 using Tmds.DBus.Protocol;
 
@@ -16,13 +17,16 @@ namespace Hider.Platform.Linux
         public static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(60);
 
         private readonly string? address;
+        private readonly Func<PhysicalRect> screen;
         private readonly SemaphoreSlim connectLock = new(1, 1);
         private DBusConnection? connection;
         private int requests;
 
+        /// <param name="_screen">The virtual screen in physical px: what a screenshot shows.</param>
         /// <param name="_address">D-Bus address; null for the session bus.</param>
-        public PortalScreenshotGrabber(string? _address = null)
+        public PortalScreenshotGrabber(Func<PhysicalRect> _screen, string? _address = null)
         {
+            screen = _screen;
             address = _address ?? DBusAddress.Session;
         }
 
@@ -30,7 +34,7 @@ namespace Hider.Platform.Linux
         /// The portal shoots when called, and the coordinator calls after the windows have shown their transparent rows, so
         /// every result is newer than <paramref name="_notBeforeTimestamp"/>.
         /// </summary>
-        public async Task<FrameBuffer?> GrabAfterAsync(long _notBeforeTimestamp, CancellationToken _ct)
+        public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
             string? path = null;
             try
@@ -48,7 +52,8 @@ namespace Hider.Platform.Linux
                 switch (code)
                 {
                     case 0:
-                        return path is null ? null : ReadPng(path);
+                        var frame = path is null ? null : ReadPng(path);
+                        return frame is null ? null : new ScreenFrame(frame, screen());
                     case 1:
                         throw new CaptureDeniedException("screenshot portal: cancelled by the user");
                     default:
