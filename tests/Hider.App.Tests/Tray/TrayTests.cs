@@ -99,5 +99,44 @@ namespace Hider.App.Tests.Tray
             a.Delete();
             Assert.Equal("Hider — エリア 1 個", tray.ToolTip);
         }
+
+        [AvaloniaFact]
+        public async Task D9_NoTray_MenuWindowWithTheSameItems()
+        {
+            using var f = new AreaFixture();
+            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => Task.FromResult(false));
+            await Task.Yield();
+            var window = tray.FallbackWindow;
+            Assert.NotNull(window);
+            Assert.True(window!.IsVisible);
+            Assert.Equal(tray.Items.Select(i => i.Command), window.Buttons.Select(b => (TrayCommand)b.Tag!));
+            Assert.Equal("Hider — エリア 0 個", window.StatusText);
+
+            // The buttons work and the window follows the menu state (FR-03, FR-07).
+            window.Buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Single(f.Manager.Areas);
+            Assert.Equal("Hider — エリア 1 個", window.StatusText);
+            Assert.Equal(TrayCommand.EndEdit, (TrayCommand)window.Buttons[1].Tag!);
+
+            // Closing it would leave no way to the menu: it minimises instead.
+            window.Close();
+            Assert.True(window.IsVisible);
+            Assert.Equal(WindowState.Minimized, window.WindowState);
+        }
+
+        [AvaloniaFact]
+        public async Task D9_WithTray_NoMenuWindow()
+        {
+            using var f = new AreaFixture();
+            using var tray = new TrayController(Avalonia.Application.Current!, f.Manager, () => { }, () => Task.FromResult(true));
+            await Task.Yield();
+            Assert.Null(tray.FallbackWindow);
+        }
+
+        [Fact]
+        public async Task D9_ProbeWithoutBus_ReportsNoTray()
+        {
+            Assert.False(await Hider.Platform.Linux.StatusNotifierProbe.HasWatcherAsync("unix:path=/nonexistent/hider-test-bus"));
+        }
     }
 }

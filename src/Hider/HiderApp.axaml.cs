@@ -54,7 +54,8 @@ namespace Hider
                 uiPost, OperatingSystem.IsWindows(), capture, AreaServices.OnThreadPool));
             stripHost.Attach(areas);
             areas.Restore();
-            tray = new TrayController(this, areas, () => _desktop.Shutdown());
+            tray = new TrayController(this, areas, () => _desktop.Shutdown(),
+                OperatingSystem.IsLinux() ? () => StatusNotifierProbe.HasWatcherAsync() : null);
 
             // Save on exit and session end (FR-06, FR-61); every change is also saved as it happens.
             _desktop.ShutdownRequested += (_, _) => areas.SaveNow();

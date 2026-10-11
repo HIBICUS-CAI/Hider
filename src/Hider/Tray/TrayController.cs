@@ -9,7 +9,8 @@ namespace Hider.Tray
 {
     /// <summary>
     /// The tray icon and its menu (FR-01, FR-03 .. FR-07). Right click (and both clicks on GNOME's AppIndicator) opens the
-    /// native menu; a left click on Windows opens <see cref="TrayPopupWindow"/> with the same items.
+    /// native menu; a left click on Windows opens <see cref="TrayPopupWindow"/> with the same items. On Linux without a tray
+    /// the same items live in <see cref="TrayFallbackWindow"/> (D-9).
     /// </summary>
     public sealed class TrayController : IDisposable
     {
@@ -19,8 +20,11 @@ namespace Hider.Tray
         private readonly NativeMenu menu = new();
         private TrayPopupWindow? popup;
         private ConfirmDeleteWindow? confirm;
+        private TrayFallbackWindow? fallback;
+        private bool disposed;
 
-        public TrayController(Application _application, AreaManager _areas, Action _exit)
+        /// <param name="_trayAvailable">Linux only: whether a tray exists (null = never show the D-9 window).</param>
+        public TrayController(Application _application, AreaManager _areas, Action _exit, Func<Task<bool>>? _trayAvailable = null)
         {
             areas = _areas;
             exit = _exit;
@@ -29,6 +33,27 @@ namespace Hider.Tray
             TrayIcon.SetIcons(_application, new TrayIcons { icon });
             areas.Changed += Update;
             Update();
+            if (_trayAvailable is not null)
+            {
+                _ = ShowFallbackUnlessTrayAsync(_trayAvailable);
+            }
+        }
+
+        /// <summary>The D-9 window while it is shown.</summary>
+        public TrayFallbackWindow? FallbackWindow => fallback;
+
+        private async Task ShowFallbackUnlessTrayAsync(Func<Task<bool>> _trayAvailable)
+        {
+            bool tray = await _trayAvailable();
+            Log.Verbose(tray ? "tray: StatusNotifierWatcher found" : "tray: no StatusNotifierWatcher, showing the menu window (D-9)");
+            if (tray || disposed)
+            {
+                return;
+            }
+            fallback = new TrayFallbackWindow();
+            fallback.CommandSelected += c => _ = ExecuteAsync(c);
+            Update();
+            fallback.Show();
         }
 
         public IReadOnlyList<TrayMenuItem> Items => TrayMenuModel.Build(areas.Areas.Count, areas.AnyEditing);
@@ -53,6 +78,7 @@ namespace Hider.Tray
                 menu.Items.Add(native);
             }
             icon.ToolTipText = ToolTip;
+            fallback?.SetItems(Items, ToolTip);
         }
 
         public async Task ExecuteAsync(TrayCommand _command)
@@ -125,7 +151,9 @@ namespace Hider.Tray
 
         public void Dispose()
         {
+            disposed = true;
             areas.Changed -= Update;
+            fallback?.CloseForExit();
             popup?.Close();
             confirm?.Close();
             icon.Dispose();
