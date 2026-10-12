@@ -21,6 +21,11 @@ namespace Hider.Core.Tests.Fakes
 
         public nint Handle => 0;
         public double Scale { get; }
+
+        /// <summary>The scale a window would get at a rectangle; the fixed scale unless a test changes it.</summary>
+        public Func<PhysicalRect, double>? ScaleAt { get; set; }
+
+        public double ScaleFor(PhysicalRect _rect) => ScaleAt?.Invoke(_rect) ?? Scale;
         public List<PhysicalRect> Placements { get; } = new();
         public bool Topmost { get; private set; } = true;
         public PhysicalRect Last => Placements[^1];

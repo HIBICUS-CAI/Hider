@@ -246,9 +246,14 @@ namespace Hider.Areas
             }
             else
             {
-                int side = Host.DipToPx(SideMarginDip);
-                int toolbarBand = Host.DipToPx(ToolbarHeightDip + ToolbarGapDip);
-                int toolbarWidth = Host.DipToPx(ToolbarWidthDip);
+                // The margins are worked out with the scale of the area alone, not of the window with its margins: the margins
+                // would otherwise decide the window's monitor, whose scale changes the margins (an area across a 100% / 200%
+                // border could flip between the two forever). The window may then get another scale than the margins were
+                // computed with; its content is laid out from the placed pixels (Host.Scale), so it still lines up.
+                double scale = Host.ScaleFor(area);
+                int side = DipToPx(SideMarginDip, scale);
+                int toolbarBand = DipToPx(ToolbarHeightDip + ToolbarGapDip, scale);
+                int toolbarWidth = DipToPx(ToolbarWidthDip, scale);
                 var screen = owner.Screens.ScreenAt(area.X, area.Y);
                 int screenTop = screen?.Bounds.Y ?? int.MinValue;
                 ToolbarInside = area.Y - toolbarBand < screenTop;
@@ -257,6 +262,11 @@ namespace Hider.Areas
             }
             Host.Place(WindowRect);
             Window.ApplyLayout();
+        }
+
+        private static int DipToPx(double _dip, double _scale)
+        {
+            return (int)Math.Ceiling(_dip * _scale - 1e-9);
         }
 
         /// <summary>Area origin inside the window, in physical pixels (0 when hidden).</summary>

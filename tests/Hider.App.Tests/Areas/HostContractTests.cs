@@ -1,5 +1,7 @@
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using Hider.Areas;
 using Hider.Core.Model;
 using Hider.Core.Persistence;
@@ -73,6 +75,29 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(fake, avalonia);
             Assert.Contains("enter-edit", fake);
             Assert.Contains("end-drag", fake);
+        }
+
+        [AvaloniaFact]
+        public void DisplayChange_RunsAfterTheCurrentMessage_OnceAndNotForTheScaleItWasPlacedWith()
+        {
+            // Avalonia raises ScalingChanged before it applies the system's suggested rectangle, and from inside Place when
+            // the move changes the DPI: the new layout must come after both, once, and not for the placement's own change.
+            var window = new Window();
+            var host = new AvaloniaWindowHost(window);
+            int raised = 0;
+            host.DisplayChanged += () => raised++;
+            host.Place(new PhysicalRect(10, 10, 200, 100));
+            host.QueueDisplayChanged(true);
+            Assert.Equal(0, raised);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, raised); // RenderScaling is the scale it was placed with
+            host.QueueDisplayChanged(false);
+            host.QueueDisplayChanged(true);
+            host.QueueDisplayChanged(false);
+            Assert.Equal(0, raised);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, raised);
+            window.Close();
         }
 
         private static List<string> Run(Func<AreaWindow, IAreaWindowHost> _factory)

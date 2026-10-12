@@ -369,6 +369,22 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void EditMargins_UseTheScaleOfTheAreaAlone()
+        {
+            // With the margins the window would reach a 200% monitor; worked out with that scale, the margins would move it
+            // back to the 100% one. They follow the area's own scale, so the layout is stable.
+            using var f = new AreaFixture(2.0);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            var host = f.Hosts.Single();
+            host.ScaleAt = _r => _r == areaRect ? 1.0 : 2.0; // the window is placed at 200% (host.Scale)
+            area.Layout();
+            Assert.Equal(areaRect.X - (int)AreaController.SideMarginDip, host.Last.X);
+            int count = host.Placements.Count;
+            area.Layout();
+            Assert.Equal(host.Placements[count - 1], host.Last);
+        }
+
+        [AvaloniaFact]
         public void EnteringEditMode_ActivatesTheWindow_ShowingDoesNot()
         {
             // Arrows, Delete and Esc (FR-33) must work right after "add" or "edit all" from the tray, without a click first.

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Hider.Core.Model;
 
 namespace Hider.Platform
@@ -12,12 +13,15 @@ namespace Hider.Platform
     {
         private readonly Window window;
         private double? placedScale;
+        private bool scalingChanged;
+        private bool screensChanged;
+        private bool displayChangePosted;
 
         public AvaloniaWindowHost(Window _window)
         {
             window = _window;
-            window.ScalingChanged += (_, _) => DisplayChanged?.Invoke();
-            window.Screens.Changed += (_, _) => DisplayChanged?.Invoke();
+            window.ScalingChanged += (_, _) => QueueDisplayChanged(true);
+            window.Screens.Changed += (_, _) => QueueDisplayChanged(false);
         }
 
         public event Action? DisplayChanged;
@@ -33,10 +37,11 @@ namespace Hider.Platform
         {
             double scale = ScaleFor(_rect);
             placedScale = scale;
-            PlaceNative(_rect);
+            int width = WindowLength(_rect.Width, scale), height = WindowLength(_rect.Height, scale);
+            PlaceNative(new PhysicalRect(_rect.X, _rect.Y, width, height));
             window.Position = new PixelPoint(_rect.X, _rect.Y);
-            window.Width = AreaGeometry.DipLength(_rect.Width, scale);
-            window.Height = AreaGeometry.DipLength(_rect.Height, scale);
+            window.Width = DipLength(width, scale);
+            window.Height = DipLength(height, scale);
         }
 
         public void SetTopmost(bool _on)
@@ -45,14 +50,58 @@ namespace Hider.Platform
         }
 
         /// <summary>The scale the window gets at <paramref name="_rect"/>: by default that of the screen at its top-left corner.</summary>
-        protected virtual double ScaleFor(PhysicalRect _rect)
+        public virtual double ScaleFor(PhysicalRect _rect)
         {
             return ScaleAt(new PixelPoint(_rect.X, _rect.Y));
+        }
+
+        /// <summary>The window length in physical pixels for an area length (at least as long: the window may cover more).</summary>
+        protected virtual int WindowLength(int _px, double _scale)
+        {
+            return _px;
+        }
+
+        /// <summary>The DIP length Avalonia turns back into <paramref name="_px"/> physical pixels at <paramref name="_scale"/>.</summary>
+        protected virtual double DipLength(int _px, double _scale)
+        {
+            return AreaGeometry.DipLength(_px, _scale);
         }
 
         /// <summary>Moves and sizes the native window in one step before Avalonia applies the same values (optional).</summary>
         protected virtual void PlaceNative(PhysicalRect _rect)
         {
+        }
+
+        /// <summary>
+        /// Avalonia raises ScalingChanged before it applies the system's suggested rectangle (Win32 WM_DPICHANGED), and from
+        /// inside Place when the move itself changes the DPI. The new layout therefore runs once the current message is done,
+        /// and not at all for a scale the window was already placed with (the change Place itself caused).
+        /// </summary>
+        internal void QueueDisplayChanged(bool _scaling)
+        {
+            if (_scaling)
+            {
+                scalingChanged = true;
+            }
+            else
+            {
+                screensChanged = true;
+            }
+            if (displayChangePosted)
+            {
+                return;
+            }
+            displayChangePosted = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                displayChangePosted = false;
+                bool notify = screensChanged || (scalingChanged && (placedScale is not { } placed || Math.Abs(window.RenderScaling - placed) > 1e-6));
+                scalingChanged = screensChanged = false;
+                if (notify)
+                {
+                    DisplayChanged?.Invoke();
+                }
+            });
         }
 
         private double ScaleAt(PixelPoint _point)

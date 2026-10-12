@@ -60,6 +60,15 @@ namespace Hider.Platform.Windows
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool SetWindowPos(nint _hwnd, nint _insertAfter, int _x, int _y, int _cx, int _cy, uint _flags);
 
+        public const uint MONITOR_DEFAULTTONEAREST = 2;
+        public const int MDT_EFFECTIVE_DPI = 0;
+
+        [LibraryImport("user32.dll")]
+        public static partial nint MonitorFromRect(in Rect _rect, uint _flags);
+
+        [LibraryImport("shcore.dll")]
+        public static partial int GetDpiForMonitor(nint _monitor, int _dpiType, out uint _dpiX, out uint _dpiY);
+
         [LibraryImport("user32.dll")]
         public static partial nint GetDC(nint _hwnd);
 

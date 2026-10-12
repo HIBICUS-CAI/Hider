@@ -50,17 +50,29 @@ namespace Hider.Core.Tests.Model
             }
         }
 
-        [Fact]
-        public void MostOverlapping_PicksTheMonitorHoldingMostOfTheRect()
+        [Theory]
+        [InlineData(1.0)]
+        [InlineData(1.1)]
+        [InlineData(1.25)]
+        [InlineData(1.3)]
+        [InlineData(1.5)]
+        [InlineData(1.75)]
+        [InlineData(2.25)]
+        [InlineData(3.5)]
+        public void StableLength_SurvivesTheWin32RoundTrip_CoveringAtMostTwoPixelsMore(double _scale)
         {
-            var left = new PhysicalRect(0, 0, 1920, 1080);
-            var right = new PhysicalRect(1920, 0, 2560, 1440);
-            var screens = new[] { left, right };
-            Assert.Equal(1, AreaGeometry.MostOverlapping(new PhysicalRect(1900, 100, 400, 200), screens)); // top-left on the left one
-            Assert.Equal(0, AreaGeometry.MostOverlapping(new PhysicalRect(1700, 100, 400, 200), screens));
-            Assert.Equal(1, AreaGeometry.MostOverlapping(new PhysicalRect(2000, 1200, 10, 10), screens)); // below the left one's bottom
-            Assert.Equal(0, AreaGeometry.MostOverlapping(new PhysicalRect(9000, 9000, 10, 10), screens)); // nowhere: the first
-            Assert.Equal(-1, AreaGeometry.MostOverlapping(new PhysicalRect(0, 0, 10, 10), Array.Empty<PhysicalRect>()));
+            // Avalonia on Win32: WM_SIZE stores the client width as px / scale, and Resize sends (int)(width × scale) back.
+            for (int px = 1; px < 8000; px++)
+            {
+                int p = AreaGeometry.StableLength(px, _scale);
+                Assert.InRange(p, px, px + 2);
+                double stored = p / _scale;
+                Assert.Equal(p, (int)(stored * _scale));
+            }
+            if (_scale == 1.75)
+            {
+                Assert.Equal(62, AreaGeometry.StableLength(61, _scale)); // never 60
+            }
         }
     }
 }

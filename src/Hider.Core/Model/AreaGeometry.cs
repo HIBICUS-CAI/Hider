@@ -4,9 +4,10 @@ namespace Hider.Core.Model
     public static class AreaGeometry
     {
         /// <summary>
-        /// A window length in DIP for <paramref name="_px"/> physical pixels at <paramref name="_scale"/>. The platform turns
-        /// it back into pixels by truncating length × scale; a quarter pixel of slack keeps float error (175%: 61 / 1.75 ×
-        /// 1.75 = 60.99…) from losing the last column, which would leave a line of the content uncovered (NFR-05).
+        /// A window length in DIP for <paramref name="_px"/> physical pixels at <paramref name="_scale"/> (X11). The platform
+        /// turns it back into pixels by truncating length × scale; a quarter pixel of slack keeps float error (175%: 61 / 1.75
+        /// × 1.75 = 60.99…) from losing the last column, which would leave a line of the content uncovered (NFR-05). Win32
+        /// stores the size it is given back from WM_SIZE without the slack, so it uses <see cref="StableLength"/> instead.
         /// </summary>
         public static double DipLength(int _px, double _scale)
         {
@@ -14,36 +15,21 @@ namespace Hider.Core.Model
         }
 
         /// <summary>
-        /// The index of the screen sharing the most area with <paramref name="_rect"/> (Windows gives a window the DPI of that
-        /// monitor); the one containing the top-left corner when none overlaps; -1 for no screens.
+        /// The shortest length of at least <paramref name="_px"/> physical pixels that survives Avalonia's Win32 round trip at
+        /// <paramref name="_scale"/>: WM_SIZE stores px / scale and Resize sends back (int)(that × scale). A length that does
+        /// not survive (175%: 61 / 1.75 × 1.75 = 60.99…) would end up one pixel short, leaving a line of the content uncovered
+        /// (NFR-05); a pixel or two more (130%: 420 becomes 422) covers it.
         /// </summary>
-        public static int MostOverlapping(PhysicalRect _rect, IReadOnlyList<PhysicalRect> _screens)
+        public static int StableLength(int _px, double _scale)
         {
-            int best = -1;
-            long bestArea = 0;
-            for (int i = 0; i < _screens.Count; i++)
+            for (int p = _px; p < _px + 16; p++)
             {
-                var part = _screens[i].Intersect(_rect);
-                long area = part.IsEmpty ? 0 : (long)part.Width * part.Height;
-                if (area > bestArea)
+                if ((int)(p / _scale * _scale) == p)
                 {
-                    best = i;
-                    bestArea = area;
+                    return p;
                 }
             }
-            if (best >= 0)
-            {
-                return best;
-            }
-            for (int i = 0; i < _screens.Count; i++)
-            {
-                var s = _screens[i];
-                if (_rect.X >= s.X && _rect.X < s.Right && _rect.Y >= s.Y && _rect.Y < s.Bottom)
-                {
-                    return i;
-                }
-            }
-            return _screens.Count > 0 ? 0 : -1;
+            return _px + 1;
         }
 
         /// <summary>Minimum width / height in physical pixels for a window scale (24 DIP, FR-32).</summary>
