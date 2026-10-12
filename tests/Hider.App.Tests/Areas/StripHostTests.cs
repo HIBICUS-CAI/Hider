@@ -50,9 +50,13 @@ namespace Hider.App.Tests.Areas
             }
             var offset = area.AreaOffsetInWindow;
             int x = offset.X + 60;
+            // The headless platform renders a window that was just activated (edit mode) only when asked: one frame first,
+            // as the real render loop would have drawn it by the time a capture starts.
+            Render(area).Dispose();
 
             Wait(area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken));
             Assert.Equal((16, 24), area.Window.TransparentRows);
+            Assert.Equal(0, area.Window.StripFrameTimeouts); // completed by rendered frames, not by giving up after 250 ms
             using (var strip = Render(area))
             {
                 for (int y = 16; y < 24; y++)
@@ -71,6 +75,19 @@ namespace Hider.App.Tests.Areas
             {
                 Assert.Equal(255, restored.GetPixel(x, offset.Y + y).Alpha);
             }
+        }
+
+        [AvaloniaFact]
+        public void NoFrame_GivesUpAfterTheTimeout_AndCaptures()
+        {
+            // A frame that does not come in time (here: no time at all) does not hold the capture: the strip is taken anyway.
+            using var f = new AreaFixture();
+            var area = f.Add(new PhysicalRect(100, 200, 120, 80), PatternKind.Generated);
+            area.ExitEdit();
+            area.Window.StripFrameWait = TimeSpan.Zero;
+            Wait(area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken));
+            Assert.Equal((16, 24), area.Window.TransparentRows);
+            Assert.Equal(1, area.Window.StripFrameTimeouts);
         }
 
         [AvaloniaFact]

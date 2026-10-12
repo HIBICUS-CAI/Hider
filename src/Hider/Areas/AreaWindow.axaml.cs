@@ -195,7 +195,7 @@ namespace Hider.Areas
         private async Task WaitFramesAsync(CancellationToken _ct)
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_ct);
-            timeout.CancelAfter(StripFrameTimeout);
+            timeout.CancelAfter(StripFrameWait);
             try
             {
                 if (ElementComposition.GetElementVisual(this)?.Compositor is { } compositor)
@@ -211,9 +211,16 @@ namespace Hider.Areas
             }
             catch (OperationCanceledException) when (!_ct.IsCancellationRequested)
             {
-                Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameTimeout.TotalMilliseconds} ms, capturing anyway");
+                StripFrameTimeouts++;
+                Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameWait.TotalMilliseconds} ms, capturing anyway");
             }
         }
+
+        /// <summary>Strip changes captured after <see cref="StripFrameTimeout"/> instead of a rendered frame (tests).</summary>
+        internal int StripFrameTimeouts { get; private set; }
+
+        /// <summary><see cref="StripFrameTimeout"/>, shortened by tests.</summary>
+        internal TimeSpan StripFrameWait { get; set; } = StripFrameTimeout;
 
         public void CloseFromController()
         {

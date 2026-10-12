@@ -96,16 +96,46 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(areaRect.X + 50, host.Last.X + area.AreaOffsetInWindow.X);
         }
 
+        [AvaloniaTheory]
+        [InlineData(ResizeHandle.TopLeft, true, true, false, false)]
+        [InlineData(ResizeHandle.Top, false, true, false, false)]
+        [InlineData(ResizeHandle.TopRight, false, true, true, false)]
+        [InlineData(ResizeHandle.Left, true, false, false, false)]
+        [InlineData(ResizeHandle.Right, false, false, true, false)]
+        [InlineData(ResizeHandle.BottomLeft, true, false, false, true)]
+        [InlineData(ResizeHandle.Bottom, false, false, false, true)]
+        [InlineData(ResizeHandle.BottomRight, false, false, true, true)]
+        public void GT07_EachHandle_MovesOnlyItsEdges(ResizeHandle _kind, bool _left, bool _top, bool _right, bool _bottom)
+        {
+            // Through the visible handle (EditChrome's name-to-handle table included), not through AreaGeometry directly.
+            using var f = new AreaFixture();
+            var area = f.Add(areaRect);
+            var center = HandleCenter(area, _kind);
+            // The window moves with a left or top edge: pointer positions are given on the screen, as the user moves it.
+            var screenStart = area.Window.PointToScreen(center);
+            Point InWindow() => area.Window.PointToClient(screenStart + new PixelVector(15, 10));
+            area.Window.MouseDown(center, MouseButton.Left);
+            area.Window.MouseMove(InWindow());
+            area.Window.MouseUp(InWindow(), MouseButton.Left);
+            var r = area.Model.Rect;
+            Assert.Equal(areaRect.X + (_left ? 15 : 0), r.X);
+            Assert.Equal(areaRect.Y + (_top ? 10 : 0), r.Y);
+            Assert.Equal(areaRect.Right + (_right ? 15 : 0), r.Right);
+            Assert.Equal(areaRect.Bottom + (_bottom ? 10 : 0), r.Bottom);
+        }
+
+        private static Point HandleCenter(AreaController _area, ResizeHandle _kind)
+        {
+            var h = _area.Window.Chrome.Handles.Single(_x => _x.Kind == _kind).Control;
+            return new Point(Canvas.GetLeft(h) + h.Width / 2, Canvas.GetTop(h) + h.Height / 2);
+        }
+
         [AvaloniaFact]
         public void GT07_HandleDrag_MovesOneEdgeAndStopsAtMinimum()
         {
             using var f = new AreaFixture();
             var area = f.Add(areaRect);
-            Point Center(ResizeHandle _kind)
-            {
-                var h = area.Window.Chrome.Handles.Single(_x => _x.Kind == _kind).Control;
-                return new Point(Canvas.GetLeft(h) + h.Width / 2, Canvas.GetTop(h) + h.Height / 2);
-            }
+            Point Center(ResizeHandle _kind) => HandleCenter(area, _kind);
 
             var right = Center(ResizeHandle.Right);
             area.Window.MouseDown(right, MouseButton.Left);

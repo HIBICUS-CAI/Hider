@@ -1,6 +1,6 @@
 namespace Hider.Core.Model
 {
-    /// <summary>Where areas go on screen. Screens are given as physical-pixel rectangles (work areas).</summary>
+    /// <summary>Where areas go on screen. Screens are given as their bounds in physical pixels (not the work areas).</summary>
     public static class Placement
     {
         /// <summary>
