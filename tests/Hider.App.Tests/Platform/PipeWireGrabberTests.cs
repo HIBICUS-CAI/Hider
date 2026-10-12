@@ -89,6 +89,9 @@ namespace Hider.App.Tests.Platform
             public List<long> NotBeforeNs { get; } = new();
             public List<(int Row0, int Row1)> Rows { get; } = new();
             public List<int> TimeoutsMs { get; } = new();
+            /// <summary>When set, a grab blocks until it is signalled (a grab still running in the helper).</summary>
+            public ManualResetEventSlim? Block { get; set; }
+            public ManualResetEventSlim Entered { get; } = new();
             private bool started;
 
             public int Start(int _fd, uint _nodeId)
@@ -103,6 +106,8 @@ namespace Hider.App.Tests.Platform
             {
                 _log.Add("grab");
                 Assert.True(started, "grab before start");
+                Entered.Set();
+                Block?.Wait();
                 NotBeforeNs.Add(_notBeforeNs);
                 Rows.Add((_row0, _row1));
                 TimeoutsMs.Add(_timeoutMs);
@@ -182,6 +187,24 @@ namespace Hider.App.Tests.Platform
             Assert.Equal(stopCloseDispose, log.TakeLast(3));
             Assert.Single(log, "portal dispose");
             Assert.False(g.IsOpen);
+        }
+
+        [Fact]
+        public async Task Dispose_WhileAGrabRuns_LeavesTheHelperAlone()
+        {
+            // The first frame of a prepare waits in the helper and holds the gate; the helper takes no concurrent calls, so
+            // Dispose (at exit) must not stop the stream under it.
+            var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary }, time) { DisposeWait = TimeSpan.FromMilliseconds(50) };
+            using var block = new ManualResetEventSlim();
+            helper.Block = block;
+            var prepare = Prepare(g);
+            Assert.True(helper.Entered.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            g.Dispose();
+            Assert.DoesNotContain("stop", log);
+            Assert.DoesNotContain("portal close", log);
+            Assert.Contains("portal dispose", log);
+            block.Set();
+            await prepare;
         }
 
         [Fact]

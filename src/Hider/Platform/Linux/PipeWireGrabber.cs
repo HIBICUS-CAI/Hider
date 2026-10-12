@@ -48,6 +48,9 @@ namespace Hider.Platform.Linux
         /// <summary>How long Dispose (on the UI thread at exit) waits for a running grab and for closing the session.</summary>
         public static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(3);
 
+        /// <summary>DisposeTimeout, shortened by tests.</summary>
+        internal TimeSpan DisposeWait { get; init; } = DisposeTimeout;
+
         /// <param name="_portal">Owned: disposed with the grabber.</param>
         /// <param name="_helper">libhidercap (a fake in tests).</param>
         /// <param name="_tokens">Where the portal's restore token is kept.</param>
@@ -334,11 +337,18 @@ namespace Hider.Platform.Linux
             // Called on the UI thread at exit. A grab still holding the gate is being cancelled (its area was disposed first),
             // so the wait is short; it is bounded anyway, and the session is closed on the thread pool, where no await can
             // need the UI thread back and a hung D-Bus call cannot hold up the exit for long.
-            bool entered = gate.Wait(DisposeTimeout);
+            bool entered = gate.Wait(DisposeWait);
             try
             {
                 disposed = true;
-                if (!Task.Run(CloseAsync).Wait(DisposeTimeout))
+                if (!entered)
+                {
+                    // A grab (the first frame of a Prepare waits up to FirstFrameTimeoutMs and cannot be cancelled) still
+                    // runs in libhidercap, which takes no concurrent calls: stopping the stream now could destroy what it
+                    // waits on. The process is exiting, which closes PipeWire and D-Bus anyway.
+                    Log.Verbose("screencast: a grab is still running at exit; the session is left to the process exit");
+                }
+                else if (!Task.Run(CloseAsync).Wait(DisposeWait))
                 {
                     Log.Verbose("screencast: closing the session at exit timed out");
                 }
