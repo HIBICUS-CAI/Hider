@@ -1,6 +1,12 @@
 # 設計書: Hider v2 実装方針
 
-リポジトリの docs/v2-implementation-plan.md と同一内容。実装担当は Step 0 でこのタブをそのパスに Markdown として保存する。§9 の D-1〜D-12 は 2026-10-11 に承認済みで、作業指示書はこの節番号を「設計書 §n」として参照する。入力: 仕様書、UI デザインキャンバス、SelfTools/claude/new-hider の現行コード（付録タブ）。
+作業指示書の「設計書」タブを Step 0 でこのパスに保存したもの。§9 の D-1〜D-12 は 2026-10-11 に承認済みで、作業指示書はこの節番号を「設計書 §n」として参照する。入力: 仕様書、UI デザインキャンバス、SelfTools/claude/new-hider の現行コード（付録タブ）。
+
+**保守方針**（2026-10-12〜）: 承認時の内容は作業指示書のタブに残り、こちらはリポジトリの現状に合わせて保守する。
+
+- 実装で変わった事実（関数の数、配置、ランナー名など）は該当箇所を現状に書き換え、末尾の「改訂履歴」に理由のコミットまたは提案 ID を記録する。
+- 決定（D-n）の内容は書き換えない。未承認の提案で読み替えているものは、元の決定の後に「提案 P-n・未承認」と明記して併記する。承認されたら決定の本文に取り込み、その旨を改訂履歴に書く。
+- 提案の一覧と承認状況は `git log --grep "pending: P-"` / `git log --grep "resolved: P-"`（CLAUDE.md）。
 
 ## 0. 結論
 
@@ -286,8 +292,8 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 |---|---|
 | csproj | 既存（net10.0, self-contained, single-file, trimmed, InvariantGlobalization）を踏襲し、Hider.Core を ProjectReference |
 | バージョン固定 | Avalonia 12.1.4。SkiaSharp と Tmds.DBus.Protocol は Avalonia が参照する版に合わせる |
-| ネイティブヘルパ | native/hidercap: C、関数 2 つ、-fvisibility=hidden。linux-x64 / linux-arm64 を scripts/build.py が gcc で作り、runtimes/<rid>/native/ として publish に同梱 |
-| CI | GitHub Actions: windows-latest（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。詳細は GitHub Actions タブ |
+| ネイティブヘルパ | native/hidercap: C、公開関数 4 つ（hidercap_start / grab_after / last_sequence / stop。提案 P-2）、-fvisibility=hidden。linux-x64 / linux-arm64 を scripts/build.py が make（gcc）で native/hidercap/out/<rid>/ に作り、Hider.csproj が実行ファイルと同じディレクトリに同梱（single-file の外。既定の探索で読み込まれる） |
+| CI | GitHub Actions（workflow_dispatch のみ）: windows-2025（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（windows-latest を固定、Xvfb の通し確認など）は提案 P-8 |
 | 24.04 ランナーで 26.04 向けに作る | glibc は後方互換なので可。PipeWire は 0.3 系 ABI（libpipewire-0.3.so.0）で互換 |
 | アイコン | Windows .ico（16/20/24/32/48/256）、Linux PNG + svg。生成スクリプトを scripts に追加 |
 
@@ -304,7 +310,7 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | D-7 | Windows 取得の昇格条件 | PrintWindow で開始。実測で 1 コア 10% を超える、または常用アプリで黒になる窓が出たら WGC へ | §4.4 の支配項 |
 | D-8 | 編集モードのツールバー配置 | 同一ウィンドウ余白方式（§6.1） | AreaWindow の構造 |
 | D-9 | トレイが無い Linux 環境の扱い | 最小の常駐窓にフォールバック | 仕様は拡張前提のみ。何もしないと操作手段がなくなる |
-| D-10 | 設定変更の即時反映の粒度 | uniform 更新のみ（再取得しない）。更新間隔・帯の高さの変更は次回タイマーから（変更そのものでは撮らない。間隔を短くしたときは、予約済みの次回を「残り時間」と「変更時点から新しい間隔」の早い方に繰り上げる。提案 P-5） | FR-36 と Linux の露出回数の両立 |
+| D-10 | 設定変更の即時反映の粒度 | uniform 更新のみ（再取得しない）。更新間隔・帯の高さの変更は次回タイマーから（変更そのものでは撮らない）。<br>提案 P-5・未承認（実装はこちら）: 間隔を短くしたときは、予約済みの次回を「残り時間」と「変更時点から新しい間隔」の早い方に繰り上げる | FR-36 と Linux の露出回数の両立 |
 | D-11 | プロジェクト分割 | Hider / Hider.Core / tests + native | テストと CI の形 |
 | D-12 | ランタイムプラグイン | しない（コンパイル時登録） | 拡張性要件の解釈。トリミングとの整合 |
 
@@ -339,3 +345,11 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 - ISkiaSharpApiLeaseFeature（unstable）: [Custom rendering](https://docs.avaloniaui.net/docs/graphics-animation/custom-rendering)
 - GNOME 50 で X11 セッション削除、XWayland は残る（Ubuntu 26.04）: [GNOME 50 debuts with X11 axed](https://www.theregister.com/2026/03/19/gnome_50/)
 - ScreenCast の restore_token（persist_mode、トークンは使い切り）: [org.freedesktop.portal.ScreenCast](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
+
+## 改訂履歴（承認後）
+
+| 日付 | 節 | 内容 | 根拠 |
+|---|---|---|---|
+| 2026-10-12 | 冒頭 | 保守方針を追加 | PR #1 の指摘 |
+| 2026-10-12 | §8 | ネイティブヘルパの関数数（2 → 4）と同梱先（runtimes/<rid>/native/ → 実行ファイルと同じディレクトリ）、CI のランナー名（windows-latest → windows-2025）を現状に合わせた | 提案 P-2、P-8 |
+| 2026-10-12 | §9 | D-10 に未承認の提案 P-5 を併記していたのを、元の決定と区別して明記 | 提案 P-5 |
