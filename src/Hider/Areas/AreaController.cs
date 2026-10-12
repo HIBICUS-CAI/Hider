@@ -214,10 +214,8 @@ namespace Hider.Areas
             }
             Model.Pattern = _pattern;
             Transition?.Invoke($"pattern:{_pattern}");
-            if (_pattern == PatternKind.Mosaic)
-            {
-                CaptureFailed = false;
-            }
+            // The user chose: back to mosaic tries capturing again, fill and pattern have nothing to do with capturing.
+            CaptureFailed = false;
             ConfigureRefresh();
             Layout();
             owner.SaveNow();

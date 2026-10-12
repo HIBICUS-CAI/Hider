@@ -96,6 +96,12 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(33, area.Model.Mosaic.Params["pixelate"]["block"]);
             Assert.Equal("pixelate", area.Model.Mosaic.Method);
 
+            // Fill has nothing to do with capturing: the warning and the wider toolbar go.
+            area.SetPattern(PatternKind.Fill);
+            Assert.False(area.CaptureFailed);
+            Assert.False(area.Window.Toolbar.FailedText.IsVisible);
+            area.SetPattern(PatternKind.Generated);
+
             // Choosing mosaic again tries again (and clears the warning when it works).
             capture.Failure = CaptureFailure.None;
             area.SetPattern(PatternKind.Mosaic);
