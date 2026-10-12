@@ -141,7 +141,9 @@ namespace Hider.App.Tests.Areas
             // The cache really was dropped: the next frame draws the pattern again (and still covers the area).
             using var again = Capture(area);
             Assert.Equal(renders + 1, area.Window.PatternView.GeneratedRenderCount);
-            Assert.Equal(255, again.GetPixel(10, 10).Alpha);
+            // Inside the area, not the edit chrome around it (the area is in edit mode, scale 1).
+            var inside = area.AreaOffsetInWindow + new Avalonia.PixelPoint(10, 10);
+            Assert.Equal(255, again.GetPixel(inside.X, inside.Y).Alpha);
         }
 
         [AvaloniaFact]
