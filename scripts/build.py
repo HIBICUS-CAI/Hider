@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
@@ -70,9 +69,6 @@ def main() -> None:
     targets = parse_targets()
     if shutil.which('dotnet') is None:
         sys.exit('dotnet was not found in PATH, install the .NET 10 SDK first.')
-    env = os.environ.copy()
-    # Avalonia.BuildServices otherwise sends build telemetry.
-    env['AVALONIA_TELEMETRY_OPTOUT'] = '1'
     for target in targets:
         out_dir = publish_dir(target)
         print(f'Building {target} -> {out_dir}')
@@ -83,7 +79,6 @@ def main() -> None:
         subprocess.run(
             ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir)],
             check=True,
-            env=env,
         )
     print('Done.')
 
