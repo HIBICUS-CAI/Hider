@@ -10,4 +10,9 @@
     <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderILLinkVersion)" />
   </ItemGroup>
 
+  <!-- Avalonia.BuildServices (transitive) sends build statistics to avaloniaui.net from its AvaloniaStats target. The
+       documented opt-out is the AVALONIA_TELEMETRY_OPTOUT environment variable, which every machine would have to set;
+       replacing the target with an empty one turns it off for every build of this repository. -->
+  <Target Name="AvaloniaStats" />
+
 </Project>
