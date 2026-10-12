@@ -170,6 +170,25 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void GT08_ArrowKeys_CaptureTheNewPlaceWhenCommitted()
+        {
+            var capture = new FakeUnderlayCapture();
+            using var f = new AreaFixture(_capture: capture);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Model.Mosaic.Common.IntervalMs = 0; // no timer captures in between
+            area.SettingsChanged();
+            int calls = capture.Calls;
+            area.Window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            f.Time.Advance(TimeSpan.FromMilliseconds(300));
+            area.Window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            f.Time.Advance(TimeSpan.FromMilliseconds(499));
+            Assert.Equal(calls, capture.Calls);
+            f.Time.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.Equal(areaRect.Offset(2, 0), capture.Requests[^1].Rect);
+        }
+
+        [AvaloniaFact]
         public void GT09_DeleteKey_RemovesWithoutConfirmation()
         {
             using var f = new AreaFixture();

@@ -26,6 +26,7 @@ namespace Hider.Areas
         private readonly IAreaOwner owner;
         private readonly RefreshScheduler scheduler;
         private CancellationTokenSource? captureCancel;
+        private ITimer? nudgeTimer;
         private RefreshReason? heldForSettings;
         private RefreshReason? retakeAfterCancel;
         private RefreshReason runningReason;
@@ -205,7 +206,10 @@ namespace Hider.Areas
             RequestCapture(RefreshReason.Committed);
         }
 
-        /// <summary>Arrow keys: 1 px, Shift 10 px (FR-33). Saved 500 ms after the last key press (FR-61).</summary>
+        /// <summary>
+        /// Arrow keys: 1 px, Shift 10 px (FR-33). Saved 500 ms after the last key press (FR-61); the move is committed then,
+        /// and the new place is captured (FR-50), as at the end of a drag.
+        /// </summary>
         public void Nudge(int _dx, int _dy, bool _shift)
         {
             if (Mode != AreaMode.Editing)
@@ -215,6 +219,9 @@ namespace Hider.Areas
             Model.Rect = AreaGeometry.Nudge(Model.Rect, _dx, _dy, _shift);
             Layout();
             owner.SaveSoon();
+            nudgeTimer?.Dispose();
+            nudgeTimer = owner.Services.Time.CreateTimer(_ => owner.Services.UiPost(() => RequestCapture(RefreshReason.Committed)), null,
+                AreaManager.SaveDebounce, Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>Switches the pattern; the other kinds keep their settings (FR-35). Saved immediately (FR-61).</summary>
@@ -544,6 +551,7 @@ namespace Hider.Areas
         public void Dispose()
         {
             disposed = true;
+            nudgeTimer?.Dispose();
             captureCancel?.Cancel();
             scheduler.Dispose();
             Host.Dispose();
