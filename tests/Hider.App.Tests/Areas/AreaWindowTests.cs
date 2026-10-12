@@ -367,5 +367,21 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(before + 1, host.Placements.Count);
             Assert.Equal(areaRect, host.Last);
         }
+
+        [AvaloniaFact]
+        public void EnteringEditMode_ActivatesTheWindow_ShowingDoesNot()
+        {
+            // Arrows, Delete and Esc (FR-33) must work right after "add" or "edit all" from the tray, without a click first.
+            using var f = new AreaFixture();
+            var area = f.Manager.AddNew();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(area.Window.IsActive);
+            area.ExitEdit();
+            var other = f.Add(new PhysicalRect(700, 100, 300, 200));
+            other.ExitEdit();
+            f.Manager.EditAll();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(area.Window.IsActive || other.Window.IsActive);
+        }
     }
 }

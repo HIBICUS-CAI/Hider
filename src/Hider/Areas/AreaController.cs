@@ -124,6 +124,12 @@ namespace Hider.Areas
             Mode = AreaMode.Editing;
             Transition?.Invoke("enter-edit");
             Layout();
+            // Editing takes the keyboard (arrows, Delete, Esc: FR-33): the window is activated now. Showing an area does not
+            // take the focus (FR-11, ShowActivated is false); entering edit mode is the user's request to work on it.
+            if (Window.IsVisible)
+            {
+                Window.Activate();
+            }
             owner.ModeChanged(this);
         }
 
