@@ -46,7 +46,7 @@ CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。`on: push` / `
 
 - Step は順に進め、完了条件 + テスト緑 + 報告で閉じる。確認順: 実装 → テスト → `dotnet build -warnaserror` と `dotnet test` → `python scripts/build.py <rid>` → `--selftest`。
 - コミットは 1 コミット 1 つの内容。1 行目 `step<N>: <要約>`、本文に対応 FR と確認した RID（日本語）。
-- 生成物（bin/、obj/、publish 出力）はコミットしない。ゴールデン画像の更新は差分画像と理由を報告に添える（`HIDER_UPDATE_GOLDEN=1` で再生成）。
+- 生成物（bin/、obj/、publish 出力）はコミットしない。ゴールデン画像を更新したら、理由と差分の要約をコミット本文に書く（`HIDER_UPDATE_GOLDEN=1` で再生成。差分画像はコミットしない）。
 
 ### 禁止
 
