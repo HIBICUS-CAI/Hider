@@ -2,6 +2,7 @@
 #
 #   make RID=linux-x64      -> out/linux-x64/libhidercap.so
 #   make RID=linux-arm64    -> out/linux-arm64/libhidercap.so
+#   make test               -> builds and runs the unit test of frame_time.h (no PipeWire needed; host RID only)
 #
 # RID defaults to the host. Needs libpipewire-0.3-dev (pkg-config). Building for the other architecture needs a cross
 # compiler (picked automatically unless CC is given) and that architecture's libpipewire-0.3-dev; point pkg-config at
@@ -36,15 +37,16 @@ endif
 OUT_DIR := out/$(RID)
 TARGET  := $(OUT_DIR)/libhidercap.so
 SRCS    := hidercap.c
+TEST    := $(OUT_DIR)/test_frame_time
 
 PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(filter clean test,$(MAKECMDGOALS)),)
   ifneq ($(shell $(PKG_CONFIG) --exists libpipewire-0.3 && echo yes),yes)
     $(error libpipewire-0.3 not found by $(PKG_CONFIG): install libpipewire-0.3-dev (for $(RID)))
   endif
 endif
-PW_CFLAGS := $(shell $(PKG_CONFIG) --cflags libpipewire-0.3)
-PW_LIBS   := $(shell $(PKG_CONFIG) --libs libpipewire-0.3)
+PW_CFLAGS := $(shell $(PKG_CONFIG) --cflags libpipewire-0.3 2>/dev/null)
+PW_LIBS   := $(shell $(PKG_CONFIG) --libs libpipewire-0.3 2>/dev/null)
 
 CFLAGS ?= -O2
 # Required whatever CFLAGS / LDFLAGS say: the language level, warnings as errors, a position independent shared object
@@ -55,13 +57,21 @@ HIDERCAP_CFLAGS  := -std=c11 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fs
 HIDERCAP_CPPFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 HIDERCAP_LDFLAGS := -shared -Wl,--no-undefined -Wl,-soname,libhidercap.so -Wl,-z,relro,-z,now,-z,noexecstack
 
-.PHONY: all clean
+.PHONY: all clean test
 .DELETE_ON_ERROR:
 all: $(TARGET)
 
-$(TARGET): $(SRCS) hidercap.h Makefile
+$(TARGET): $(SRCS) hidercap.h frame_time.h Makefile
 	@mkdir -p $(OUT_DIR)
 	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) $(SRCS) -o $@ $(HIDERCAP_LDFLAGS) $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
+
+test: test_frame_time.c frame_time.h Makefile
+ifneq ($(RID),$(HOST_RID))
+	$(error make test runs the test on this machine: use the host RID ($(HOST_RID)))
+endif
+	@mkdir -p $(OUT_DIR)
+	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Werror $(CFLAGS) test_frame_time.c -o $(TEST) $(LDFLAGS)
+	./$(TEST)
 
 clean:
 	rm -rf out

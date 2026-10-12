@@ -267,8 +267,10 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task CT90_NotBefore_ConvertedToNanoseconds_TimeoutIsNull()
+        public async Task NotBefore_ConvertedToNanoseconds_TimeoutIsNull()
         {
+            // The C# side of CT-90 only: the helper is given notBefore in CLOCK_MONOTONIC ns. Which frames are old enough to
+            // skip is decided in libhidercap and tested there (native/hidercap/test_frame_time.c, "make test" in CI).
             using var g = Create();
             Assert.True(await Prepare(g));
             // FakeTimeProvider counts 100 ns ticks: 12345 ticks = 1 234 500 ns.

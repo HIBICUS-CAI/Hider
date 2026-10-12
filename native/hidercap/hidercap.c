@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "hidercap.h"
+#include "frame_time.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -15,12 +16,6 @@
 #include <spa/param/video/format-utils.h>
 #include <spa/pod/builder.h>
 
-/* Without the compositor's frame time (SPA_META_Header), a frame counts from its receive time minus this margin
- * (two frames at 60 Hz): it may have been rendered that much earlier (design §5.3, "固定待ち"). */
-#define RECEIVE_MARGIN_NS 33333333LL
-
-/* A frame time from SPA_META_Header is trusted only when it lies in the last 500 ms by CLOCK_MONOTONIC. */
-#define PTS_MAX_AGE_NS 500000000LL
 
 /* The layout PipeWireGrabber's HidercapFrame mirrors (HidercapTests checks the C# side). */
 _Static_assert(sizeof(hidercap_frame) == 32, "hidercap_frame layout");
@@ -44,8 +39,7 @@ static struct {
     struct pw_buffer *held;
     const uint8_t *held_data;
     int32_t held_stride;
-    int64_t pts_ns;
-    int pts_from_meta;
+    frame_time time;
     uint64_t sequence;
 } g;
 
@@ -57,12 +51,6 @@ static int64_t now_ns(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-
-/* The time the held frame was shown, as far as it is known. */
-static int64_t shown_at(void)
-{
-    return g.pts_from_meta ? g.pts_ns : g.pts_ns - RECEIVE_MARGIN_NS;
 }
 
 static void release_held(void)
@@ -123,16 +111,8 @@ static void on_process(void *_data)
     struct spa_buffer *buf = latest->buffer;
     struct spa_data *d = &buf->datas[0];
     struct spa_meta_header *header = spa_buffer_find_meta_data(buf, SPA_META_Header, sizeof(*header));
-    int64_t now = now_ns();
-    g.pts_ns = now;
-    g.pts_from_meta = 0;
-    /* Mutter stamps frames with CLOCK_MONOTONIC; a producer with another clock (GStreamer's running time, for one) gives
-     * values far from now, which would make every frame look too old or too new: use the receive time then. */
-    if (header != NULL && header->pts > 0 && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) == 0
-        && header->pts <= now && now - header->pts < PTS_MAX_AGE_NS) {
-        g.pts_ns = header->pts;
-        g.pts_from_meta = 1;
-    }
+    g.time = frame_time_pick(header != NULL, header != NULL ? header->pts : 0,
+        header != NULL && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) != 0, now_ns());
     g.held = latest;
     g.held_data = (const uint8_t *)d->data + d->chunk->offset;
     g.held_stride = chunk_stride(d);
@@ -297,8 +277,7 @@ int hidercap_grab_after(int64_t _not_before_ns, int32_t _timeout_ms, int32_t _ro
     struct timespec deadline;
     pw_thread_loop_get_time(g.loop, &deadline, (int64_t)_timeout_ms * SPA_NSEC_PER_MSEC);
     int result = HIDERCAP_OK;
-    /* Frames shown before not_before still show the old window contents (design §5.3, CT-90): wait for a newer one. */
-    while (g.error == 0 && (g.held == NULL || shown_at() < _not_before_ns)) {
+    while (g.error == 0 && (g.held == NULL || !frame_is_new_enough(g.time, _not_before_ns))) {
         if (pw_thread_loop_timed_wait_full(g.loop, &deadline) != 0) {
             result = HIDERCAP_TIMEOUT;
             break;
@@ -313,8 +292,8 @@ int hidercap_grab_after(int64_t _not_before_ns, int32_t _timeout_ms, int32_t _ro
         _out->width = width;
         _out->height = height;
         _out->stride = width * 4;
-        _out->pts_ns = g.pts_ns;
-        _out->pts_from_meta = g.pts_from_meta;
+        _out->pts_ns = g.time.pts_ns;
+        _out->pts_from_meta = g.time.from_meta;
         size_t needed = (size_t)width * (size_t)height * 4;
         if (_dst == NULL || _dst_size < 0 || (size_t)_dst_size < needed) {
             result = HIDERCAP_BUFFER_TOO_SMALL;

@@ -154,6 +154,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
       # A compile check on each architecture (-Werror, hardening flags); publish builds the helper it ships itself.
       - run: make -C native/hidercap RID=${{ matrix.rid }}
+      # CT-90: which frames a grab skips (frame_time.h), without PipeWire.
+      - run: make -C native/hidercap test RID=${{ matrix.rid }}
 
   publish:
     # After every check that ran (the scripts' lint included: publish runs build.py): a skipped GUI test or native job

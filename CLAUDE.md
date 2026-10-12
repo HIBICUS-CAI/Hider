@@ -33,6 +33,7 @@ dotnet build -c Release -warnaserror         # アナライザー（latest-recom
 dotnet format Hider.slnx --verify-no-changes # 書式（CI は linux-x64 で実行）
 dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
+make -C native/hidercap test                  # libhidercap のフレーム時刻の単体テスト（CT-90、PipeWire 不要）
 python scripts/build.py <rid>                 # bin/publish/<rid>/
 bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
