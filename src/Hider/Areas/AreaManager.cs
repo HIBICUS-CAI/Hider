@@ -121,6 +121,36 @@ namespace Hider.Areas
             }
         }
 
+        public bool AnySettingsOpen
+        {
+            get
+            {
+                foreach (var area in areas)
+                {
+                    if (area.Window.Settings is not null)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        public void SettingsOpenChanged(AreaController _area, bool _open)
+        {
+            foreach (var area in areas.ToArray())
+            {
+                if (_open)
+                {
+                    area.HoldForSettings();
+                }
+                else if (!AnySettingsOpen)
+                {
+                    area.ResumeAfterSettings();
+                }
+            }
+        }
+
         public void ModeChanged(AreaController _area)
         {
             Changed?.Invoke();

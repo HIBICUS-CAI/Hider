@@ -279,5 +279,56 @@ namespace Hider.App.Tests.Areas
             area.Window.ToggleSettings();
             Assert.Equal(calls + 1, capture.Calls);
         }
+
+        /// <summary>A strip capture (Linux) that can hang until it is cancelled.</summary>
+        private sealed class HangingStripCapture : Hider.Core.Capture.IUnderlayCapture
+        {
+            private readonly FakeUnderlayCapture inner = new();
+
+            public Hider.Core.Capture.CaptureTraits Traits => Hider.Core.Capture.CaptureTraits.NeedsStripCooperation;
+            public bool Hang { get; set; }
+            public int Calls { get; private set; }
+
+            public async Task<Hider.Core.Capture.CaptureResult> CaptureAsync(Hider.Core.Capture.CaptureRequest _request, CancellationToken _ct)
+            {
+                Calls++;
+                if (Hang)
+                {
+                    await Task.Delay(Timeout.Infinite, _ct);
+                }
+                return await inner.CaptureAsync(_request, _ct);
+            }
+
+            public void Dispose()
+            {
+            }
+        }
+
+        [AvaloniaFact]
+        public void SettingsOfAnotherArea_HoldsAndCancelsStripCaptures_WithoutFallingBack()
+        {
+            // Area A's settings panel may lie over area B: B's capture must not run, and one running when the popup opens is
+            // cancelled (not a capture failure) and taken again when the popup closes.
+            var capture = new HangingStripCapture();
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
+            capture.Hang = true;
+            b.Refresh();
+            int calls = capture.Calls;
+
+            a.Window.ToggleSettings();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // the cancelled capture finishes on the UI thread
+            Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
+            Assert.False(b.CaptureFailed);
+            capture.Hang = false;
+            b.Refresh();
+            Assert.Equal(calls, capture.Calls);
+
+            a.Window.ToggleSettings();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
+        }
     }
 }

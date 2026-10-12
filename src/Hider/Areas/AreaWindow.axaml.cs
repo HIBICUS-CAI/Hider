@@ -49,9 +49,9 @@ namespace Hider.Areas
             // IsOpen rather than Closed: Closed only comes when the popup window really opened.
             settingsPopup.PropertyChanged += (_, _e) =>
             {
-                if (_e.Property == Popup.IsOpenProperty && !settingsPopup.IsOpen)
+                if (_e.Property == Popup.IsOpenProperty)
                 {
-                    SettingsClosed?.Invoke();
+                    SettingsOpenChanged?.Invoke(settingsPopup.IsOpen);
                 }
             };
             Closing += (_, _e) => _e.Cancel = KeepOpen(closingAllowed, _e.CloseReason);
@@ -77,8 +77,8 @@ namespace Hider.Areas
         /// <summary>↻ pressed.</summary>
         public event Action? RefreshRequested;
 
-        /// <summary>The settings popup closed (light dismiss, ⚙ again, or leaving edit mode).</summary>
-        public event Action? SettingsClosed;
+        /// <summary>The settings popup opened (true) or closed (light dismiss, ⚙ again, or leaving edit mode).</summary>
+        public event Action<bool>? SettingsOpenChanged;
 
         /// <summary>The settings popup content while it is open (FR-35 .. FR-37).</summary>
         public SettingsPanel? Settings => settingsPopup.IsOpen ? settings : null;

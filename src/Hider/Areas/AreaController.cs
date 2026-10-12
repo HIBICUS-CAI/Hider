@@ -27,6 +27,8 @@ namespace Hider.Areas
         private readonly RefreshScheduler scheduler;
         private CancellationTokenSource? captureCancel;
         private RefreshReason? heldForSettings;
+        private RefreshReason runningReason;
+        private bool cancelledForSettings;
         private bool disposed;
         private ResizeHandle dragHandle;
         private PixelPoint dragStartPointer;
@@ -42,14 +44,7 @@ namespace Hider.Areas
             Window.Attach(this);
             Host = _hostFactory(Window);
             Window.RefreshRequested += Refresh;
-            Window.SettingsClosed += () =>
-            {
-                if (heldForSettings is { } reason)
-                {
-                    heldForSettings = null;
-                    RequestCapture(reason);
-                }
-            };
+            Window.SettingsOpenChanged += _open => owner.SettingsOpenChanged(this, _open);
         }
 
         public Area Model { get; }
@@ -275,14 +270,16 @@ namespace Hider.Areas
                 scheduler.EndRun(); // the run began when Due was raised
                 return;
             }
-            if (Window.Settings is not null && owner.Services.Capture.Traits.HasFlag(CaptureTraits.NeedsStripCooperation))
+            if (owner.AnySettingsOpen && NeedsStrips)
             {
-                // Linux: the settings popup is a top-level window of its own, outside the strip transparency, and may lie over
-                // the area: a screenshot now would put the panel into the mosaic. Capture once it closes.
+                // Linux: a settings popup is a top-level window of its own, outside the strip transparency, and may lie over
+                // this area (its own popup or another area's): a screenshot now would put the panel into the mosaic. Capture
+                // once every popup is closed.
                 heldForSettings = _reason;
                 scheduler.EndRun();
                 return;
             }
+            runningReason = _reason;
             owner.CaptureStarting();
             // ExcludeWindows[0] is this area's own window: the capture only looks at what lies below it.
             var others = owner.OwnWindows;
@@ -336,12 +333,43 @@ namespace Hider.Areas
             }, TaskContinuationOptions.ExecuteSynchronously);
         }
 
+        private bool NeedsStrips => owner.Services.Capture.Traits.HasFlag(CaptureTraits.NeedsStripCooperation);
+
+        /// <summary>
+        /// A settings popup opened (UI thread): a strip capture running now would put it into its remaining strips, so it is
+        /// cancelled and taken again once the popups are closed (<see cref="ResumeAfterSettings"/>).
+        /// </summary>
+        internal void HoldForSettings()
+        {
+            if (captureCancel is { } running && NeedsStrips && !running.IsCancellationRequested)
+            {
+                cancelledForSettings = true;
+                heldForSettings ??= runningReason;
+                running.Cancel();
+            }
+        }
+
+        /// <summary>Every settings popup is closed (UI thread): a capture held meanwhile runs now.</summary>
+        internal void ResumeAfterSettings()
+        {
+            if (heldForSettings is { } reason && captureCancel is null)
+            {
+                heldForSettings = null;
+                RequestCapture(reason);
+            }
+        }
+
         private void FinishCapture(RefreshReason _reason, CancellationTokenSource _cancel, CaptureResult _result, bool _ok)
         {
             try
             {
                 if (disposed)
                 {
+                    return;
+                }
+                if (cancelledForSettings && _cancel.IsCancellationRequested)
+                {
+                    // Not a failure (no FR-52 fallback): taken again when the popups are closed.
                     return;
                 }
                 if (_ok)
@@ -368,9 +396,14 @@ namespace Hider.Areas
                 if (captureCancel == _cancel)
                 {
                     captureCancel = null;
+                    cancelledForSettings = false;
                 }
                 _cancel.Dispose();
                 scheduler.EndRun();
+                if (!owner.AnySettingsOpen)
+                {
+                    ResumeAfterSettings(); // the popups closed while the cancelled capture was finishing
+                }
             }
         }
 
