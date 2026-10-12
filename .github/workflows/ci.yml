@@ -98,6 +98,7 @@ jobs:
       - run: pyright
       - run: ruff check scripts
       - run: ruff format --check scripts
+      - run: python scripts/check_wayland_list.py
 
   test-gui:
     if: ${{ inputs.run_gui_tests }}
