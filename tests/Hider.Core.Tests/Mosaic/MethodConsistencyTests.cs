@@ -58,6 +58,24 @@ namespace Hider.Core.Tests.Mosaic
             AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0.002);
         }
 
+        [Theory]
+        [InlineData(12, 1.5)]
+        [InlineData(12, 2.5)]
+        [InlineData(12, 3)]
+        [InlineData(7.6, 2.4)]
+        public void Generated_BlockCellsAndJointsMatchTheShader_FractionalValuesToo(double _cell, double _gap)
+        {
+            // The cell cache plus DrawJoints stand in for the shader; a fractional gap (a hand-edited file) used to make the
+            // joints a pixel narrower there.
+            var method = MethodRegistry.Find("block")!;
+            var settings = new MethodSettings<GeneratedCommon> { Method = "block" };
+            settings.ParamsFor("block")["cellSize"] = _cell;
+            settings.ParamsFor("block")["gap"] = _gap;
+            settings.ParamsFor("block")["variance"] = 1.0;
+            var p = ParamValues.ForGenerated(method, settings);
+            AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0);
+        }
+
         internal static void AssertClose(IMosaicMethod _method, MosaicInputs _inputs, ParamValues _p, double _maxShare)
         {
             int w = _inputs.AreaSize.Width, h = _inputs.AreaSize.Height;

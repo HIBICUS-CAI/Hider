@@ -20,9 +20,13 @@ namespace Hider.Core.Mosaic.Methods
             new ParamSpec("gap", "param.gap", ParamUnit.Px, 0, 64, 0, 8, 0),
         };
 
+        /// <summary>
+        /// Cell size and joint width are whole pixels (the settings show them so): a fractional joint from a hand-edited file
+        /// would be drawn differently by the shader (pixel centres) and by DrawJoints (rounded rectangle edges).
+        /// </summary>
         protected override double UniformValue(string _key, ParamValues _p)
         {
-            return _key == "cellSize" ? Math.Round(_p.Raw(_key)) : base.UniformValue(_key, _p);
+            return _key is "cellSize" or "gap" ? Math.Round(_p.Raw(_key)) : base.UniformValue(_key, _p);
         }
 
         /// <summary>Cell colors are constant per cell; joints are filled afterwards by <see cref="DrawJoints"/>.</summary>
@@ -34,7 +38,7 @@ namespace Hider.Core.Mosaic.Methods
         /// <summary>Joints of "gap" px on the right and bottom of each cell in the base color (same as the shader's rule).</summary>
         public void DrawJoints(SKCanvas _canvas, SKSizeI _size, int _cell, ParamValues _p)
         {
-            float gap = (float)Math.Min(_p.Raw("gap"), _cell);
+            float gap = (float)Math.Min(Math.Round(_p.Raw("gap")), _cell);
             if (gap <= 0)
             {
                 return;
