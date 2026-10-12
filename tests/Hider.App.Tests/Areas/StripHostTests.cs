@@ -11,6 +11,8 @@ namespace Hider.App.Tests.Areas
 {
     public class StripHostTests
     {
+        private static readonly string[] transparentRowsSeen = { "(0, 8)||", "(8, 16)|(0, 8)|" };
+
         private static SKBitmap Render(AreaController _area)
         {
             using var frame = _area.Window.CaptureRenderedFrame()!;
@@ -91,7 +93,7 @@ namespace Hider.App.Tests.Areas
             var task = coordinator.CaptureAsync(new CaptureRequest(me.Model.Rect, Array.Empty<nint>(), 8), TestContext.Current.CancellationToken);
             Wait(task);
 
-            Assert.Equal(new[] { "(0, 8)||", "(8, 16)|(0, 8)|" }, seen);
+            Assert.Equal(transparentRowsSeen, seen);
             Assert.Null(me.Window.TransparentRows);
             Assert.Null(over.Window.TransparentRows);
             Assert.Equal(new PhysicalRect(0, 0, 1920, 1080), f.Manager.StripScreen);

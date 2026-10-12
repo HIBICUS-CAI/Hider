@@ -9,6 +9,10 @@ namespace Hider.App.Tests.Tray
 {
     public class TrayTests
     {
+        private static readonly bool[] emptyEnabled = { true, false, false, true };
+        private static readonly bool[] emptySeparators = { false, false, false, true };
+        private static readonly string[] emptyLabels = { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "終了" };
+
         private static TrayController CreateTray(AreaFixture _f)
         {
             return new TrayController(Avalonia.Application.Current!, _f.Manager, () => { });
@@ -19,9 +23,9 @@ namespace Hider.App.Tests.Tray
         {
             var empty = TrayMenuModel.Build(0, false);
             Assert.Equal(new[] { TrayCommand.AddArea, TrayCommand.EditAll, TrayCommand.DeleteAll, TrayCommand.Exit }, empty.Select(_i => _i.Command));
-            Assert.Equal(new[] { true, false, false, true }, empty.Select(_i => _i.IsEnabled));
-            Assert.Equal(new[] { false, false, false, true }, empty.Select(_i => _i.SeparatorBefore));
-            Assert.Equal(new[] { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "終了" }, empty.Select(_i => _i.Label));
+            Assert.Equal(emptyEnabled, empty.Select(_i => _i.IsEnabled));
+            Assert.Equal(emptySeparators, empty.Select(_i => _i.SeparatorBefore));
+            Assert.Equal(emptyLabels, empty.Select(_i => _i.Label));
             Assert.All(TrayMenuModel.Build(2, false), _i => Assert.True(_i.IsEnabled));
 
             using var f = new AreaFixture();

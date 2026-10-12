@@ -13,6 +13,12 @@ namespace Hider.App.Tests.Platform
     [SupportedOSPlatform("linux")]
     public sealed class PipeWireGrabberTests : IDisposable
     {
+        private static readonly string[] prepareThenThreeGrabs = { "portal start", "start 77 42", "grab", "grab", "grab", "grab", "grab" };
+        private static readonly string[] stopAndClose = { "stop", "portal close" };
+        private static readonly string[] openAndFirstGrab = { "portal start", "start 77 42", "grab", "grab" };
+        private static readonly string[] stopCloseDispose = { "stop", "portal close", "portal dispose" };
+        private static readonly string[] noFirstFrame = { "portal start", "start 77 42", "grab", "stop", "portal close" };
+
         private static readonly ScreenInfo primary = new(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);
         private static readonly ScreenInfo right = new(new PhysicalRect(1920, 0, 2560, 1440), new PhysicalRect(1920, 0, 2560, 1400), 1.0, false);
 
@@ -115,7 +121,7 @@ namespace Hider.App.Tests.Platform
 
             public ulong LastSequence() => 3;
 
-            public void Stop()
+            public void StopStream()
             {
                 _log.Add("stop");
                 started = false;
@@ -154,16 +160,16 @@ namespace Hider.App.Tests.Platform
                 Assert.Equal(new PhysicalRect(0, 0, 1920, 1080), frame.Covers);
             }
             // The first grab (in the prepare) grows the buffer and asks again; the session stays open between grabs.
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab", "grab", "grab", "grab" }, log);
+            Assert.Equal(prepareThenThreeGrabs, log);
 
             // Closed after the idle time (the screen sharing indicator goes away), opened again by the next prepare. The
             // fake clock runs the timer and the close synchronously.
             time.Advance(PipeWireGrabber.IdleClose);
             Assert.False(g.IsOpen);
-            Assert.Equal(new[] { "stop", "portal close" }, log.TakeLast(2));
+            Assert.Equal(stopAndClose, log.TakeLast(2));
             Assert.True(await Prepare(g));
             Assert.NotNull(await Grab(g));
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log.TakeLast(4));
+            Assert.Equal(openAndFirstGrab, log.TakeLast(4));
         }
 
         [Fact]
@@ -173,7 +179,7 @@ namespace Hider.App.Tests.Platform
             Assert.True(await Prepare(g));
             g.Dispose();
             g.Dispose();
-            Assert.Equal(new[] { "stop", "portal close", "portal dispose" }, log.TakeLast(3));
+            Assert.Equal(stopCloseDispose, log.TakeLast(3));
             Assert.Single(log, "portal dispose");
             Assert.False(g.IsOpen);
         }
@@ -228,7 +234,7 @@ namespace Hider.App.Tests.Platform
             using var g = Create();
             Assert.False(await Prepare(g));
             Assert.False(g.IsOpen);
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "stop", "portal close" }, log);
+            Assert.Equal(noFirstFrame, log);
             // Backed off: stage 1 is used for a while instead of opening the portal for every capture.
             helper.GrabResult = Hidercap.Ok;
             Assert.False(await Prepare(g));
@@ -253,7 +259,7 @@ namespace Hider.App.Tests.Platform
             helper.GrabResult = Hidercap.StreamError;
             Assert.Null(await Grab(g));
             Assert.False(g.IsOpen, "a stream error closes it");
-            Assert.Equal(new[] { "stop", "portal close" }, log.TakeLast(2));
+            Assert.Equal(stopAndClose, log.TakeLast(2));
         }
 
         [Fact]
@@ -396,7 +402,7 @@ namespace Hider.App.Tests.Platform
             using var g = Create(primary, right);
             var ct = TestContext.Current.CancellationToken;
             Assert.True(await g.PrepareAsync(new PhysicalRect(2000, 100, 200, 100), ct));
-            Assert.Equal(new[] { "portal start", "start 77 42", "grab", "grab" }, log); // the first grab grows the buffer
+            Assert.Equal(openAndFirstGrab, log); // the first grab grows the buffer
             Assert.True(g.IsOpen);
             // Already open: nothing more to do. An area on the other monitor is not this grabber's.
             log.Clear();

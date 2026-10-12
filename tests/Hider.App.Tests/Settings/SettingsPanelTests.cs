@@ -13,6 +13,15 @@ namespace Hider.App.Tests.Settings
 {
     public class SettingsPanelTests
     {
+        private static readonly string[] fillRowLabels = { "透明度", "色", "プリセット" };
+        private static readonly string[] mosaicRowLabels = { "透明度", "手法", "ブロック", "ぼかし", "色数", "更新間隔", "帯の高さ" };
+        private static readonly string[] mosaicUnits = { "%", "px", "px", "色", "ms", "px" };
+        private static readonly string[] generatedRowLabels = { "透明度", "手法", "ベース色", "セルサイズ", "色のばらつき", "目地幅", "シード" };
+        private static readonly string[] generatedUnits = { "%", "px", "%", "px" };
+        private static readonly string[] presetColors = { "#68768A", "#2B2F36", "#4B4F57", "#8A8F99", "#C8CED8", "#3E5A7A", "#5B4B6E", "#6E5B3E" };
+        private static readonly string[] mosaicMethodIds = { "pixelate", "hexcell", "blur" };
+        private static readonly string[] generatedMethodIds = { "block", "noise" };
+
         private static (AreaFixture, AreaController, SettingsPanel) Open(PatternKind _pattern)
         {
             var f = new AreaFixture();
@@ -35,19 +44,19 @@ namespace Hider.App.Tests.Settings
             var (f1, _, fill) = Open(PatternKind.Fill);
             using (f1)
             {
-                Assert.Equal(new[] { "透明度", "色", "プリセット" }, fill.RowLabels);
+                Assert.Equal(fillRowLabels, fill.RowLabels);
             }
             var (f2, _, mosaic) = Open(PatternKind.Mosaic);
             using (f2)
             {
-                Assert.Equal(new[] { "透明度", "手法", "ブロック", "ぼかし", "色数", "更新間隔", "帯の高さ" }, mosaic.RowLabels);
-                Assert.Equal(new[] { "%", "px", "px", "色", "ms", "px" }, mosaic.ParamRows.Select(_r => _r.Unit.Text));
+                Assert.Equal(mosaicRowLabels, mosaic.RowLabels);
+                Assert.Equal(mosaicUnits, mosaic.ParamRows.Select(_r => _r.Unit.Text));
             }
             var (f3, _, generated) = Open(PatternKind.Generated);
             using (f3)
             {
-                Assert.Equal(new[] { "透明度", "手法", "ベース色", "セルサイズ", "色のばらつき", "目地幅", "シード" }, generated.RowLabels);
-                Assert.Equal(new[] { "%", "px", "%", "px" }, generated.ParamRows.Select(_r => _r.Unit.Text));
+                Assert.Equal(generatedRowLabels, generated.RowLabels);
+                Assert.Equal(generatedUnits, generated.ParamRows.Select(_r => _r.Unit.Text));
             }
         }
 
@@ -191,7 +200,7 @@ namespace Hider.App.Tests.Settings
             var (f, area, panel) = Open(PatternKind.Fill);
             using (f)
             {
-                Assert.Equal(new[] { "#68768A", "#2B2F36", "#4B4F57", "#8A8F99", "#C8CED8", "#3E5A7A", "#5B4B6E", "#6E5B3E" },
+                Assert.Equal(presetColors,
                     panel.PresetButtons.Select(_b => (string)_b.Tag!));
                 int saves = f.Manager.SaveCount;
                 panel.PresetButtons[5].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -241,7 +250,7 @@ namespace Hider.App.Tests.Settings
             {
                 var kind = _pattern == PatternKind.Mosaic ? MethodKind.Mosaic : MethodKind.Generated;
                 var methods = MethodRegistry.Filter(MethodRegistry.OfKind(kind), MethodRegistry.CurrentPlatform);
-                Assert.Equal(kind == MethodKind.Mosaic ? new[] { "pixelate", "hexcell", "blur" } : new[] { "block", "noise" },
+                Assert.Equal(kind == MethodKind.Mosaic ? mosaicMethodIds : generatedMethodIds,
                     methods.Select(_m => _m.Id));
                 for (int i = 0; i < methods.Count; i++)
                 {

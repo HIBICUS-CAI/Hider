@@ -18,7 +18,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- The XML files exist for the analyzers only: not shipped. -->
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>

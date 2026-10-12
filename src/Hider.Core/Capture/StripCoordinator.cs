@@ -16,7 +16,10 @@ namespace Hider.Core.Capture
         private readonly TimeProvider time;
         private readonly SemaphoreSlim serial = new(1, 1);
 
+        /// <param name="_grabber">Takes the screen frames (owned: disposed with the coordinator).</param>
+        /// <param name="_host">Makes the area windows' strips transparent and back.</param>
         /// <param name="_areas">Current areas; called on the capture thread, so it must be safe to call from there.</param>
+        /// <param name="_time">Clock of the not-before timestamps; the system clock when null.</param>
         public StripCoordinator(IScreenGrabber _grabber, IStripHost _host, Func<IReadOnlyList<StripArea>> _areas, TimeProvider? _time = null)
         {
             grabber = _grabber;

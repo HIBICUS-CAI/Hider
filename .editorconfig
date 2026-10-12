@@ -36,15 +36,14 @@ dotnet_style_qualification_for_method = false:suggestion
 # Unused usings (needs GenerateDocumentationFile to run in the build, see Directory.Build.props).
 dotnet_diagnostic.IDE0005.severity = warning
 
-# Underscores in names are the convention here (parameters "_name", test names "CT12_..."), so CA1707 does not apply, and
-# overrides keep that convention instead of the base parameter names (CA1725). No Visual Basic callers exist, and the
-# helper's methods mirror its C API names (CA1716).
+# Proposal P-4 (docs/progress.md): CA1707 (no underscores in names) and CA1725 (override parameters keep the base names)
+# contradict CLAUDE.md's parameter convention "_name" (and the CT-xx_ / GT-xx_ test names), so they are off.
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1725.severity = none
-dotnet_diagnostic.CA1716.severity = none
 
 # Naming (CLAUDE.md): constants PascalCase (.NET standard), parameters with a leading underscore, private fields (static
-# readonly included) plain camelCase. The constant rule comes first: the private field rule would match constants too.
+# readonly included) plain camelCase. Roslyn applies the most specific matching rule (modifiers, then accessibility, then
+# kind), so const fields follow the constant rule although the private field rule matches them too.
 dotnet_diagnostic.IDE1006.severity = warning
 dotnet_naming_rule.constants_pascal.severity = warning
 dotnet_naming_rule.constants_pascal.symbols = constants
@@ -67,7 +66,3 @@ dotnet_naming_rule.private_fields_camel.style = plain_camel
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_style.plain_camel.capitalization = camel_case
-
-[tests/**.cs]
-# Expected values are written inline as array literals; these are not hot paths (CA1861).
-dotnet_diagnostic.CA1861.severity = none

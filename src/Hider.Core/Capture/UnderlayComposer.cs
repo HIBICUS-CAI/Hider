@@ -4,8 +4,12 @@ using Hider.Core.Model;
 namespace Hider.Core.Capture
 {
     /// <summary>A top-level window as the Windows capture sees it (spec §6.2).</summary>
+    /// <param name="Handle">The HWND.</param>
     /// <param name="WindowRect">GetWindowRect (physical px): the area PrintWindow draws, including invisible resize borders.</param>
     /// <param name="FrameBounds">DWMWA_EXTENDED_FRAME_BOUNDS (physical px): the visible frame.</param>
+    /// <param name="Visible">IsWindowVisible and not minimised.</param>
+    /// <param name="Cloaked">DWMWA_CLOAKED (another virtual desktop, a suspended app): not on screen.</param>
+    /// <param name="ClassName">The window class (diagnostics and tests).</param>
     public sealed record WindowInfo(nint Handle, PhysicalRect WindowRect, PhysicalRect FrameBounds, bool Visible, bool Cloaked, string ClassName);
 
     /// <summary>One window's PrintWindow result: an image of its <see cref="WindowInfo.WindowRect"/>, or why there is none.</summary>

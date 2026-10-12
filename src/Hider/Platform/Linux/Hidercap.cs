@@ -30,7 +30,7 @@ namespace Hider.Platform.Linux
 
         ulong LastSequence();
 
-        void Stop();
+        void StopStream();
     }
 
     /// <summary>The real libhidercap.so next to the executable (scripts/build.py builds it; Hider.csproj ships it).</summary>
@@ -82,7 +82,7 @@ namespace Hider.Platform.Linux
             return hidercap_last_sequence();
         }
 
-        public void Stop()
+        public void StopStream()
         {
             hidercap_stop();
         }

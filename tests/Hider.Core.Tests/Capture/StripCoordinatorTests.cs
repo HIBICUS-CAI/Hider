@@ -6,6 +6,22 @@ namespace Hider.Core.Tests.Capture
 {
     public class StripCoordinatorTests
     {
+        private static readonly string[] wholeAreaLog = { "prepare", "set a 0-240", "grab", "restore a" };
+        private static readonly string[] threeStripsLog = {
+            "prepare",
+            "set a 0-8", "grab", "restore a",
+            "set a 8-16", "grab", "restore a",
+            "set a 16-20", "grab", "restore a",
+        };
+        private static readonly string[] overlapLog = {
+            "prepare",
+            "set me 0-8", "grab", "restore me",
+            "set me 8-16", "set over 0-8", "grab", "restore me", "restore over",
+        };
+        private static readonly string[] restoreBoth = { "restore a", "restore b" };
+        private static readonly string[] hangingLog = { "prepare", "set a 0-8", "grab" };
+        private static readonly string[] prepareOnly = { "prepare" };
+
         private static readonly PhysicalRect screenRect = new(0, 0, 640, 480);
 
         private sealed class Setup : IDisposable
@@ -66,7 +82,7 @@ namespace Hider.Core.Tests.Capture
             var result = await s.Capture(rect, 0);
             Assert.Equal(CaptureFailure.None, result.Failure);
             Assert.Equal(1, s.Grabber.Calls);
-            Assert.Equal(new[] { "prepare", "set a 0-240", "grab", "restore a" }, s.Log);
+            Assert.Equal(wholeAreaLog, s.Log);
         }
 
         [Fact]
@@ -78,13 +94,7 @@ namespace Hider.Core.Tests.Capture
             await s.Capture(rect, 8);
             // Each grab asks for its strip's rows only.
             Assert.Equal(new[] { new PhysicalRect(10, 20, 100, 8), new PhysicalRect(10, 28, 100, 8), new PhysicalRect(10, 36, 100, 4) }, s.Grabber.Needed);
-            Assert.Equal(new[]
-            {
-                "prepare",
-                "set a 0-8", "grab", "restore a",
-                "set a 8-16", "grab", "restore a",
-                "set a 16-20", "grab", "restore a",
-            }, s.Log);
+            Assert.Equal(threeStripsLog, s.Log);
         }
 
         [Fact]
@@ -116,12 +126,7 @@ namespace Hider.Core.Tests.Capture
             s.Add("gen", new PhysicalRect(120, 100, 50, 50), PatternKind.Generated);
             s.Add("away", new PhysicalRect(400, 300, 50, 50));            // mosaic, not overlapping
             await s.Capture(rect, 8);
-            Assert.Equal(new[]
-            {
-                "prepare",
-                "set me 0-8", "grab", "restore me",
-                "set me 8-16", "set over 0-8", "grab", "restore me", "restore over",
-            }, s.Log);
+            Assert.Equal(overlapLog, s.Log);
         }
 
         [Fact]
@@ -155,7 +160,7 @@ namespace Hider.Core.Tests.Capture
             Assert.Null(result.Frame);
             Assert.Equal(2, s.Grabber.Calls);
             Assert.Empty(s.Host.Transparent);
-            Assert.Equal(new[] { "restore a", "restore b" }, s.Log.TakeLast(2));
+            Assert.Equal(restoreBoth, s.Log.TakeLast(2));
 
             var denied = new Setup();
             denied.Add("a", rect);
@@ -179,7 +184,7 @@ namespace Hider.Core.Tests.Capture
             s.Grabber.Hang = true;
             using var cancel = new CancellationTokenSource();
             var task = s.Capture(rect, 8, cancel.Token);
-            Assert.Equal(new[] { "prepare", "set a 0-8", "grab" }, s.Log);
+            Assert.Equal(hangingLog, s.Log);
             Assert.Contains("a", s.Host.Transparent);
             cancel.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
@@ -234,13 +239,13 @@ namespace Hider.Core.Tests.Capture
             notReady.Add("a", rect);
             notReady.Grabber.Ready = false;
             Assert.Equal(CaptureFailure.Unavailable, (await notReady.Capture(rect, 8)).Failure);
-            Assert.Equal(new[] { "prepare" }, notReady.Log);
+            Assert.Equal(prepareOnly, notReady.Log);
 
             var denied = new Setup();
             denied.Add("a", rect);
             denied.Grabber.DenyPrepare = true;
             Assert.Equal(CaptureFailure.Denied, (await denied.Capture(rect, 8)).Failure);
-            Assert.Equal(new[] { "prepare" }, denied.Log);
+            Assert.Equal(prepareOnly, denied.Log);
         }
 
         [Theory]

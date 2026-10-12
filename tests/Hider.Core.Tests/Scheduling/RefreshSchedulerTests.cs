@@ -5,6 +5,8 @@ namespace Hider.Core.Tests.Scheduling
 {
     public class RefreshSchedulerTests
     {
+        private static readonly int[] tickTimesMs = { 100, 400, 700 };
+
         /// <param name="_endRunAtOnce">The handler ends each run right away, as a capture that finishes instantly.</param>
         private static (RefreshScheduler, FakeTimeProvider, List<(TimeSpan, RefreshReason)>) Create(bool _endRunAtOnce = false)
         {
@@ -86,7 +88,7 @@ namespace Hider.Core.Tests.Scheduling
             t2.Advance(TimeSpan.FromMilliseconds(50));
             s2.Configure(300);
             t2.Advance(TimeSpan.FromMilliseconds(700));
-            Assert.Equal(new[] { 100, 400, 700 }, log2.Select(_e => (int)_e.Item1.TotalMilliseconds));
+            Assert.Equal(tickTimesMs, log2.Select(_e => (int)_e.Item1.TotalMilliseconds));
             s2.Dispose();
 
             // Paused timer (drag with a non-live capture) skips ticks but keeps requests.

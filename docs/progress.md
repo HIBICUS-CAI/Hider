@@ -746,3 +746,14 @@ CT51_block_seed1234 を再生成した。理由: block / noise のセルハッ�
 - 件数: Core 158 / GUI 94。
 - 作業コンテナ（linux-x64）: build -warnaserror、dotnet format の検証、publish + selftest、Xvfb の第 1 / 第 2 段階がすべて成功。
 - CI: アナライザーを強制した時点で 3 OS の全ジョブが成功（https://github.com/HIBICUS-CAI/Hider/actions/runs/38184485525 ）。最終コミットでも実行（結果は PR に記載）。
+
+## PR #1 の 3 回目の指摘への対応（2026-10-12）
+
+### 提案
+
+**P-4: CA1707 / CA1725 を無効にする**
+
+- 問題: CLAUDE.md の命名規約「引数は `_name`」と、テスト名の `CT12_...` / `GT08_...` は、アナライザー規則 CA1707（識別子にアンダースコアを使わない）と CA1725（override の引数名を基底と同じにする）に必ず違反する。CLAUDE.md は「警告は抑制せず直す」とも定めている。
+- 選択肢: (a) 規約を変える（引数は camelCase、テスト名からアンダースコアをなくす。全コードの書き換え）。(b) 2 つの規則だけ .editorconfig で無効にし、規約を保つ。(c) 箇所ごとに抑制する（数百箇所）。
+- 推奨: (b)。命名規約は依頼者が決めたもので、2 つの規則はその規約と両立しない。それ以外の規則は抑制せずに直す。CA1716（予約語）は `IHidercap.Stop` を `StopStream` に改名し、CA1861（テストの定数配列）は static readonly に移し、CS1573（一部の引数だけ文書化）は全引数を文書化して、いずれも有効のままにした。
+- 影響: CLAUDE.md のコーディング規約、.editorconfig。該当コミットに `pending: P-4` を付ける。

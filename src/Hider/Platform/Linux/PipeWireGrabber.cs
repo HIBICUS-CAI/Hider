@@ -49,7 +49,10 @@ namespace Hider.Platform.Linux
         public static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(3);
 
         /// <param name="_portal">Owned: disposed with the grabber.</param>
+        /// <param name="_helper">libhidercap (a fake in tests).</param>
+        /// <param name="_tokens">Where the portal's restore token is kept.</param>
         /// <param name="_screens">Monitors in X11 physical px (safe to call on the capture thread).</param>
+        /// <param name="_time">Clock of the timestamps, the idle close and the back-off; the system clock when null.</param>
         public PipeWireGrabber(IScreenCastPortal _portal, IHidercap _helper, RestoreTokenStore _tokens, Func<IReadOnlyList<ScreenInfo>> _screens,
             TimeProvider? _time = null)
         {
@@ -294,7 +297,7 @@ namespace Hider.Platform.Linux
             session = null;
             covers = null;
             (frameWidth, frameHeight) = (0, 0);
-            helper.Stop();
+            helper.StopStream();
             await portal.CloseAsync(closing).ConfigureAwait(false);
         }
 

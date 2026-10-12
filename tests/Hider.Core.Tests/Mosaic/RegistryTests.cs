@@ -8,6 +8,10 @@ namespace Hider.Core.Tests.Mosaic
 {
     public class RegistryTests
     {
+        private static readonly string[] sourceChild = { "src" };
+        private static readonly string[] bothOnly = { "both" };
+        private static readonly string[] winOnlyAndBoth = { "winonly", "both" };
+
         // Rename detector: ids are JSON keys and must never change. D-5 fixes the v2.0 set.
         private static readonly string[] knownIds = { "pixelate", "hexcell", "blur", "block", "noise" };
 
@@ -44,7 +48,7 @@ namespace Hider.Core.Tests.Mosaic
                 using var effect = ShaderSource.Compile(method.Id);
                 var expected = method.Params.Select(_p => _p.Key).Concat(CommonParams.FixedUniforms(method.Kind)).Order().ToList();
                 Assert.Equal(expected, effect.Uniforms.Order().ToList());
-                Assert.Equal(method.Kind == MethodKind.Mosaic ? new[] { "src" } : Array.Empty<string>(), effect.Children.ToArray());
+                Assert.Equal(method.Kind == MethodKind.Mosaic ? sourceChild : Array.Empty<string>(), effect.Children.ToArray());
             }
         }
 
@@ -54,9 +58,9 @@ namespace Hider.Core.Tests.Mosaic
             var windowsOnly = new DummyMethod("winonly", MethodKind.Mosaic, PlatformSupport.Windows);
             var both = new DummyMethod("both", MethodKind.Mosaic, PlatformSupport.All);
             var linux = MethodRegistry.Filter(new IMosaicMethod[] { windowsOnly, both }, PlatformSupport.Linux);
-            Assert.Equal(new[] { "both" }, linux.Select(_m => _m.Id));
+            Assert.Equal(bothOnly, linux.Select(_m => _m.Id));
             var windows = MethodRegistry.Filter(new IMosaicMethod[] { windowsOnly, both }, PlatformSupport.Windows);
-            Assert.Equal(new[] { "winonly", "both" }, windows.Select(_m => _m.Id));
+            Assert.Equal(winOnlyAndBoth, windows.Select(_m => _m.Id));
             Assert.All(MethodRegistry.ForPlatform(PlatformSupport.Linux), _m => Assert.True(_m.Support.HasFlag(PlatformSupport.Linux)));
         }
 

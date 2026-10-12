@@ -132,6 +132,7 @@ namespace Hider.Core.Tests.Fakes
         private readonly List<string> log;
         private readonly FakeTimeProvider? time;
 
+        /// <param name="_log">Receives "set ..." and "restore ..." entries.</param>
         /// <param name="_time">Advanced by 5 ms per call, as if drawing took time; records when each finished.</param>
         public FakeStripHost(List<string> _log, FakeTimeProvider? _time = null)
         {

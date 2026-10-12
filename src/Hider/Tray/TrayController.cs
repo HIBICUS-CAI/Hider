@@ -22,6 +22,9 @@ namespace Hider.Tray
         private TrayFallbackWindow? fallback;
         private bool disposed;
 
+        /// <param name="_application">The application the tray icon belongs to.</param>
+        /// <param name="_areas">The areas the menu acts on.</param>
+        /// <param name="_exit">Quits Hider (FR-06: the areas are saved first).</param>
         /// <param name="_trayAvailable">Linux only: whether a tray exists (null = never show the D-9 window).</param>
         public TrayController(Application _application, AreaManager _areas, Action _exit, Func<Task<bool>>? _trayAvailable = null)
         {

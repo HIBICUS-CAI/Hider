@@ -42,6 +42,10 @@ namespace Hider
         internal TrayController? Tray => tray;
 
         /// <summary>No main window (FR-01): the tray icon and the restored areas (FR-02).</summary>
+        /// <param name="_desktop">The desktop lifetime (Shutdown on Exit, ShutdownRequested saves).</param>
+        /// <param name="_areasPath">areas.json to restore from and save to.</param>
+        /// <param name="_hostFactory">Creates each area window's host (platform hosts; a fake in tests).</param>
+        /// <param name="_handleSignals">Whether SIGTERM shuts down cleanly (not in tests).</param>
         /// <param name="_capture">The underlay capture; null for the platform's (<see cref="CreateCapture"/>).</param>
         /// <param name="_trayProbe">Whether a tray exists (Linux, D-9); null never shows the menu window.</param>
         internal void Start(IClassicDesktopStyleApplicationLifetime _desktop, string _areasPath, Func<AreaWindow, IAreaWindowHost> _hostFactory, bool _handleSignals,

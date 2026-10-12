@@ -29,6 +29,7 @@ namespace Hider.Core.Persistence
         public MethodSettings<MosaicCommon> Mosaic { get; set; } = new() { Method = AreaDefaults.MosaicMethod };
         public MethodSettings<GeneratedCommon> Generated { get; set; } = new() { Method = AreaDefaults.GeneratedMethod };
 
+        /// <param name="_area">The area to save (its rectangle in physical px).</param>
         /// <param name="_scale">Physical pixels per DIP of the window the area is on.</param>
         public static AreaState FromArea(Area _area, double _scale)
         {

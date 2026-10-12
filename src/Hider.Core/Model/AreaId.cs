@@ -4,6 +4,7 @@ namespace Hider.Core.Model
     public static class AreaId
     {
         /// <param name="_isTaken">Returns true for ids already in use; a new id is drawn until it returns false.</param>
+        /// <param name="_random">Source of the digits; Random.Shared when null (tests pass a seeded one).</param>
         public static string New(Func<string, bool> _isTaken, Random? _random = null)
         {
             var random = _random ?? Random.Shared;

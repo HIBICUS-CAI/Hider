@@ -7,6 +7,8 @@ namespace Hider.Core.Tests.Persistence
 {
     public sealed class AreasFileTests : IDisposable
     {
+        private static readonly string[] areaKeys = { "id", "x", "y", "width", "height", "opacity", "pattern", "fill", "mosaic", "generated" };
+
         // Work instructions §3.4 (version 1, decided).
         private const string SchemaSample = """
             {
@@ -237,7 +239,7 @@ namespace Hider.Core.Tests.Persistence
             string json = AreasFile.ToJson(new AppState { Areas = { AreaState.FromArea(SampleArea(), 1.0) } });
             using var doc = JsonDocument.Parse(json);
             var keys = doc.RootElement.GetProperty("areas")[0].EnumerateObject().Select(_p => _p.Name).ToArray();
-            Assert.Equal(new[] { "id", "x", "y", "width", "height", "opacity", "pattern", "fill", "mosaic", "generated" }, keys);
+            Assert.Equal(areaKeys, keys);
         }
 
         [Fact]
