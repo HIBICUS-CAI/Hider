@@ -262,14 +262,7 @@ namespace Hider.Platform.Linux
         /// </summary>
         internal async Task CloseIdleAsync(long _generation)
         {
-            try
-            {
-                await gate.WaitAsync().ConfigureAwait(false);
-            }
-            catch (ObjectDisposedException)
-            {
-                return; // the timer fired while the grabber was being disposed; Dispose closed the session
-            }
+            await gate.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (_generation != idleGeneration)
@@ -353,10 +346,11 @@ namespace Hider.Platform.Linux
             }
             finally
             {
+                // The gate is not disposed: a call waiting for it may get it from this Release and still release it
+                // itself, and a SemaphoreSlim whose AvailableWaitHandle is never used owns nothing unmanaged.
                 if (entered)
                 {
                     gate.Release();
-                    gate.Dispose(); // otherwise the holder still releases it
                 }
             }
             portal.Dispose();
