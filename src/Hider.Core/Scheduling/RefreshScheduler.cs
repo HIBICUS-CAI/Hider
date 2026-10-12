@@ -47,8 +47,10 @@ namespace Hider.Core.Scheduling
         }
 
         /// <summary>
-        /// Sets the timer interval. A running period is not cut short: the next tick still comes on the old schedule and the
-        /// new interval applies from there (D-10). 0 stops the timer; going from 0 to a value starts it from now.
+        /// Sets the timer interval. Nothing is captured because of the change itself (D-10: from the next timer). A longer
+        /// interval applies after the tick already scheduled; a shorter one re-arms the timer to tick one new interval from
+        /// now (otherwise going from an hour to 100 ms would wait up to the hour). 0 stops the timer; going from 0 to a value
+        /// starts it from now.
         /// </summary>
         public void Configure(int _intervalMs)
         {
@@ -63,6 +65,7 @@ namespace Hider.Core.Scheduling
                 {
                     return;
                 }
+                int previous = intervalMs;
                 intervalMs = interval;
                 if (interval == 0)
                 {
@@ -73,6 +76,10 @@ namespace Hider.Core.Scheduling
                 if (timer is null)
                 {
                     timer = time.CreateTimer(_ => OnTick(), null, TimeSpan.FromMilliseconds(interval), Timeout.InfiniteTimeSpan);
+                }
+                else if (interval < previous)
+                {
+                    timer.Change(TimeSpan.FromMilliseconds(interval), Timeout.InfiniteTimeSpan);
                 }
                 // Otherwise OnTick re-arms with the new interval after the tick already scheduled.
             }

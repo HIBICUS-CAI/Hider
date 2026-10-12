@@ -6,6 +6,7 @@ namespace Hider.Core.Tests.Scheduling
     public class RefreshSchedulerTests
     {
         private static readonly int[] tickTimesMs = { 100, 400, 700 };
+        private static readonly int[] ticksAfterShortening = { 1100, 1200 };
 
         /// <param name="_endRunAtOnce">The handler ends each run right away, as a capture that finishes instantly.</param>
         private static (RefreshScheduler, FakeTimeProvider, List<(TimeSpan, RefreshReason)>) Create(bool _endRunAtOnce = false)
@@ -54,6 +55,19 @@ namespace Hider.Core.Tests.Scheduling
             scheduler.Request(RefreshReason.Manual);
             Assert.Equal(new[] { RefreshReason.Created, RefreshReason.Committed, RefreshReason.Manual }, log.Select(_e => _e.Item2));
             Assert.All(log, _e => Assert.Equal(TimeSpan.Zero, _e.Item1));
+        }
+
+        [Fact]
+        public void ShorterInterval_TicksOneNewIntervalFromTheChange()
+        {
+            // An hour changed to 100 ms must not wait for the hour; nothing is captured by the change itself (D-10).
+            var (scheduler, time, log) = Create(true);
+            scheduler.Configure(3_600_000);
+            time.Advance(TimeSpan.FromMilliseconds(1000));
+            scheduler.Configure(100);
+            Assert.Empty(log);
+            time.Advance(TimeSpan.FromMilliseconds(250));
+            Assert.Equal(ticksAfterShortening, log.Select(_e => (int)_e.Item1.TotalMilliseconds));
         }
 
         [Fact]
