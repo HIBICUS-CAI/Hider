@@ -26,6 +26,7 @@ namespace Hider.Areas
         private static int backendLogged;
 
         private readonly object cacheGate = new();
+        private bool disposed;
         private readonly GeneratedCache generated = new();
         private readonly MosaicPipeline pipeline = new();
         private SKImage? mosaicImage;
@@ -105,6 +106,10 @@ namespace Hider.Areas
             var sampling = new SKSamplingOptions(SKFilterMode.Nearest);
             lock (cacheGate)
             {
+                if (disposed)
+                {
+                    return; // the window is closing: making new images here would leak them (GPU) past the retire list
+                }
                 if (_op.Method is not null && Frames is { } frames)
                 {
                     var image = frames.Read((_frame, _version) => _frame is null ? null : MosaicImage(_frame, _version, _op, context));
@@ -242,8 +247,16 @@ namespace Hider.Areas
         /// <summary>The area's window closed: its cached images go (<see cref="ReleaseCaches"/>).</summary>
         public void Dispose()
         {
-            ReleaseCaches();
-            generated.Dispose();
+            lock (cacheGate)
+            {
+                // Under the gate the render thread sees the flag; the images go through the retire list only, so a GPU
+                // texture is still freed on the render thread (never here on the UI thread).
+                disposed = true;
+                Retire(generated.Detach());
+                Retire(mosaicImage);
+                mosaicImage = null;
+                mosaicKey = null;
+            }
         }
 
         /// <summary>GPU images waiting for the render thread (tests).</summary>

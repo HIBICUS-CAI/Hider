@@ -146,5 +146,23 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(renders + 1, area.Window.PatternView.GeneratedRenderCount);
             Assert.Equal(255, again.GetPixel(10, 10).Alpha);
         }
+
+        [AvaloniaFact]
+        public void Disposed_DrawsNoNewImages()
+        {
+            // A draw racing the window's close must not make images again (a GPU texture made then would leak).
+            using var f = new AreaFixture();
+            var area = f.Add(new Hider.Core.Model.PhysicalRect(100, 100, 120, 80), Hider.Core.Model.PatternKind.Generated);
+            using (Capture(area))
+            {
+            }
+            int renders = area.Window.PatternView.GeneratedRenderCount;
+            area.Window.PatternView.Dispose();
+            area.Window.PatternView.InvalidateVisual();
+            using (Capture(area))
+            {
+            }
+            Assert.Equal(renders, area.Window.PatternView.GeneratedRenderCount);
+        }
     }
 }
