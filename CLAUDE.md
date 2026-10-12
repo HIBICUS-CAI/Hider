@@ -23,7 +23,6 @@ native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libh
 tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
 scripts/           build.py / install.py / make_icons.py / check_wayland_list.py（標準ライブラリのみ）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）
 tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
-spikes/            スパイク（sln に含めない。一覧は spikes/README.md）
 ```
 
 ## コマンド

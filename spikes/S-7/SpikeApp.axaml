@@ -1,9 +1,0 @@
-<Application xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Spike.SpikeApp">
-    <Application.Styles>
-        <FluentTheme />
-        <!-- Resolved at compile time; a StyleInclude built in code is not trim-safe (IL2026). -->
-        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
-    </Application.Styles>
-</Application>

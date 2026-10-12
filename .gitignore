@@ -22,4 +22,3 @@ __pycache__/
 .ruff_cache/
 
 # Spike native build output
-spikes/**/out/
