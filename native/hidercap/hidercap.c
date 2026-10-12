@@ -216,6 +216,7 @@ int hidercap_start(int _fd, uint32_t _node_id)
     g.loop = pw_thread_loop_new("hidercap", NULL);
     if (g.loop == NULL) {
         close(_fd);
+        hidercap_stop(); /* pairs the pw_init above (the caller does not stop after a failed start) */
         return HIDERCAP_STREAM_ERROR;
     }
     g.context = pw_context_new(pw_thread_loop_get_loop(g.loop), NULL, 0);
