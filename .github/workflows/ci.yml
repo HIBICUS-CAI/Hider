@@ -184,7 +184,7 @@ jobs:
       - run: make -C native/hidercap test RID=${{ matrix.rid }}
       - uses: actions/upload-artifact@v7
         with:
-          name: libhidercap-${{ matrix.rid }}
+          name: hidercap-${{ matrix.rid }}
           path: native/hidercap/out/${{ matrix.rid }}/libhidercap.so
           if-no-files-found: error
           retention-days: 14
