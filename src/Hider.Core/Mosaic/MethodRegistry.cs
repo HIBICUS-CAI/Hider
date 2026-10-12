@@ -25,6 +25,12 @@ namespace Hider.Core.Mosaic
             return byId.GetValueOrDefault(_id);
         }
 
+        /// <summary>The method with this id if it is of this kind (a generated area never gets a mosaic method).</summary>
+        public static IMosaicMethod? Find(string _id, MethodKind _kind)
+        {
+            return Find(_id) is { } method && method.Kind == _kind ? method : null;
+        }
+
         public static IReadOnlyList<IMosaicMethod> OfKind(MethodKind _kind)
         {
             return _kind == MethodKind.Mosaic ? mosaic : generated;

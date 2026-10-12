@@ -153,6 +153,25 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void Normalize_MethodOfTheOtherKind_BecomesTheDefault_UnknownIsKept()
+        {
+            // A mosaic method in "generated" (or the reverse) cannot draw: it would throw on every repaint and leave the area
+            // see-through. An unknown id may come from a newer version and is kept (drawing falls back to the default).
+            File.WriteAllText(FilePath, """
+                { "version": 1, "areas": [
+                  { "id": "0f3b8d2e", "mosaic": { "method": "block" }, "generated": { "method": "pixelate" } },
+                  { "id": "1a2b3c4d", "mosaic": { "method": "hexcell" }, "generated": { "method": "future-method" } } ] }
+                """);
+            var areas = AreasFile.Load(FilePath, out _).Areas;
+            Assert.Equal(AreaDefaults.MosaicMethod, areas[0].Mosaic.Method);
+            Assert.Equal(AreaDefaults.GeneratedMethod, areas[0].Generated.Method);
+            Assert.Equal("hexcell", areas[1].Mosaic.Method);
+            Assert.Equal("future-method", areas[1].Generated.Method);
+            Assert.Null(MethodRegistry.Find("pixelate", MethodKind.Generated));
+            Assert.NotNull(MethodRegistry.Find("pixelate", MethodKind.Mosaic));
+        }
+
+        [Fact]
         public void Normalize_HugeSizeAndUnknownPattern()
         {
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "width": 40000, "height": 1e300, "pattern": 7 } ] }""");

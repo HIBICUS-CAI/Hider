@@ -91,7 +91,7 @@ namespace Hider.Settings
                 case PatternKind.Mosaic:
                 {
                     content.Children.Add(Header(Strings.SettingsMosaicSection));
-                    var method = MethodRegistry.Find(model.Mosaic.Method) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
+                    var method = MethodRegistry.Find(model.Mosaic.Method, MethodKind.Mosaic) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
                     AddMethodBox(MethodKind.Mosaic, method, _id => model.Mosaic.Method = _id, labels);
                     var values = model.Mosaic.ParamsFor(method.Id);
                     foreach (var spec in method.Params)
@@ -123,7 +123,7 @@ namespace Hider.Settings
                 default:
                 {
                     content.Children.Add(Header(Strings.SettingsGeneratedSection));
-                    var method = MethodRegistry.Find(model.Generated.Method) ?? MethodRegistry.Find(AreaDefaults.GeneratedMethod)!;
+                    var method = MethodRegistry.Find(model.Generated.Method, MethodKind.Generated) ?? MethodRegistry.Find(AreaDefaults.GeneratedMethod)!;
                     AddMethodBox(MethodKind.Generated, method, _id => model.Generated.Method = _id, labels);
                     AddColorRow(Strings.SettingsBaseColor, () => model.Generated.Common.BaseColor, _c => model.Generated.Common.BaseColor = _c, labels);
                     var values = model.Generated.ParamsFor(method.Id);

@@ -76,12 +76,12 @@ namespace Hider.Areas
             // Everything the render thread needs, captured now on the UI thread.
             var size = new SKSizeI(Math.Max(1, model.Rect.Width), Math.Max(1, model.Rect.Height));
             var origin = new SKPointI(model.Rect.X, model.Rect.Y);
-            var generatedMethod = MethodRegistry.Find(model.Generated.Method) ?? MethodRegistry.Find(AreaDefaults.GeneratedMethod)!;
+            var generatedMethod = MethodRegistry.Find(model.Generated.Method, MethodKind.Generated) ?? MethodRegistry.Find(AreaDefaults.GeneratedMethod)!;
             var generatedValues = ParamValues.ForGenerated(generatedMethod, model.Generated);
             DrawOp op;
             if (model.Pattern == PatternKind.Mosaic)
             {
-                var method = MethodRegistry.Find(model.Mosaic.Method) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
+                var method = MethodRegistry.Find(model.Mosaic.Method, MethodKind.Mosaic) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
                 var values = ParamValues.ForMosaic(method, model.Mosaic, model.Opacity);
                 op = new DrawOp(this, bounds, size, origin, generatedMethod, generatedValues, method, values, model.Mosaic.Common.Levels);
             }

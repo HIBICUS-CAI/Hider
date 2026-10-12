@@ -131,11 +131,13 @@ namespace Hider.Core.Persistence
                 area.Generated.Common.BaseColor = ColorText.OrDefault(area.Generated.Common.BaseColor);
                 // Older files may hold seeds beyond the hash's range; the same pattern's seed is kept (the hash takes it mod 65536).
                 area.Generated.Common.Seed = (int)(((long)area.Generated.Common.Seed % AreaDefaults.SeedCount + AreaDefaults.SeedCount) % AreaDefaults.SeedCount);
-                if (string.IsNullOrEmpty(area.Mosaic.Method))
+                // An empty id, or the id of a method of the other kind (a hand-edited or damaged file: a mosaic method cannot
+                // draw without a capture), becomes the default. An unknown id is kept: it may come from a newer version.
+                if (string.IsNullOrEmpty(area.Mosaic.Method) || MethodRegistry.Find(area.Mosaic.Method) is { Kind: not MethodKind.Mosaic })
                 {
                     area.Mosaic.Method = AreaDefaults.MosaicMethod;
                 }
-                if (string.IsNullOrEmpty(area.Generated.Method))
+                if (string.IsNullOrEmpty(area.Generated.Method) || MethodRegistry.Find(area.Generated.Method) is { Kind: not MethodKind.Generated })
                 {
                     area.Generated.Method = AreaDefaults.GeneratedMethod;
                 }
