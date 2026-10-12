@@ -420,11 +420,11 @@ namespace Hider.Areas
             }
         }
 
-        private void OnStripStarting()
+        private void OnStripStarting(CancellationToken _capture)
         {
-            if (captureCancel is null)
+            if (captureCancel is not { } running || _capture != running.Token)
             {
-                return; // another area's capture covering this window
+                return; // another area's capture covering this window (this one may still wait for its turn)
             }
             stripsStarted = true;
             if (cancelAtFirstStrip)

@@ -393,7 +393,7 @@ namespace Hider.App.Tests.Areas
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             CancellationToken running = default;
             capture.Hang = true;
-            capture.BeforeHang = _ct => running = _ct;
+            capture.BeforeHang = _ct => running = running.CanBeCanceled ? running : _ct; // B's, not a later one's
             b.Refresh();
             int calls = capture.Calls;
 
@@ -417,6 +417,32 @@ namespace Hider.App.Tests.Areas
             a.Window.ToggleSettings();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.Equal(calls + 1, capture.Calls); // taken again once the popup closed
+        }
+
+        [AvaloniaFact]
+        public void StripsOfAnOverlappingAreasCapture_DoNotCountAsThisAreasOwn()
+        {
+            // StripCoordinator turns every overlapping mosaic window see-through. While A's capture waits for its turn (or
+            // prepares, a dialog open), B's strips come to A's window: they must not make A's capture "in its strips".
+            var capture = new HangingStripCapture();
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var b = f.Add(new PhysicalRect(300, 200, 400, 240), PatternKind.Mosaic);
+            a.ExitEdit();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            CancellationToken running = default;
+            capture.Hang = true;
+            capture.BeforeHang = _ct => running = running.CanBeCanceled ? running : _ct; // A's, not a later one's
+            a.Refresh();
+            Assert.True(running.CanBeCanceled, "A's capture is running");
+            using var other = new CancellationTokenSource(); // B's capture
+            StartStrip(a, other.Token); // B's strip reaches A's window
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            a.EnterEdit();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.False(running.IsCancellationRequested, "B's strip made A's prepare count as strips");
+            other.Cancel();
         }
 
         [AvaloniaFact]

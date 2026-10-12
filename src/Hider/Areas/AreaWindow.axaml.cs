@@ -172,7 +172,7 @@ namespace Hider.Areas
         {
             // The grabber is prepared by now (any permission dialog answered): a cancel held back until the strips start
             // happens here, before anything turns see-through.
-            StripStarting?.Invoke();
+            StripStarting?.Invoke(_ct);
             _ct.ThrowIfCancellationRequested();
             TransparentRows = (_y0, _y1);
             ApplyClip();
@@ -241,8 +241,11 @@ namespace Hider.Areas
             }
         }
 
-        /// <summary>A strip is about to turn rows of this window see-through (UI thread).</summary>
-        internal event Action? StripStarting;
+        /// <summary>
+        /// A strip is about to turn rows of this window see-through (UI thread). The token is the capture's: the strips of
+        /// another area's capture also come here when the areas overlap.
+        /// </summary>
+        internal event Action<CancellationToken>? StripStarting;
 
         /// <summary>Strip changes captured after <see cref="StripFrameTimeout"/> instead of a rendered frame (tests).</summary>
         internal int StripFrameTimeouts { get; private set; }
