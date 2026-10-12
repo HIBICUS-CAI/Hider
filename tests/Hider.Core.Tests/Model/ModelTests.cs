@@ -64,6 +64,27 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
+        public void CT11_AreaId_DrawsAgainWhileTaken()
+        {
+            // "No collision" holds because a taken id is drawn again (100 000 draws from 2^32 collide about once otherwise):
+            // the first k draws are reported taken, and the (k + 1)-th draw is the one returned.
+            const int k = 5;
+            var drawn = new List<string>();
+            string id = AreaId.New(_id =>
+            {
+                drawn.Add(_id);
+                return drawn.Count <= k;
+            }, new Random(1234));
+            Assert.Equal(k + 1, drawn.Count);
+            Assert.Equal(drawn[^1], id);
+            Assert.True(AreaId.IsValid(id), id);
+            // The same seed gives the same draws: the returned id is the sixth one, not one of the taken ones.
+            var replay = new Random(1234);
+            var expected = Enumerable.Range(0, k + 1).Select(_ => ((uint)replay.NextInt64(0, 1L << 32)).ToString("x8")).ToList();
+            Assert.Equal(expected, drawn);
+        }
+
+        [Fact]
         public void CT94_ColorText_ParsesAndFallsBack()
         {
             Assert.Equal((0x68, 0x76, 0x8A), ColorText.Parse("#68768a"));
