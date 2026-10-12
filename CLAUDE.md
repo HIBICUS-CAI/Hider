@@ -12,7 +12,11 @@
 | UI デザインキャンバス | https://claude.ai/artifact/VKTc6PcAYtSMLHgfw5814y | 画面 8 枚。寸法・配色・項目名の正 |
 | 過去の進捗報告・スパイク | ブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050） | PR #1 の終わりに main から外した docs/progress.md（Step 0〜9 の報告、提案 P-1〜P-4）、docs/golden-diffs、spikes/。`git fetch origin archive/pr1-removed` の後 `git show FETCH_HEAD:docs/progress.md` |
 
-矛盾を見つけたら勝手に解釈せず、コミット本文に「提案」（問題 / 選択肢 / 推奨 / 影響する FR・決定）を書き、推奨案で実装してコミットに `pending: <提案 ID>` を付ける（ID は P-5 から。`git log --grep "pending: P-"` で一覧できる）。
+矛盾を見つけたら勝手に解釈せず、コミット本文に「提案」（問題 / 選択肢 / 推奨 / 影響する FR・決定）を書き、推奨案で実装してコミットに `pending: <提案 ID>` を付ける。
+
+- ID は既存の最大番号 + 1（`git log --grep "pending: P-"` で一覧できる。P-1〜P-4 は archive/pr1-removed の docs/progress.md）。
+- ユーザーが承認・却下したら、その後のコミット本文に `resolved: <提案 ID>（承認 | 却下: 理由）` を書く（却下なら同じコミットで直す）。未決の提案 = pending にあって resolved にないもの（`git log --grep "resolved: P-"`）。
+- 承認済み: P-6（MIT ライセンス）。
 
 ## 構成
 
@@ -21,7 +25,7 @@ src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mo
 src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
 native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
 tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
-scripts/           build.py / install.py / make_icons.py / check_wayland_list.py（標準ライブラリのみ）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）
+scripts/           build.py / install.py / make_icons.py / check_wayland_list.py（標準ライブラリのみ、Python 3.10 以上）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
 tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
 ```
 
