@@ -30,7 +30,7 @@
 
 ## ビルド
 
-必要なもの: .NET 10 SDK（10.0.112 以上の 10.0.1xx。global.json で固定。packages.lock.json の ILLink の版が SDK に連動するため、SDK を上げるときは global.json とロックファイルを同じコミットで更新します）、Python 3.10 以上（標準ライブラリのみ。Windows は `python`、Linux は `python3` か `./scripts/build.py` のように直接実行）。Linux 版を Linux 上でビルドする場合は `build-essential` と `libpipewire-0.3-dev` も必要です（PipeWire ヘルパ libhidercap.so をビルドするため）。
+必要なもの: .NET 10 SDK 10.0.112（global.json で版を固定し、繰り上げもしない。packages.lock.json の ILLink の版が SDK に連動するため。SDK を上げるときは global.json とロックファイルを同じコミットで更新します）、Python 3.10 以上（標準ライブラリのみ。Windows は `python`、Linux は `python3` か `./scripts/build.py` のように直接実行）。Linux 版を Linux 上でビルドする場合は `build-essential` と `libpipewire-0.3-dev` も必要です（PipeWire ヘルパ libhidercap.so をビルドするため）。
 
 ```sh
 python scripts/build.py              # このマシン向け

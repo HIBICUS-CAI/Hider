@@ -64,11 +64,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      # The lock files record Microsoft.NET.ILLink.Tasks at the SDK's runtime version: CI uses exactly the SDK in global.json
-      # (latestPatch there is for developers; a newer patch preinstalled on the runner must not be picked).
-      - name: Pin the SDK of global.json
-        shell: bash
-        run: jq '.sdk.rollForward = "disable"' global.json > global.json.ci && mv global.json.ci global.json
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -116,11 +111,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      # The lock files record Microsoft.NET.ILLink.Tasks at the SDK's runtime version: CI uses exactly the SDK in global.json
-      # (latestPatch there is for developers; a newer patch preinstalled on the runner must not be picked).
-      - name: Pin the SDK of global.json
-        shell: bash
-        run: jq '.sdk.rollForward = "disable"' global.json > global.json.ci && mv global.json.ci global.json
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -177,11 +167,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      # The lock files record Microsoft.NET.ILLink.Tasks at the SDK's runtime version: CI uses exactly the SDK in global.json
-      # (latestPatch there is for developers; a newer patch preinstalled on the runner must not be picked).
-      - name: Pin the SDK of global.json
-        shell: bash
-        run: jq '.sdk.rollForward = "disable"' global.json > global.json.ci && mv global.json.ci global.json
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
