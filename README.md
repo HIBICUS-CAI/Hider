@@ -90,3 +90,7 @@ scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽
 ```
 
 設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`（手動実行）を参照してください。
+
+## ライセンス
+
+MIT License（LICENSE）。配布物に同梱している .NET ランタイム、Avalonia、SkiaSharp / HarfBuzzSharp（Skia、HarfBuzz ほか）、Tmds.DBus.Protocol、ANGLE などの著作権表示とライセンスは THIRD-PARTY-NOTICES.txt にあり、配布物のフォルダにも LICENSE.txt とあわせて入っています。

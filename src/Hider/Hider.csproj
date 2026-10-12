@@ -64,4 +64,11 @@
     </ItemGroup>
   </Target>
 
+  <!-- Hider's license and the notices of everything bundled (MIT / BSD require them in copies): next to the executable,
+       not inside the single file. -->
+  <ItemGroup>
+    <None Include="../../LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="../../THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
 </Project>
