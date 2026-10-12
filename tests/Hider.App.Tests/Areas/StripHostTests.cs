@@ -53,6 +53,8 @@ namespace Hider.App.Tests.Areas
             // The headless platform renders a window that was just activated (edit mode) only when asked: one frame first,
             // as the real render loop would have drawn it by the time a capture starts.
             Render(area).Dispose();
+            // A loaded runner may take longer than 250 ms for a frame: the check here is that a frame ends the wait at all.
+            area.Window.StripFrameWait = TimeSpan.FromSeconds(5);
 
             Wait(area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken));
             Assert.Equal((16, 24), area.Window.TransparentRows);

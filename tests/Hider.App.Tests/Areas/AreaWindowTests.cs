@@ -199,14 +199,20 @@ namespace Hider.App.Tests.Areas
         [AvaloniaFact]
         public void GT11_FocusLoss_KeepsEditMode()
         {
+            // The headless platform does not deactivate a window when another is activated: the platform's deactivation
+            // callback (private in Avalonia 12.1.4, hence reflection in this test) is run as Windows / X11 would on a click
+            // elsewhere. IsActive turning false shows it took effect; the Deactivated event is raised with it.
             using var f = new AreaFixture();
             var area = f.Add(areaRect);
+            area.Window.Show();
             area.Window.Activate();
-            var other = new Window();
-            other.Show();
-            other.Activate();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(area.Window.IsActive);
+            typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(area.Window, null);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.False(area.Window.IsActive);
             Assert.Equal(AreaMode.Editing, area.Mode);
-            other.Close();
         }
 
         [AvaloniaFact]
