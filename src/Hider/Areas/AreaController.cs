@@ -62,6 +62,9 @@ namespace Hider.Areas
         }
 
         public Area Model { get; }
+
+        /// <summary>The app's clock (fake in tests).</summary>
+        internal TimeProvider Time => owner.Services.Time;
         public AreaWindow Window { get; }
         public IAreaWindowHost Host { get; }
         public AreaMode Mode { get; private set; } = AreaMode.Hidden;

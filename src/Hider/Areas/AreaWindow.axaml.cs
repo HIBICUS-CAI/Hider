@@ -230,8 +230,9 @@ namespace Hider.Areas
         /// <summary>Design §5.3: the composition batch that carries the change has been rendered, plus one spare frame.</summary>
         private async Task WaitFramesAsync(CancellationToken _ct)
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_ct);
-            timeout.CancelAfter(StripFrameWait);
+            // The app's clock (a fake one in tests: the timeout then comes exactly when a test says, not on a timer thread).
+            using var giveUp = new CancellationTokenSource(StripFrameTimeout, controller.Time);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_ct, giveUp.Token);
             try
             {
                 if (ElementComposition.GetElementVisual(this)?.Compositor is { } compositor)
@@ -248,7 +249,7 @@ namespace Hider.Areas
             catch (OperationCanceledException) when (!_ct.IsCancellationRequested)
             {
                 StripFrameTimeouts++;
-                Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameWait.TotalMilliseconds} ms, capturing anyway");
+                Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameTimeout.TotalMilliseconds} ms, capturing anyway");
             }
         }
 
@@ -260,9 +261,6 @@ namespace Hider.Areas
 
         /// <summary>Strip changes captured after <see cref="StripFrameTimeout"/> instead of a rendered frame (tests).</summary>
         internal int StripFrameTimeouts { get; private set; }
-
-        /// <summary><see cref="StripFrameTimeout"/>, shortened by tests.</summary>
-        internal TimeSpan StripFrameWait { get; set; } = StripFrameTimeout;
 
         public void CloseFromController()
         {

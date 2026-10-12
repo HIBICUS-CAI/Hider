@@ -53,8 +53,6 @@ namespace Hider.App.Tests.Areas
             // The headless platform renders a window that was just activated (edit mode) only when asked: one frame first,
             // as the real render loop would have drawn it by the time a capture starts.
             Render(area).Dispose();
-            // A loaded runner may take longer than 250 ms for a frame: the check here is that a frame ends the wait at all.
-            area.Window.StripFrameWait = TimeSpan.FromSeconds(5);
 
             Wait(area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken));
             Assert.Equal((16, 24), area.Window.TransparentRows);
@@ -82,12 +80,15 @@ namespace Hider.App.Tests.Areas
         [AvaloniaFact]
         public void NoFrame_GivesUpAfterTheTimeout_AndCaptures()
         {
-            // A frame that does not come in time (here: no time at all) does not hold the capture: the strip is taken anyway.
+            // A frame that does not come in time does not hold the capture: the strip is taken anyway. The timeout runs on the
+            // fixture's clock and passes before the UI thread gets to render anything (Wait pumps only afterwards).
             using var f = new AreaFixture();
             var area = f.Add(new PhysicalRect(100, 200, 120, 80), PatternKind.Generated);
             area.ExitEdit();
-            area.Window.StripFrameWait = TimeSpan.Zero;
-            Wait(area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken));
+            var task = area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken);
+            Assert.False(task.IsCompleted);
+            f.Time.Advance(AreaWindow.StripFrameTimeout);
+            Wait(task);
             Assert.Equal((16, 24), area.Window.TransparentRows);
             Assert.Equal(1, area.Window.StripFrameTimeouts);
         }
