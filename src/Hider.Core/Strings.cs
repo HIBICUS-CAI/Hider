@@ -12,6 +12,9 @@ namespace Hider.Core
     {
         private static readonly Dictionary<string, string> texts = new()
         {
+            // Startup (FR-08)
+            ["startup.lockFailed"] = "Hider を起動できません。データフォルダのロックファイルを開けませんでした。\n\n{0}",
+
             // Tray menu (FR-03, FR-07)
             ["tray.add"] = "新しいエリアを追加",
             ["tray.editAll"] = "すべてのエリアを編集",
@@ -94,6 +97,7 @@ namespace Hider.Core
         private static readonly CompositeFormat toolbarSize = CompositeFormat.Parse(SizeFormat);
         private static readonly CompositeFormat pickColorWithValue = CompositeFormat.Parse(Get("settings.pickColorWithValue"));
         private static readonly CompositeFormat confirmDeleteAll = CompositeFormat.Parse(Get("confirm.deleteAll"));
+        private static readonly CompositeFormat startupLockFailed = CompositeFormat.Parse(Get("startup.lockFailed"));
 
         /// <summary>Platform name shown as a badge next to Linux-only settings. A proper noun, not translated.</summary>
         public const string LinuxBadge = "Linux";
@@ -150,6 +154,12 @@ namespace Hider.Core
         public static string FallbackTitle => Get("fallback.title");
 
         /// <summary>"Hider — エリア N 個" (FR-07).</summary>
+        /// <summary>Startup failed because the single-instance lock could not be opened; the detail is the system's message.</summary>
+        public static string StartupLockFailed(string _detail)
+        {
+            return string.Format(CultureInfo.InvariantCulture, startupLockFailed, _detail);
+        }
+
         public static string TrayTooltip(int _count)
         {
             return string.Format(CultureInfo.InvariantCulture, trayTooltip, _count);

@@ -46,6 +46,24 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void SingleInstance_LockPathThatIsAFolder_IsAnErrorNotAnotherInstance()
+        {
+            // Only a lock held by another process means "already running"; any other failure to open it is an error.
+            string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
+            string lockPath = Path.Combine(root, "instance.lock");
+            Directory.CreateDirectory(lockPath);
+            try
+            {
+                Assert.Null(SingleInstance.TryAcquire(lockPath, out string? error));
+                Assert.NotNull(error);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
         public void CT31_DataDirectory_PerOs()
         {
             var env = new Dictionary<string, string?> { ["USERPROFILE"] = @"C:\Users\me", ["HOME"] = "/home/me" };

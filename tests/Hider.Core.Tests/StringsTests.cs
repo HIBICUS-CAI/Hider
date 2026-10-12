@@ -29,6 +29,7 @@ namespace Hider.Core.Tests
             Assert.Equal("Hider — エリア 3 個", Strings.TrayTooltip(3));
             Assert.Equal("3 個のエリアをすべて削除します。", Strings.ConfirmDeleteAll(3));
             Assert.Equal("1920 × 1080 px", Strings.ToolbarSize(1920, 1080));
+            Assert.EndsWith("\n\nAccess denied", Strings.StartupLockFailed("Access denied"), StringComparison.Ordinal);
             Assert.Equal("色を選ぶ: #68768A", Strings.SettingsPickColorWithValue("#68768A"));
         }
 

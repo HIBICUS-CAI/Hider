@@ -37,15 +37,25 @@ namespace Hider.Core.Persistence
             {
                 return new SingleInstance(new FileStream(_lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
             }
-            catch (UnauthorizedAccessException e)
+            catch (IOException e) when (IsHeldByAnother(e))
             {
+                return null;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // No permission, a read-only or full file system, an I/O error: not "already running".
                 _error = $"cannot open {_lockPath}: {e.Message}";
                 return null;
             }
-            catch (IOException)
-            {
-                return null; // sharing violation (Windows) or flock conflict (Linux): another instance
-            }
+        }
+
+        /// <summary>The lock is held by another process: a sharing or lock violation on Windows, a flock conflict on Linux.</summary>
+        private static bool IsHeldByAnother(IOException _e)
+        {
+            const int errorSharingViolation = 32, errorLockViolation = 33, ewouldblock = 11;
+            return OperatingSystem.IsWindows()
+                ? (_e.HResult & 0xFFFF) is errorSharingViolation or errorLockViolation
+                : _e.HResult == ewouldblock;
         }
 
         public void Dispose()
