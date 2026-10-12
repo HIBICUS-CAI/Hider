@@ -189,6 +189,26 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void GT08_DragRightAfterArrowKeys_CapturesOnlyWhenTheDragEnds()
+        {
+            // The arrow keys' commit must not capture halfway through a drag that began within its 500 ms.
+            var capture = new FakeUnderlayCapture();
+            using var f = new AreaFixture(_capture: capture);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Model.Mosaic.Common.IntervalMs = 0; // no timer captures in between
+            area.SettingsChanged();
+            int calls = capture.Calls;
+            area.Window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            area.BeginDrag(ResizeHandle.None, new PixelPoint(0, 0));
+            area.DragTo(new PixelPoint(30, 0));
+            f.Time.Advance(TimeSpan.FromSeconds(1));
+            Assert.Equal(calls, capture.Calls);
+            area.EndDrag();
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.Equal(areaRect.Offset(31, 0), capture.Requests[^1].Rect);
+        }
+
+        [AvaloniaFact]
         public void GT09_DeleteKey_RemovesWithoutConfirmation()
         {
             using var f = new AreaFixture();

@@ -169,6 +169,10 @@ namespace Hider.Areas
                 return;
             }
             IsDragging = true;
+            // A drag right after arrow keys takes over their commit: it captures when it ends (EndDrag), and a capture
+            // halfway through the drag would expose strips (Linux) where the area no longer is.
+            nudgeTimer?.Dispose();
+            nudgeTimer = null;
             // FR-38: a live capture (Windows) keeps following the content during the drag; others capture when it ends.
             scheduler.TimerPaused = !owner.Services.Capture.Traits.HasFlag(CaptureTraits.Live);
             dragHandle = _handle;
@@ -223,8 +227,17 @@ namespace Hider.Areas
             Layout();
             owner.SaveSoon();
             nudgeTimer?.Dispose();
-            nudgeTimer = owner.Services.Time.CreateTimer(_ => owner.Services.UiPost(() => RequestCapture(RefreshReason.Committed)), null,
-                AreaManager.SaveDebounce, Timeout.InfiniteTimeSpan);
+            nudgeTimer = owner.Services.Time.CreateTimer(_ => owner.Services.UiPost(CommitNudge), null, AreaManager.SaveDebounce,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        private void CommitNudge()
+        {
+            // Posted before a drag began: the drag commits instead.
+            if (!IsDragging)
+            {
+                RequestCapture(RefreshReason.Committed);
+            }
         }
 
         /// <summary>Switches the pattern; the other kinds keep their settings (FR-35). Saved immediately (FR-61).</summary>
