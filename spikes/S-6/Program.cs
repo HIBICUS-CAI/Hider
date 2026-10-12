@@ -9,7 +9,7 @@ using Avalonia.Threading;
 namespace Spike
 {
     /// <summary>
-    /// S-6 (design §10): ScreenCast portal (persist_mode 2) + libhidercap.so.
+    /// S-6 (design §10): ScreenCast portal (persist_mode 2) + libhidercap.so (the shipped native/hidercap, all rows).
     /// A topmost window flips between two colors; after each flip has been rendered, the program asks the helper for the
     /// first frame whose PTS is later than the flip and checks that the frame shows the new color where the window is.
     /// Reports: dialog on 2nd run (restore_token), frames waited per flip (target &lt;= 3), coordinate offset (target 0).
@@ -135,7 +135,7 @@ namespace Spike
         private static unsafe (byte[], Native.Frame)? Grab(long _notBefore)
         {
             var info = new Native.Frame();
-            int r = Native.hidercap_grab_after(_notBefore, 2000, null, 0, ref info);
+            int r = Native.hidercap_grab_after(_notBefore, 2000, 0, int.MaxValue, null, 0, ref info);
             if (r != 1)
             {
                 return null;
@@ -143,7 +143,7 @@ namespace Spike
             var buffer = new byte[info.Stride * info.Height];
             fixed (byte* p = buffer)
             {
-                r = Native.hidercap_grab_after(_notBefore, 2000, p, buffer.Length, ref info);
+                r = Native.hidercap_grab_after(_notBefore, 2000, 0, int.MaxValue, p, buffer.Length, ref info);
             }
             return r == 0 ? (buffer, info) : null;
         }
@@ -191,7 +191,7 @@ namespace Spike
         public static partial int hidercap_start(int _fd, uint _nodeId);
 
         [LibraryImport("hidercap")]
-        public static partial int hidercap_grab_after(long _notBeforeNs, int _timeoutMs, byte* _dst, int _dstSize, ref Frame _out);
+        public static partial int hidercap_grab_after(long _notBeforeNs, int _timeoutMs, int _row0, int _row1, byte* _dst, int _dstSize, ref Frame _out);
 
         [LibraryImport("hidercap")]
         public static partial ulong hidercap_last_sequence();

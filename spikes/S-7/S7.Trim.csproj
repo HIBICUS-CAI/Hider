@@ -21,7 +21,7 @@
     <PackageReference Include="Avalonia.Controls.ColorPicker" />
     <PackageReference Include="Avalonia.Skia" />
     <!-- Headless platform only for this spike, to render without a display. -->
-    <PackageReference Include="Avalonia.Headless" VersionOverride="12.1.4" />
+    <PackageReference Include="Avalonia.Headless" />
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="SkiaSharp" />
   </ItemGroup>

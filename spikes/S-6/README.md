@@ -2,7 +2,7 @@
 
 設計書 §10 S-6。合否: 帯 1 本 ≤ 3 フレーム。座標ずれ 0 px。restore_token で 2 回目以降ダイアログなし。
 
-`native/` は Step 8 の libhidercap.so の原型（start / grab_after / last_sequence / stop）。
+ヘルパは Hider が同梱する `native/hidercap`（libhidercap.so）をそのまま使う（原型は Step 8 で本番に移し、削除した）。
 プログラムは最前面の 240×240 窓の色を 20 回切り替え、描画完了の直後に「PTS がそれより後のフレーム」をヘルパに要求して、
 (1) 何フレーム待ったか、(2) フレームに新しい色が写っているか、(3) 写った位置と窓の位置のずれ、を出す。
 これは Linux の帯方式（帯を透明化 → 描画完了 → それより後のフレームを 1 枚取る）と同じ手順。
@@ -11,7 +11,7 @@
 
 ```sh
 sudo apt install build-essential libpipewire-0.3-dev
-make -C spikes/S-6/native
+make -C native/hidercap
 ```
 
 ## 手順

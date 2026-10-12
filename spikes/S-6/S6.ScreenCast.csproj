@@ -13,9 +13,14 @@
     <PackageReference Include="Tmds.DBus.Protocol" />
   </ItemGroup>
 
+  <!-- The helper Hider ships (make -C native/hidercap first), so the check on a real machine tests that one. -->
+  <PropertyGroup>
+    <HidercapRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</HidercapRid>
+    <HidercapRid Condition="'$(HidercapRid)' == ''">linux-x64</HidercapRid>
+    <HidercapLib>$(MSBuildThisFileDirectory)../../native/hidercap/out/$(HidercapRid)/libhidercap.so</HidercapLib>
+  </PropertyGroup>
   <ItemGroup>
-    <!-- Built with "make -C native" first. -->
-    <None Include="native/out/libhidercap.so" Condition="Exists('native/out/libhidercap.so')" Link="libhidercap.so" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(HidercapLib)" Condition="Exists('$(HidercapLib)')" Link="libhidercap.so" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
