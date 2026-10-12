@@ -145,6 +145,14 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void Normalize_SeedIntoTheHashRange_SamePattern()
+        {
+            File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "generated": { "method": "block", "common": { "seed": 66770 } } } ] }""");
+            var a = Assert.Single(AreasFile.Load(FilePath, out _).Areas);
+            Assert.Equal(1234, a.Generated.Common.Seed); // 66770 mod 65536: the pattern it already had
+        }
+
+        [Fact]
         public void Normalize_HugeSizeAndUnknownPattern()
         {
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "width": 40000, "height": 1e300, "pattern": 7 } ] }""");

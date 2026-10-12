@@ -271,10 +271,16 @@ namespace Hider.Settings
             Avalonia.Automation.AutomationProperties.SetName(box, Strings.SettingsSeed);
             void CommitSeed()
             {
-                if (int.TryParse(box.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int seed) && seed != common.Seed)
+                // Full-width digits from an IME are accepted; values beyond the hash's range are clamped to it, so every shown
+                // seed is its own pattern.
+                if (long.TryParse(NumberText.Normalize(box.Text), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long typed))
                 {
-                    common.Seed = seed;
-                    Changed(true);
+                    int seed = (int)Math.Clamp(typed, 0, AreaDefaults.SeedCount - 1);
+                    if (seed != common.Seed)
+                    {
+                        common.Seed = seed;
+                        Changed(true);
+                    }
                 }
                 box.Text = common.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
@@ -300,7 +306,7 @@ namespace Hider.Settings
             Avalonia.Automation.AutomationProperties.SetName(reseed, Strings.SettingsReseed);
             reseed.Click += (_, _) =>
             {
-                common.Seed = random.Next(0, 1_000_000);
+                common.Seed = random.Next(0, AreaDefaults.SeedCount);
                 box.Text = common.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 Changed(true);
             };

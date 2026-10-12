@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Hider.Areas;
@@ -93,6 +94,48 @@ namespace Hider.App.Tests.Settings
                 Assert.Equal(40, area.Model.Mosaic.Params["pixelate"]["block"]);
                 Type(block, "20");
                 Assert.Equal(block.Spec.ToSliderPosition(20) * ParamRow.SliderSteps, block.Slider.Value, 6);
+            }
+        }
+
+        [AvaloniaFact]
+        public void SliderArrowKeys_MoveByAtLeastOneUnit_FullWidthDigitsAreAccepted()
+        {
+            var (f, area, panel) = Open(PatternKind.Mosaic);
+            using (f)
+            {
+                // A step of 1 / 1000 of the track used to round back to the same value: the slider did not move by keys.
+                foreach (var row in panel.ParamRows)
+                {
+                    double before = row.Value;
+                    row.Slider.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = row.Value >= row.Spec.SliderMax ? Key.Left : Key.Right, Source = row.Slider });
+                    Assert.NotEqual(before, row.Value);
+                }
+                var block = Row(panel, "block");
+                Type(block, "２０");
+                Assert.Equal(20, area.Model.Mosaic.Params["pixelate"]["block"]);
+                block.Step(1, false);
+                Assert.Equal(21, block.Value);
+                block.Step(-1, true);
+                Assert.True(block.Value < 21);
+            }
+        }
+
+        [AvaloniaFact]
+        public void Seed_StaysWithinTheHashRange()
+        {
+            // The pattern hash takes 65536 seeds: larger ones would show the same pattern as a smaller one.
+            var (f, area, panel) = Open(PatternKind.Generated);
+            using (f)
+            {
+                var box = panel.SeedBox!;
+                box.Text = "７００００";
+                box.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter, Source = box });
+                Assert.Equal(65535, area.Model.Generated.Common.Seed);
+                for (int i = 0; i < 50; i++)
+                {
+                    panel.ReseedButton!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Assert.InRange(area.Model.Generated.Common.Seed, 0, 65535);
+                }
             }
         }
 

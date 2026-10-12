@@ -76,6 +76,25 @@ namespace Hider.Settings
                 }
             };
             Input.LostFocus += (_, _) => CommitInput();
+            // Before the slider's own handling: its small change is 1 / 1000 of the track, which rounds back to the same
+            // value in the displayed unit, so arrows would not move it at all.
+            Slider.AddHandler(KeyDownEvent, (_, _e) =>
+            {
+                bool large = _e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+                int direction = _e.Key switch
+                {
+                    Key.Left or Key.Down => -1,
+                    Key.Right or Key.Up => 1,
+                    Key.PageDown => -10,
+                    Key.PageUp => 10,
+                    _ => 0,
+                };
+                if (direction != 0)
+                {
+                    Step(Math.Sign(direction), large || Math.Abs(direction) > 1);
+                    _e.Handled = true;
+                }
+            }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         }
 
         public ParamSpec Spec { get; }
@@ -107,10 +126,25 @@ namespace Hider.Settings
             }
         }
 
-        /// <summary>Applies the text in the box (Enter / focus loss), clamped to Min..Max.</summary>
+        /// <summary>
+        /// One keyboard step: 1% of the slider track (10% when large), at least one displayed unit (1 px, 1 ms, 1 %), as if
+        /// the slider had been moved.
+        /// </summary>
+        public void Step(int _direction, bool _large)
+        {
+            double position = Spec.ToSliderPosition(Value) + _direction * (_large ? 0.1 : 0.01);
+            double value = Round(Spec.FromSliderPosition(position));
+            if (_direction > 0 ? value <= Value : value >= Value)
+            {
+                value = Value + _direction / Spec.DisplayFactor;
+            }
+            Commit(value, false);
+        }
+
+        /// <summary>Applies the text in the box (Enter / focus loss), clamped to Min..Max. Full-width digits are accepted.</summary>
         public void CommitInput()
         {
-            if (!double.TryParse(Input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double shown))
+            if (!double.TryParse(NumberText.Normalize(Input.Text), NumberStyles.Float, CultureInfo.InvariantCulture, out double shown))
             {
                 Input.Text = Format(Value);
                 return;

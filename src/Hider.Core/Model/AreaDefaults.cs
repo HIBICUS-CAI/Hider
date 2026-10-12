@@ -16,6 +16,9 @@ namespace Hider.Core.Model
         public const int MosaicLevels = 256;
         public const int StripPx = 8;
         public const int Seed = 1234;
+
+        /// <summary>Seeds are 0 .. SeedCount - 1: the pattern hash takes exactly that many (LatticeHash.SeedDigits).</summary>
+        public const int SeedCount = 65536;
         public const int IntervalMsWindows = 100;
         public const int IntervalMsLinux = 300000;
 

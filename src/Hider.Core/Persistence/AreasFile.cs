@@ -129,6 +129,8 @@ namespace Hider.Core.Persistence
                 area.Generated.Common ??= new GeneratedCommon();
                 area.Generated.Params ??= new Dictionary<string, Dictionary<string, double>>();
                 area.Generated.Common.BaseColor = ColorText.OrDefault(area.Generated.Common.BaseColor);
+                // Older files may hold seeds beyond the hash's range; the same pattern's seed is kept (the hash takes it mod 65536).
+                area.Generated.Common.Seed = (int)(((long)area.Generated.Common.Seed % AreaDefaults.SeedCount + AreaDefaults.SeedCount) % AreaDefaults.SeedCount);
                 if (string.IsNullOrEmpty(area.Mosaic.Method))
                 {
                     area.Mosaic.Method = AreaDefaults.MosaicMethod;
