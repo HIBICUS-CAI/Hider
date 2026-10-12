@@ -33,7 +33,7 @@ tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast�
 
 ```sh
 dotnet build -c Release -warnaserror         # アナライザー（10.0-recommended で固定）とコードスタイル（命名・名前空間・不要な using）も検査
-dotnet format Hider.slnx --verify-no-changes # 書式（CI は linux-x64 で実行）
+dotnet format Hider.slnx --verify-no-changes # 書式（CI はターゲットによらず ubuntu-24.04 の format ジョブで実行）
 dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
 make -C native/hidercap test                  # libhidercap のフレーム時刻の単体テスト（CT-90、PipeWire 不要）

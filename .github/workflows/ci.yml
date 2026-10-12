@@ -44,7 +44,7 @@ jobs:
         env:
           TARGETS: ${{ inputs.targets }}
         run: |
-          all='[{"rid":"win-x64","os":"windows-2025"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
+          all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
           t="$TARGETS"
           if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
           lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')

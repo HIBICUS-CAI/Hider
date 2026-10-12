@@ -293,7 +293,7 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | csproj | 既存（net10.0, self-contained, single-file, trimmed, InvariantGlobalization）を踏襲し、Hider.Core を ProjectReference |
 | バージョン固定 | Avalonia 12.1.4。SkiaSharp と Tmds.DBus.Protocol は Avalonia が参照する版に合わせる |
 | ネイティブヘルパ | native/hidercap: C、公開関数 4 つ（hidercap_start / grab_after / last_sequence / stop。提案 P-2）、-fvisibility=hidden。linux-x64 / linux-arm64 を scripts/build.py が make（gcc）で native/hidercap/out/<rid>/ に作り、Hider.csproj が実行ファイルと同じディレクトリに同梱（single-file の外。既定の探索で読み込まれる） |
-| CI | GitHub Actions（workflow_dispatch のみ）: windows-2025（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（windows-latest を固定、Xvfb の通し確認など）は提案 P-8 |
+| CI | GitHub Actions（workflow_dispatch のみ）: windows-latest（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（Xvfb の通し確認、ジョブの追加）は提案 P-8 |
 | 24.04 ランナーで 26.04 向けに作る | glibc は後方互換なので可。PipeWire は 0.3 系 ABI（libpipewire-0.3.so.0）で互換 |
 | アイコン | Windows .ico（16/20/24/32/48/256）、Linux PNG + svg。生成スクリプトを scripts に追加 |
 
@@ -351,5 +351,6 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | 日付 | 節 | 内容 | 根拠 |
 |---|---|---|---|
 | 2026-10-12 | 冒頭 | 保守方針を追加 | PR #1 の指摘 |
-| 2026-10-12 | §8 | ネイティブヘルパの関数数（2 → 4）と同梱先（runtimes/<rid>/native/ → 実行ファイルと同じディレクトリ）、CI のランナー名（windows-latest → windows-2025）を現状に合わせた | 提案 P-2、P-8 |
+| 2026-10-12 | §8 | ネイティブヘルパの関数数（2 → 4）と同梱先（runtimes/<rid>/native/ → 実行ファイルと同じディレクトリ）を現状に合わせた | 提案 P-2 |
 | 2026-10-12 | §9 | D-10 に未承認の提案 P-5 を併記していたのを、元の決定と区別して明記 | 提案 P-5 |
+| 2026-10-12 | §8 | Windows ランナーを windows-2025 の固定から windows-latest に戻した（作業指示書どおり） | ユーザー指示 |
