@@ -10,7 +10,7 @@ namespace Hider.Core.Tests.Mosaic
         {
             // Radius 8 with no common blur equals the pre-blur stage alone (CT-48's golden): no cells, no other processing.
             using var actual = Render.Mosaic("blur");
-            Golden.AssertMatches("CT48_blur_r8", actual, 2);
+            Golden.AssertMatchesExisting("CT48_blur_r8", actual, 2);
         }
 
         [Fact]
@@ -27,7 +27,7 @@ namespace Hider.Core.Tests.Mosaic
         {
             // Gaussian radii combine as sqrt(a² + b²): common 4.8 with method 6.4 is one blur of 8.
             using var combined = Render.Mosaic("blur", _blur: 4.8, _params: new() { ["radius"] = 6.4 });
-            Golden.AssertMatches("CT48_blur_r8", combined, 2);
+            Golden.AssertMatchesExisting("CT48_blur_r8", combined, 2);
         }
     }
 }

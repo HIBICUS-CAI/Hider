@@ -26,22 +26,45 @@ namespace Hider.Core.Tests.Imaging
         public static string OutputDir => Path.Combine(RepoRoot, "TestResults", "golden");
         public static bool Updating => Environment.GetEnvironmentVariable("HIDER_UPDATE_GOLDEN") == "1";
 
+        /// <summary>Names written in this run (update mode): one case, one golden.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> written = new();
+
+        /// <summary>Compares with the golden <paramref name="_name"/>, which this test owns (update mode writes it).</summary>
         public static void AssertMatches(string _name, SKBitmap _actual, int _tolerance)
         {
             string path = Path.Combine(GoldenDir, _name + ".png");
             if (Updating)
             {
+                // Tests run in parallel: a second writer would race the first and make the golden depend on the order.
+                Assert.True(written.TryAdd(_name, true), $"Golden {_name}.png is written by two tests; let one own it (AssertMatchesExisting).");
                 Directory.CreateDirectory(GoldenDir);
                 Save(_actual, path);
                 return;
             }
-            if (!File.Exists(path))
+            Compare(_name, path, _actual, _tolerance);
+        }
+
+        /// <summary>
+        /// Compares with a golden owned by another test (never written here). In update mode it does nothing: the owner may be
+        /// writing the file at the same time; the next normal run checks it against the new golden.
+        /// </summary>
+        public static void AssertMatchesExisting(string _name, SKBitmap _actual, int _tolerance)
+        {
+            if (!Updating)
+            {
+                Compare(_name, Path.Combine(GoldenDir, _name + ".png"), _actual, _tolerance);
+            }
+        }
+
+        private static void Compare(string _name, string _path, SKBitmap _actual, int _tolerance)
+        {
+            if (!File.Exists(_path))
             {
                 Directory.CreateDirectory(OutputDir);
                 Save(_actual, Path.Combine(OutputDir, _name + "_actual.png"));
                 Assert.Fail($"Golden {_name}.png is missing; run with HIDER_UPDATE_GOLDEN=1 to create it.");
             }
-            using var expected = SKBitmap.Decode(path);
+            using var expected = SKBitmap.Decode(_path);
             Assert.Equal(expected.Width, _actual.Width);
             Assert.Equal(expected.Height, _actual.Height);
             int worst = MaxDiff(expected, _actual, out var diff);
