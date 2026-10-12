@@ -13,7 +13,7 @@ namespace Hider.Core
         private static readonly Dictionary<string, string> texts = new()
         {
             // Startup (FR-08)
-            ["startup.lockFailed"] = "Hider を起動できません。データフォルダのロックファイルを開けませんでした。\n\n{0}",
+            ["startup.lockFailed"] = "Hider を起動できません。データフォルダのロックファイル（{0}）を開けませんでした。\n\n{1}",
 
             // Tray menu (FR-03, FR-07)
             ["tray.add"] = "新しいエリアを追加",
@@ -51,7 +51,6 @@ namespace Hider.Core
             ["settings.baseColor"] = "ベース色",
             ["settings.seed"] = "シード",
             ["settings.reseed"] = "シードを振り直す",
-            ["settings.pickColor"] = "色を選ぶ",
             ["settings.pickColorWithValue"] = "色を選ぶ: {0}",
 
             // Mosaic methods and their parameters (D-5)
@@ -150,16 +149,15 @@ namespace Hider.Core
         public static string SettingsBaseColor => Get("settings.baseColor");
         public static string SettingsSeed => Get("settings.seed");
         public static string SettingsReseed => Get("settings.reseed");
-        public static string SettingsPickColor => Get("settings.pickColor");
         public static string FallbackTitle => Get("fallback.title");
 
-        /// <summary>"Hider — エリア N 個" (FR-07).</summary>
-        /// <summary>Startup failed because the single-instance lock could not be opened; the detail is the system's message.</summary>
-        public static string StartupLockFailed(string _detail)
+        /// <summary>Startup failed because the single-instance lock at a path could not be opened; the detail is the system's message.</summary>
+        public static string StartupLockFailed(string _path, string _detail)
         {
-            return string.Format(CultureInfo.InvariantCulture, startupLockFailed, _detail);
+            return string.Format(CultureInfo.InvariantCulture, startupLockFailed, _path, _detail);
         }
 
+        /// <summary>"Hider — エリア N 個" (FR-07).</summary>
         public static string TrayTooltip(int _count)
         {
             return string.Format(CultureInfo.InvariantCulture, trayTooltip, _count);

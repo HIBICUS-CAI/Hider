@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Hider.Core;
 
 namespace Hider.Tray
 {
@@ -13,6 +14,7 @@ namespace Hider.Tray
         public TrayFallbackWindow()
         {
             InitializeComponent();
+            Title = Strings.FallbackTitle;
             Icon = AppIcons.CreateWindowIcon();
             Items.CommandSelected += _c => CommandSelected?.Invoke(_c);
             Closing += (_, _e) =>

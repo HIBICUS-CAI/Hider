@@ -15,7 +15,8 @@ namespace Hider.Core.Persistence
 
         /// <summary>
         /// The guard, or null when another instance holds the lock (<paramref name="_error"/> null) or the lock cannot be
-        /// taken at all (<paramref name="_error"/> says why: the folder is a file, no permission).
+        /// taken at all (<paramref name="_error"/> is the system's message: the folder is a file, no permission). The caller
+        /// words it for the user (Strings) and for standard error.
         /// </summary>
         public static SingleInstance? TryAcquire(string _lockPath, out string? _error)
         {
@@ -30,7 +31,7 @@ namespace Hider.Core.Persistence
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                _error = $"cannot create the folder of {_lockPath}: {e.Message}";
+                _error = e.Message;
                 return null;
             }
             try
@@ -44,7 +45,7 @@ namespace Hider.Core.Persistence
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 // No permission, a read-only or full file system, an I/O error: not "already running".
-                _error = $"cannot open {_lockPath}: {e.Message}";
+                _error = e.Message;
                 return null;
             }
         }

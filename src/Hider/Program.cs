@@ -36,10 +36,10 @@ namespace Hider
             {
                 // Not a log line: the app cannot run, and a silent exit 0 would look like "already running". Windows starts
                 // it without a console (WinExe), so the reason is shown in a message box there.
-                Console.Error.WriteLine($"hider: {lockError}");
+                Console.Error.WriteLine($"hider: cannot open {StoragePaths.InstanceLock}: {lockError}");
                 if (OperatingSystem.IsWindows())
                 {
-                    Hider.Platform.Windows.Win32Dialog.ShowError(Strings.StartupLockFailed(lockError), Strings.AppName);
+                    Hider.Platform.Windows.Win32Dialog.ShowError(Strings.StartupLockFailed(StoragePaths.InstanceLock, lockError), Strings.AppName);
                 }
                 return 2;
             }
