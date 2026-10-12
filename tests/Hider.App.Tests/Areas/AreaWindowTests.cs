@@ -330,5 +330,28 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(calls + 1, capture.Calls);
             Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
         }
+
+        [AvaloniaFact]
+        public void KeysPressedInTheSettingsPopup_DoNotMoveOrDeleteTheArea()
+        {
+            // Popup events bubble on to the window that owns the popup: arrows in a number box or Delete on a slider must
+            // stay in the panel.
+            using var f = new AreaFixture();
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Window.Show(); // the popup opens (as its own top level) only on a shown window
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            area.Window.ToggleSettings();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var panel = area.Window.Settings!;
+            Assert.NotNull(TopLevel.GetTopLevel(panel)); // open: headless hosts it as an overlay, a desktop as a PopupRoot
+            var row = panel.ParamRows[0];
+            foreach (var (target, key) in new (Control, Key)[] { (row.Input, Key.Up), (row.Slider, Key.Left), (row.Slider, Key.Delete), (row.Input, Key.Escape) })
+            {
+                target.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, Source = target });
+            }
+            Assert.Equal(areaRect, area.Model.Rect);
+            Assert.Contains(area, f.Manager.Areas);
+            Assert.Equal(AreaMode.Editing, area.Mode);
+        }
     }
 }

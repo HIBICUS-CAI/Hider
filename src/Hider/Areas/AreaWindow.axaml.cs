@@ -286,7 +286,7 @@ namespace Hider.Areas
         protected override void OnKeyDown(KeyEventArgs _e)
         {
             base.OnKeyDown(_e);
-            if (controller.Mode != AreaMode.Editing || _e.Handled)
+            if (controller.Mode != AreaMode.Editing || _e.Handled || IsInSettings(_e.Source))
             {
                 return;
             }
@@ -302,6 +302,22 @@ namespace Hider.Areas
                 default: return;
             }
             _e.Handled = true;
+        }
+
+        /// <summary>
+        /// Whether an event comes from the settings popup. Popup events bubble on to the window that owns the popup, so
+        /// without this an arrow in a number box would move the area and Delete on a slider would delete it.
+        /// </summary>
+        private bool IsInSettings(object? _source)
+        {
+            for (var e = _source as StyledElement; e is not null; e = e.Parent)
+            {
+                if (ReferenceEquals(e, settingsPopup))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private ResizeHandle? FindHandle(Control? _source)
