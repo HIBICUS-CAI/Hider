@@ -10,13 +10,13 @@
     <Version>2.0.0</Version>
   </PropertyGroup>
 
-  <!-- The conventions of CLAUDE.md are checked by the build: analyzers at the recommended level of .NET 10 (pinned, so that
-       a newer SDK feature band does not add rules on its own; raising it is a deliberate change), code style (.editorconfig,
-       naming and block-scoped namespaces included) as build warnings, which TreatWarningsAsErrors turns into errors. The
+  <!-- The conventions of CLAUDE.md are checked by the build: analyzers in the recommended mode of the SDK in use (new rules
+       of a newer SDK are fixed in the code when they come), code style (.editorconfig, naming and block-scoped namespaces
+       included) as build warnings, which TreatWarningsAsErrors turns into errors. The
        documentation file only lets IDE0005 (unused usings) run in the build; missing XML comments (CS1591) and
        parameters left out of a partly documented member (CS1573) are not required. -->
   <PropertyGroup>
-    <AnalysisLevel>10.0-recommended</AnalysisLevel>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
