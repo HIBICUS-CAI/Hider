@@ -100,6 +100,24 @@ namespace Hider.App.Tests.Areas
             window.Close();
         }
 
+        [AvaloniaFact]
+        public void DeletingAnArea_DisposesItsHost_AndReleasesItsFrames()
+        {
+            // On Win32 and X11 the host listens to a screen implementation the whole process shares: unless the host is
+            // disposed, the deleted area's window, controller and frame buffers stay until the app exits. (Headless gives
+            // each window its own screens, so the leak itself does not show there; the dispose is what is checked.)
+            using var f = new AreaFixture();
+            var area = f.Add(new PhysicalRect(100, 100, 300, 200), PatternKind.Mosaic);
+            area.Frames.Back.Resize(300, 200);
+            area.Frames.Publish();
+            area.Frames.Back.Resize(300, 200);
+            var host = f.Hosts.Single();
+            area.Delete();
+            Assert.True(host.Disposed);
+            Assert.Null(area.Frames.Read((_front, _) => _front));
+            Assert.Equal(0, area.Frames.Back.Width);
+        }
+
         private static List<string> Run(Func<AreaWindow, IAreaWindowHost> _factory)
         {
             using var f = new AreaFixture(1.0, null, _factory);

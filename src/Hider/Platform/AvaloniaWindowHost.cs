@@ -20,9 +20,22 @@ namespace Hider.Platform
         public AvaloniaWindowHost(Window _window)
         {
             window = _window;
-            window.ScalingChanged += (_, _) => QueueDisplayChanged(true);
-            window.Screens.Changed += (_, _) => QueueDisplayChanged(false);
+            window.ScalingChanged += OnScalingChanged;
+            // Screens is backed by one screen implementation shared by the whole process: unsubscribed in Dispose.
+            window.Screens.Changed += OnScreensChanged;
         }
+
+        public void Dispose()
+        {
+            window.ScalingChanged -= OnScalingChanged;
+            window.Screens.Changed -= OnScreensChanged;
+            DisplayChanged = null;
+            GC.SuppressFinalize(this);
+        }
+
+        private void OnScalingChanged(object? _sender, EventArgs _e) => QueueDisplayChanged(true);
+
+        private void OnScreensChanged(object? _sender, EventArgs _e) => QueueDisplayChanged(false);
 
         public event Action? DisplayChanged;
 

@@ -465,7 +465,9 @@ namespace Hider.Areas
             disposed = true;
             captureCancel?.Cancel();
             scheduler.Dispose();
+            Host.Dispose();
             Window.CloseFromController();
+            Frames.Release();
         }
     }
 }

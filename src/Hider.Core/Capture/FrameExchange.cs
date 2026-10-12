@@ -49,6 +49,17 @@ namespace Hider.Core.Capture
             }
         }
 
+        /// <summary>Lets both buffers go (the area is gone): nothing large stays referenced from here.</summary>
+        public void Release()
+        {
+            lock (gate)
+            {
+                front = null;
+                back = new FrameBuffer();
+                version++;
+            }
+        }
+
         /// <summary>Runs <paramref name="_reader"/> with the front frame (null when none) while publishing is held back.</summary>
         public T Read<T>(Func<FrameBuffer?, long, T> _reader)
         {

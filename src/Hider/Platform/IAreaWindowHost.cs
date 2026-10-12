@@ -7,7 +7,7 @@ namespace Hider.Platform
     /// Avalonia's Position / Width / Height / Topmost / platform handle, and they are the one place where physical pixels and
     /// DIP are converted. A future Wayland host (GNOME Shell extension) replaces the implementation, not the callers.
     /// </summary>
-    public interface IAreaWindowHost
+    public interface IAreaWindowHost : IDisposable
     {
         /// <summary>Native window handle (HWND / X11 window id), used to exclude Hider's own windows from capture.</summary>
         nint Handle { get; }
@@ -29,6 +29,9 @@ namespace Hider.Platform
 
         /// <summary>The window's scale or the monitor layout changed (DPI change, monitor plugged or unplugged): lay out again.</summary>
         event Action? DisplayChanged;
+
+        // Dispose (the area is deleted): stops listening to process-wide sources (the screens), which would otherwise keep
+        // the host, its window and the area's controller alive until the app exits.
     }
 
     /// <summary>Physical pixels of the window layout expressed in DIP via the host scale.</summary>
