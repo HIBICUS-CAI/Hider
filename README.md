@@ -68,7 +68,7 @@ python scripts/install.py -d <folder>
 | `restore_token` | Linux の画面共有（ScreenCast）の許可を次回起動時も使うための値。消すと次回ダイアログが出ます |
 | `instance.lock` | 二重起動の防止 |
 
-`--verbose` を付けて起動すると、取得・保存などのログを標準エラー出力に出します（Windows ではコンソールから起動したときにそのコンソールへ、リダイレクトしたときはその先へ）。
+`--verbose` を付けて起動すると、取得・保存などのログを標準エラー出力に出します（Windows の Hider.exe は GUI アプリなので、ログを見るときは `Hider.exe --verbose 2> hider.log` のようにリダイレクトします。常駐する起動は起動元のコンソールにつながらないので、そのコンソールで Ctrl+C を押したり閉じたりしても Hider は終了しません）。
 
 ## 画面の取得と既知の制約
 
