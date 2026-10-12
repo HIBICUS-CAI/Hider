@@ -100,18 +100,20 @@ namespace Hider.Core.Capture
                 }
                 // Every window has shown the transparent rows by now: any later frame is free of them (CT-82).
                 long notBefore = time.GetTimestamp();
+                // Only this strip's rows are needed from the frame (ScreenCast copies just those, CopyRows reads just those):
+                // a frame of one monitor serves the strips on it even when the area spans monitors stacked vertically.
+                var strip = new PhysicalRect(_rect.X, top, _rect.Width, bottom - top);
                 ScreenFrame? frame;
                 try
                 {
-                    // Only this strip's rows are needed from the frame (ScreenCast copies just those).
-                    frame = await grabber.GrabAfterAsync(notBefore, new PhysicalRect(_rect.X, top, _rect.Width, bottom - top), _ct).ConfigureAwait(false);
+                    frame = await grabber.GrabAfterAsync(notBefore, strip, _ct).ConfigureAwait(false);
                 }
                 catch (CaptureDeniedException e)
                 {
                     Log.Verbose($"strip capture denied: {e.Message}");
                     return CaptureFailure.Denied;
                 }
-                if (frame is null || frame.Covers.Intersect(_rect) != _rect)
+                if (frame is null || frame.Covers.Intersect(strip) != strip)
                 {
                     return CaptureFailure.Unavailable;
                 }

@@ -231,6 +231,25 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
+        public async Task AreaAcrossStackedMonitors_StripsComeFromTheMonitorTheyAreOn()
+        {
+            // ScreenCast shares the top monitor (0..1080) and is asked first; the area spans the border to the bottom one.
+            // Its strips on the top monitor come from ScreenCast, the rest from the screenshot of both monitors.
+            var log = new List<string>();
+            var time = new FakeTimeProvider();
+            var screenCast = new FakeScreenGrabber(log, CoordinateFrame.Create(1920, 1080)) { Ready = false, OnlyWhatItCovers = true };
+            var screenshot = new FakeScreenGrabber(log, CoordinateFrame.Create(1920, 2160));
+            var area = new StripArea("a", new PhysicalRect(100, 1064, 100, 24), PatternKind.Mosaic);
+            using var coordinator = new StripCoordinator(new FallbackGrabber(screenCast, screenshot), new FakeStripHost(log, time), () => new[] { area }, time);
+            var result = await coordinator.CaptureAsync(new CaptureRequest(area.Rect, Array.Empty<nint>(), 8), TestContext.Current.CancellationToken);
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((100, 1064), CoordinateFrame.Decode(result.Frame!, 0, 0)); // top monitor, from ScreenCast
+            Assert.Equal((100, 1080), CoordinateFrame.Decode(result.Frame!, 0, 16)); // bottom monitor, from the screenshot
+            Assert.Equal(3, screenCast.Calls); // asked for every strip, answered the two on its monitor
+            Assert.Equal(1, screenshot.Calls);
+        }
+
+        [Fact]
         public async Task Prepare_BeforeAnyStrip_FailureExposesNothing()
         {
             // Slow or interactive grabber work (portal session, permission dialog) happens before a strip turns transparent.

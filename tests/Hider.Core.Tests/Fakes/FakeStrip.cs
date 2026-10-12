@@ -61,6 +61,9 @@ namespace Hider.Core.Tests.Fakes
         /// <summary>Never completes until cancelled.</summary>
         public bool Hang { get; set; }
 
+        /// <summary>Return null for a strip that <see cref="Covers"/> does not contain, as the one-monitor ScreenCast does.</summary>
+        public bool OnlyWhatItCovers { get; set; }
+
         /// <summary>Called inside each grab (e.g. to look at the windows while their strip is transparent).</summary>
         public Action? OnGrab { get; set; }
 
@@ -114,7 +117,8 @@ namespace Hider.Core.Tests.Fakes
                 {
                     return null;
                 }
-                return new ScreenFrame(Frame, Covers ?? new PhysicalRect(0, 0, Frame.Width, Frame.Height));
+                var covers = Covers ?? new PhysicalRect(0, 0, Frame.Width, Frame.Height);
+                return OnlyWhatItCovers && covers.Intersect(_needed) != _needed ? null : new ScreenFrame(Frame, covers);
             }
             finally
             {
