@@ -66,6 +66,9 @@ namespace Hider.Core.Tests.Fakes
 
         /// <summary>What <see cref="PrepareAsync"/> answers; DenyPrepare makes it throw a refusal.</summary>
         public bool Ready { get; set; } = true;
+
+        /// <summary>What <see cref="IScreenGrabber.ReadyWithoutPrepare"/> answers.</summary>
+        public bool ReadyWithoutPrepare { get; set; }
         public bool DenyPrepare { get; set; }
 
         public Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)

@@ -30,6 +30,13 @@ namespace Hider.Core.Capture
         {
             return Task.FromResult(true);
         }
+
+        /// <summary>
+        /// Whether strips can be grabbed now without a prepare in this capture, with nothing slow or interactive left to do
+        /// (a ScreenCast session still open, a Screenshot portal that already answered). Lets a later grabber stand in when
+        /// the prepared one has no frame in the middle of a capture.
+        /// </summary>
+        bool ReadyWithoutPrepare => false;
     }
 
     /// <summary>The area windows' part of the strip method: draw some rows fully transparent, and back.</summary>

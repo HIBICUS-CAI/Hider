@@ -102,6 +102,9 @@ namespace Hider.Platform.Linux
             return await ShootAsync(_ct).ConfigureAwait(false) is not null;
         }
 
+        /// <summary>The portal answered once: no permission dialog is left, a screenshot just takes 0.1 .. 0.3 s.</summary>
+        public bool ReadyWithoutPrepare => answered;
+
         /// <summary>Decodes the portal's PNG into a premultiplied BGRA frame (null if it cannot be read).</summary>
         internal static FrameBuffer? ReadPng(string _path)
         {

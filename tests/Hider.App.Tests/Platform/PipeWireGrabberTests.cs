@@ -82,6 +82,7 @@ namespace Hider.App.Tests.Platform
             public (int W, int H) Size { get; set; } = (1920, 1080);
             public List<long> NotBeforeNs { get; } = new();
             public List<(int Row0, int Row1)> Rows { get; } = new();
+            public List<int> TimeoutsMs { get; } = new();
             private bool started;
 
             public int Start(int _fd, uint _nodeId)
@@ -98,6 +99,7 @@ namespace Hider.App.Tests.Platform
                 Assert.True(started, "grab before start");
                 NotBeforeNs.Add(_notBeforeNs);
                 Rows.Add((_row0, _row1));
+                TimeoutsMs.Add(_timeoutMs);
                 _frame = new HidercapFrame { Width = Size.W, Height = Size.H, Stride = Size.W * 4, PtsFromMeta = 1, PtsNs = _notBeforeNs + 16_000_000, Sequence = 3 };
                 if (GrabResult != 0)
                 {
@@ -174,6 +176,34 @@ namespace Hider.App.Tests.Platform
             Assert.Equal(new[] { "stop", "portal close", "portal dispose" }, log.TakeLast(3));
             Assert.Single(log, "portal dispose");
             Assert.False(g.IsOpen);
+        }
+
+        [Fact]
+        public async Task StaleIdleTimer_LeavesTheSessionOfALaterCaptureOpen()
+        {
+            // The idle timer fires as the next capture's prepare takes the gate: its callback waits, the prepare finds the
+            // session open and arms a new timer, and then the old callback runs. It must not close the session the capture's
+            // strips are about to use.
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            long fired = g.IdleGeneration;
+            Assert.True(await Prepare(g));
+            await g.CloseIdleAsync(fired);
+            Assert.True(g.IsOpen);
+            Assert.NotNull(await Grab(g));
+            // The newest timer still closes it.
+            await g.CloseIdleAsync(g.IdleGeneration);
+            Assert.False(g.IsOpen);
+        }
+
+        [Fact]
+        public async Task Prepare_WaitsLongerForTheFirstFrame()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            Assert.Equal(PipeWireGrabber.FirstFrameTimeoutMs, helper.TimeoutsMs[0]);
+            await Grab(g);
+            Assert.Equal(PipeWireGrabber.GrabTimeoutMs, helper.TimeoutsMs[^1]);
         }
 
         [Fact]

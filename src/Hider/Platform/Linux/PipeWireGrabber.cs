@@ -25,6 +25,9 @@ namespace Hider.Platform.Linux
         /// <summary>How long one strip waits for a new frame. Mutter sends frames on damage, and the transparent rows are damage.</summary>
         public const int GrabTimeoutMs = 1000;
 
+        /// <summary>How long the prepare waits for a new session's first frame (a stream can take over a second to start).</summary>
+        public const int FirstFrameTimeoutMs = 3000;
+
         private readonly IScreenCastPortal portal;
         private readonly IHidercap helper;
         private readonly RestoreTokenStore tokens;
@@ -37,6 +40,7 @@ namespace Hider.Platform.Linux
         private int frameWidth;
         private int frameHeight;
         private ITimer? idle;
+        private long idleGeneration;
         private bool disposed;
         private bool refused;
         private long retryAt = long.MinValue;
@@ -70,8 +74,7 @@ namespace Hider.Platform.Linux
             await gate.WaitAsync(_ct).ConfigureAwait(false);
             try
             {
-                idle?.Dispose();
-                idle = null;
+                CancelIdleClose();
                 // Only PrepareAsync opens the session: here a strip is transparent, so no portal round trip or dialog may
                 // start (closed by the idle timer, or stage 1 was prepared during a back-off): the strip just fails.
                 if (disposed || session is null)
@@ -84,7 +87,7 @@ namespace Hider.Platform.Linux
                     return null;
                 }
                 long notBeforeNs = (long)(_notBeforeTimestamp * (1_000_000_000.0 / time.TimestampFrequency));
-                var (code, info) = await Task.Run(() => Grab(notBeforeNs, shown, _needed), CancellationToken.None).ConfigureAwait(false);
+                var (code, info) = await Task.Run(() => Grab(notBeforeNs, shown, _needed, GrabTimeoutMs), CancellationToken.None).ConfigureAwait(false);
                 _ct.ThrowIfCancellationRequested();
                 switch (code)
                 {
@@ -122,8 +125,7 @@ namespace Hider.Platform.Linux
             await gate.WaitAsync(_ct).ConfigureAwait(false);
             try
             {
-                idle?.Dispose();
-                idle = null;
+                CancelIdleClose();
                 if (disposed)
                 {
                     return false;
@@ -135,7 +137,7 @@ namespace Hider.Platform.Linux
                         return false;
                     }
                     // Ready only once a frame came through; otherwise every strip would time out with its rows transparent.
-                    var (code, _) = await Task.Run(() => Grab(0, null, default), CancellationToken.None).ConfigureAwait(false);
+                    var (code, _) = await Task.Run(() => Grab(0, null, default, FirstFrameTimeoutMs), CancellationToken.None).ConfigureAwait(false);
                     if (code != Hidercap.Ok)
                     {
                         Log.Verbose($"screencast: no first frame ({code}), closing the session");
@@ -153,15 +155,30 @@ namespace Hider.Platform.Linux
             }
         }
 
+        /// <summary>A session is open: strips can be grabbed without a prepare (they never open one, see GrabAfterAsync).</summary>
+        public bool ReadyWithoutPrepare => session is not null && !disposed;
+
+        /// <summary>Caller holds the gate. Each use of the session makes earlier idle timers stale (see CloseIdleAsync).</summary>
+        private void CancelIdleClose()
+        {
+            idle?.Dispose();
+            idle = null;
+            idleGeneration++;
+        }
+
         /// <summary>Caller holds the gate.</summary>
         private void ArmIdleClose()
         {
             if (session is not null && !disposed)
             {
                 idle?.Dispose();
-                idle = time.CreateTimer(_ => CloseIdleAsync().Forget("screencast: idle close"), null, IdleClose, Timeout.InfiniteTimeSpan);
+                long generation = ++idleGeneration;
+                idle = time.CreateTimer(_ => CloseIdleAsync(generation).Forget("screencast: idle close"), null, IdleClose, Timeout.InfiniteTimeSpan);
             }
         }
+
+        /// <summary>The generation of the newest idle timer (tests).</summary>
+        internal long IdleGeneration => idleGeneration;
 
         /// <summary>
         /// The helper call. Only the frame rows of <paramref name="_needed"/> (mapped into the frame like
@@ -169,14 +186,14 @@ namespace Hider.Platform.Linux
         /// when <paramref name="_shown"/> is null or the frame size is not known yet; again with all rows when the size
         /// changed (the held frame is still recent enough, so that costs no wait). The buffer grows when needed.
         /// </summary>
-        private (int Code, HidercapFrame Info) Grab(long _notBeforeNs, PhysicalRect? _shown, PhysicalRect _needed)
+        private (int Code, HidercapFrame Info) Grab(long _notBeforeNs, PhysicalRect? _shown, PhysicalRect _needed, int _timeoutMs)
         {
             var (row0, row1) = _shown is { } shown && frameHeight > 0 ? Rows(shown, _needed, frameHeight) : (0, int.MaxValue);
-            int code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, row0, row1, buffer, out var info);
+            int code = helper.GrabAfter(_notBeforeNs, _timeoutMs, row0, row1, buffer, out var info);
             if (code == Hidercap.BufferTooSmall)
             {
                 buffer = new byte[(long)info.Width * info.Height * 4];
-                code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, row0, row1, buffer, out info);
+                code = helper.GrabAfter(_notBeforeNs, _timeoutMs, row0, row1, buffer, out info);
             }
             if (code == Hidercap.Ok && (info.Width != frameWidth || info.Height != frameHeight))
             {
@@ -184,7 +201,7 @@ namespace Hider.Platform.Linux
                 (frameWidth, frameHeight) = (info.Width, info.Height);
                 if (partial)
                 {
-                    code = helper.GrabAfter(_notBeforeNs, GrabTimeoutMs, 0, int.MaxValue, buffer, out info);
+                    code = helper.GrabAfter(_notBeforeNs, _timeoutMs, 0, int.MaxValue, buffer, out info);
                 }
             }
             return (code, info);
@@ -238,7 +255,12 @@ namespace Hider.Platform.Linux
             retryAt = time.GetTimestamp() + (long)(RetryAfterFailure.TotalSeconds * time.TimestampFrequency);
         }
 
-        private async Task CloseIdleAsync()
+        /// <summary>
+        /// The idle timer's callback. A timer that already fired may wait for the gate while a prepare or grab uses the
+        /// session and arms a newer timer; it must then leave the session alone, or the capture's next strip finds it closed
+        /// (and the area falls back to a generated pattern, FR-52).
+        /// </summary>
+        internal async Task CloseIdleAsync(long _generation)
         {
             try
             {
@@ -250,6 +272,10 @@ namespace Hider.Platform.Linux
             }
             try
             {
+                if (_generation != idleGeneration)
+                {
+                    return;
+                }
                 await CloseAsync().ConfigureAwait(false);
             }
             catch (Exception e)

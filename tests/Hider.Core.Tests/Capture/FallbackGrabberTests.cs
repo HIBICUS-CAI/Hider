@@ -114,5 +114,23 @@ namespace Hider.Core.Tests.Capture
             Assert.Null(await grabber.GrabAfterAsync(0, needed, ct));
             Assert.Equal((2, 1), (first.Calls, second.Calls));
         }
+
+        [Fact]
+        public async Task Strips_ReachALaterGrabberThatIsReadyWithoutPrepare()
+        {
+            // Stage 2 prepared but without a frame in the middle of a capture (nothing on screen changed): a Screenshot portal
+            // that already answered stands in; one that never answered (its dialog would open) is not asked.
+            var log = new List<string>();
+            var first = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
+            var second = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
+            using var grabber = new FallbackGrabber(first, second);
+            var ct = TestContext.Current.CancellationToken;
+            Assert.True(await grabber.PrepareAsync(needed, ct));
+            first.Frame = null;
+            Assert.Null(await grabber.GrabAfterAsync(0, needed, ct));
+            second.ReadyWithoutPrepare = true;
+            Assert.NotNull(await grabber.GrabAfterAsync(0, needed, ct));
+            Assert.Equal((2, 1), (first.Calls, second.Calls));
+        }
     }
 }

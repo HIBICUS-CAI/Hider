@@ -5,9 +5,10 @@ namespace Hider.Core.Capture
     /// <summary>
     /// Tries grabbers in order (Linux: ScreenCast + helper, then the Screenshot portal, D-6). The next one is asked when a
     /// grabber has no frame for the needed rectangle (helper missing, area on another monitor) or was refused; the refusal
-    /// is reported only when no grabber produced a frame. Only the grabbers up to the one <see cref="PrepareAsync"/> found
-    /// ready are asked for strips, so an unprepared one never starts slow or interactive work with a strip transparent.
-    /// The coordinator runs one capture at a time, so the prepared index needs no lock.
+    /// is reported only when no grabber produced a frame. Strips go to the grabbers up to the one <see cref="PrepareAsync"/>
+    /// found ready, and to later ones only when they are <see cref="IScreenGrabber.ReadyWithoutPrepare"/>, so no grabber
+    /// starts slow or interactive work with a strip transparent. The coordinator runs one capture at a time, so the prepared
+    /// index needs no lock.
     /// </summary>
     public sealed class FallbackGrabber : IScreenGrabber
     {
@@ -22,8 +23,12 @@ namespace Hider.Core.Capture
         public async Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)
         {
             CaptureDeniedException? denied = null;
-            for (int i = 0; i <= prepared && i < grabbers.Length; i++)
+            for (int i = 0; i < grabbers.Length; i++)
             {
+                if (i > prepared && !grabbers[i].ReadyWithoutPrepare)
+                {
+                    continue;
+                }
                 try
                 {
                     var frame = await grabbers[i].GrabAfterAsync(_notBeforeTimestamp, _needed, _ct).ConfigureAwait(false);
