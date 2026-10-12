@@ -326,11 +326,15 @@ namespace Hider.App.Tests.Areas
             public bool Hang { get; set; }
             public int Calls { get; private set; }
 
+            /// <summary>Called before hanging with the capture's token: lets a test start a strip (or not, a "prepare").</summary>
+            public Action<CancellationToken>? BeforeHang { get; set; }
+
             public async Task<Hider.Core.Capture.CaptureResult> CaptureAsync(Hider.Core.Capture.CaptureRequest _request, CancellationToken _ct)
             {
                 Calls++;
                 if (Hang)
                 {
+                    BeforeHang?.Invoke(_ct);
                     await Task.Delay(Timeout.Infinite, _ct);
                 }
                 return await inner.CaptureAsync(_request, _ct);
@@ -351,6 +355,7 @@ namespace Hider.App.Tests.Areas
             var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
             var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
             capture.Hang = true;
+            capture.BeforeHang = _ct => StartStrip(b, _ct); // the capture is in its strips
             b.Refresh();
             int calls = capture.Calls;
 
@@ -368,6 +373,52 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
         }
 
+        /// <summary>The first strip of a capture, as StripCoordinator starts it (its failure on cancel is the coordinator's).</summary>
+        private static void StartStrip(AreaController _area, CancellationToken _ct)
+        {
+            _area.Window.SetTransparentRowsAsync(0, 8, _ct).ContinueWith(_ => _area.Window.RestoreRowsAsync(), TaskScheduler.Default);
+        }
+
+        [AvaloniaFact]
+        public void BeforeTheFirstStrip_SettingsAndModeChangesLeaveThePermissionDialogAlone()
+        {
+            // Before its first strip a capture may be showing a portal permission dialog (Prepare): cancelling it would close
+            // the dialog the user is answering. A mode change lets it go on (the clip follows the new layout); a settings
+            // popup holds the cancel until the first strip, or drops it if the popup closes first.
+            var capture = new HangingStripCapture();
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
+            b.ExitEdit(); // a stays in edit mode: its settings popup opens only there
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            CancellationToken running = default;
+            capture.Hang = true;
+            capture.BeforeHang = _ct => running = _ct;
+            b.Refresh();
+            int calls = capture.Calls;
+
+            b.EnterEdit();
+            b.ExitEdit();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.False(running.IsCancellationRequested, "a mode change before the strips cancelled the capture");
+
+            a.Window.ToggleSettings();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.False(running.IsCancellationRequested, "a settings popup before the strips cancelled the capture");
+
+            capture.Hang = false;
+            StartStrip(b, running); // the dialog was answered, the strips begin: now the held cancel happens
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(running.IsCancellationRequested);
+            Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
+            Assert.False(b.CaptureFailed);
+            Assert.Equal(calls, capture.Calls);
+
+            a.Window.ToggleSettings();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal(calls + 1, capture.Calls); // taken again once the popup closed
+        }
+
         [AvaloniaFact]
         public void ModeChangeDuringStrips_CancelsAndRetakes_WithoutFallingBack()
         {
@@ -379,6 +430,7 @@ namespace Hider.App.Tests.Areas
             area.ExitEdit();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             capture.Hang = true;
+            capture.BeforeHang = _ct => StartStrip(area, _ct);
             area.Refresh();
             int calls = capture.Calls;
             capture.Hang = false;

@@ -30,6 +30,8 @@ namespace Hider.Areas
         private RefreshReason? retakeAfterCancel;
         private RefreshReason runningReason;
         private bool cancelledToRetake;
+        private bool stripsStarted;
+        private bool cancelAtFirstStrip;
         private bool disposed;
         private ResizeHandle dragHandle;
         private PixelPoint dragStartPointer;
@@ -45,6 +47,7 @@ namespace Hider.Areas
             Window.Attach(this);
             Host = _hostFactory(Window);
             Window.RefreshRequested += Refresh;
+            Window.StripStarting += OnStripStarting;
             // A DPI change (another monitor's scale, a changed scale setting) or a monitor change resizes the window by the
             // system's rules; placing it again restores the area's physical rectangle.
             Host.DisplayChanged += () =>
@@ -323,6 +326,8 @@ namespace Hider.Areas
                 return;
             }
             runningReason = _reason;
+            stripsStarted = false;
+            cancelAtFirstStrip = false;
             owner.CaptureStarting();
             // ExcludeWindows[0] is this area's own window: the capture only looks at what lies below it.
             var others = owner.OwnWindows;
@@ -380,25 +385,52 @@ namespace Hider.Areas
 
         /// <summary>
         /// A settings popup opened (UI thread): a strip capture running now would put it into its remaining strips, so it is
-        /// cancelled and taken again once the popups are closed (<see cref="ResumeAfterSettings"/>).
+        /// cancelled and taken again once the popups are closed (<see cref="ResumeAfterSettings"/>). Before its first strip
+        /// the capture may be showing a portal permission dialog the user is answering: cancelling would close it, so the
+        /// cancel waits for the first strip (and is dropped if the popups close before that).
         /// </summary>
         internal void HoldForSettings()
         {
-            if (CancelRunningStrips())
+            if (captureCancel is not { IsCancellationRequested: false } || !NeedsStrips)
             {
-                heldForSettings ??= runningReason;
+                return;
+            }
+            heldForSettings ??= runningReason;
+            if (stripsStarted)
+            {
+                CancelRunningStrips();
+            }
+            else
+            {
+                cancelAtFirstStrip = true;
             }
         }
 
         /// <summary>
-        /// The window is laid out anew (edit mode entered or left) while a strip capture may run: the strips already taken
-        /// were seen through the old layout, so the capture is cancelled and taken again once it has ended.
+        /// The window is laid out anew (edit mode entered or left) while a strip capture may run: strips already taken were
+        /// seen through the old layout, so the capture is cancelled and taken again once it has ended. Before the first strip
+        /// nothing was taken yet and the clip follows the new layout (AreaWindow.ApplyLayout): the capture goes on, and a
+        /// permission dialog it may be showing stays open.
         /// </summary>
         private void RetakeRunningStrips()
         {
-            if (CancelRunningStrips())
+            if (stripsStarted && CancelRunningStrips())
             {
                 retakeAfterCancel ??= runningReason;
+            }
+        }
+
+        private void OnStripStarting()
+        {
+            if (captureCancel is null)
+            {
+                return; // another area's capture covering this window
+            }
+            stripsStarted = true;
+            if (cancelAtFirstStrip)
+            {
+                cancelAtFirstStrip = false;
+                CancelRunningStrips();
             }
         }
 
@@ -417,6 +449,13 @@ namespace Hider.Areas
         /// <summary>Every settings popup is closed (UI thread): a capture held meanwhile runs now.</summary>
         internal void ResumeAfterSettings()
         {
+            if (cancelAtFirstStrip)
+            {
+                // The popups closed before the capture's first strip: nothing has to be cancelled or taken again.
+                cancelAtFirstStrip = false;
+                heldForSettings = null;
+                return;
+            }
             if (heldForSettings is { } reason && captureCancel is null)
             {
                 heldForSettings = null;
@@ -468,6 +507,12 @@ namespace Hider.Areas
                 {
                     captureCancel = null;
                     cancelledToRetake = false;
+                    if (cancelAtFirstStrip)
+                    {
+                        // Ended before any strip (a refusal, no grabber ready): the popups were never in it.
+                        cancelAtFirstStrip = false;
+                        heldForSettings = null;
+                    }
                 }
                 _cancel.Dispose();
                 scheduler.EndRun();

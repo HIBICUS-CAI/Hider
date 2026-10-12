@@ -170,6 +170,10 @@ namespace Hider.Areas
         /// </summary>
         public async Task SetTransparentRowsAsync(int _y0, int _y1, CancellationToken _ct)
         {
+            // The grabber is prepared by now (any permission dialog answered): a cancel held back until the strips start
+            // happens here, before anything turns see-through.
+            StripStarting?.Invoke();
+            _ct.ThrowIfCancellationRequested();
             TransparentRows = (_y0, _y1);
             ApplyClip();
             await WaitFramesAsync(_ct);
@@ -236,6 +240,9 @@ namespace Hider.Areas
                 Hider.Core.Log.Verbose($"area {controller.Model.Id}: no frame within {StripFrameWait.TotalMilliseconds} ms, capturing anyway");
             }
         }
+
+        /// <summary>A strip is about to turn rows of this window see-through (UI thread).</summary>
+        internal event Action? StripStarting;
 
         /// <summary>Strip changes captured after <see cref="StripFrameTimeout"/> instead of a rendered frame (tests).</summary>
         internal int StripFrameTimeouts { get; private set; }
