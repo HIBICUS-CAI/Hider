@@ -19,6 +19,9 @@ namespace Hider.Platform
         void Place(PhysicalRect _rect);
 
         void SetTopmost(bool _on);
+
+        /// <summary>The window's scale or the monitor layout changed (DPI change, monitor plugged or unplugged): lay out again.</summary>
+        event Action? DisplayChanged;
     }
 
     /// <summary>DIP lengths used by the window layout (edit margins, toolbar) expressed in physical pixels via the host scale.</summary>

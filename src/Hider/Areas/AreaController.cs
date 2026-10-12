@@ -44,6 +44,15 @@ namespace Hider.Areas
             Window.Attach(this);
             Host = _hostFactory(Window);
             Window.RefreshRequested += Refresh;
+            // A DPI change (another monitor's scale, a changed scale setting) or a monitor change resizes the window by the
+            // system's rules; placing it again restores the area's physical rectangle.
+            Host.DisplayChanged += () =>
+            {
+                if (!disposed)
+                {
+                    Layout();
+                }
+            };
             Window.SettingsOpenChanged += _open => owner.SettingsOpenChanged(this, _open);
         }
 

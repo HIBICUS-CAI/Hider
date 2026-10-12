@@ -353,5 +353,19 @@ namespace Hider.App.Tests.Areas
             Assert.Contains(area, f.Manager.Areas);
             Assert.Equal(AreaMode.Editing, area.Mode);
         }
+
+        [AvaloniaFact]
+        public void DisplayChange_PlacesTheWindowAgain()
+        {
+            // After a DPI or monitor change the system resized the window; it is placed again at the area's rectangle.
+            using var f = new AreaFixture();
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.ExitEdit();
+            var host = f.Hosts.Single();
+            int before = host.Placements.Count;
+            host.RaiseDisplayChanged();
+            Assert.Equal(before + 1, host.Placements.Count);
+            Assert.Equal(areaRect, host.Last);
+        }
     }
 }

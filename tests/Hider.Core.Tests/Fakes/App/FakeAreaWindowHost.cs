@@ -37,5 +37,13 @@ namespace Hider.Core.Tests.Fakes
         {
             Topmost = _on;
         }
+
+        /// <summary>Raises <see cref="DisplayChanged"/> as a DPI or monitor change would.</summary>
+        public void RaiseDisplayChanged()
+        {
+            DisplayChanged?.Invoke();
+        }
+
+        public event Action? DisplayChanged;
     }
 }

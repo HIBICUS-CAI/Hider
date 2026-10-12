@@ -52,6 +52,14 @@ namespace Hider.Platform.Windows
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool PrintWindow(nint _hwnd, nint _hdc, uint _flags);
 
+        public const uint SWP_NOZORDER = 0x0004;
+        public const uint SWP_NOACTIVATE = 0x0010;
+        public const uint SWP_NOOWNERZORDER = 0x0200;
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool SetWindowPos(nint _hwnd, nint _insertAfter, int _x, int _y, int _cx, int _cy, uint _flags);
+
         [LibraryImport("user32.dll")]
         public static partial nint GetDC(nint _hwnd);
 
