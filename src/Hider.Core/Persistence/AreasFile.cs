@@ -93,6 +93,9 @@ namespace Hider.Core.Persistence
             return JsonSerializer.Serialize(_state, HiderJsonContext.Default.AppState);
         }
 
+        /// <summary>Stored positions are clamped to ±this (physical px).</summary>
+        public const int MaxCoordinate = 1 << 20;
+
         public static AppState? FromJson(string _json)
         {
             return JsonSerializer.Deserialize(_json, HiderJsonContext.Default.AppState);
@@ -100,7 +103,7 @@ namespace Hider.Core.Persistence
 
         /// <summary>
         /// Repairs a loaded state: duplicate or malformed ids are replaced, colors that are not "#RRGGBB" fall back to the
-        /// default, opacity is clamped, sizes are clamped to [min, max], an unknown pattern becomes mosaic, and every registered method gets all of its
+        /// default, opacity, the position and sizes are clamped, an unknown pattern becomes mosaic, and every registered method gets all of its
         /// parameters (missing ones = default). Parameters of unknown method ids are kept as they are (§3.4).
         /// </summary>
         public static void Normalize(AppState _state)
@@ -113,6 +116,9 @@ namespace Hider.Core.Persistence
                     area.Id = AreaId.New(ids.Contains);
                     ids.Add(area.Id);
                 }
+                // Beyond any desktop, and small enough that a rectangle's right / bottom edge never overflows.
+                area.X = Math.Clamp(area.X, -MaxCoordinate, MaxCoordinate);
+                area.Y = Math.Clamp(area.Y, -MaxCoordinate, MaxCoordinate);
                 area.Opacity = double.IsNaN(area.Opacity) ? 1.0 : Math.Clamp(area.Opacity, 0.0, 1.0);
                 area.Width = double.IsFinite(area.Width) ? Math.Clamp(area.Width, AreaDefaults.MinSizeDip, AreaDefaults.MaxSizeDip) : AreaDefaults.NewAreaWidthDip;
                 area.Height = double.IsFinite(area.Height) ? Math.Clamp(area.Height, AreaDefaults.MinSizeDip, AreaDefaults.MaxSizeDip) : AreaDefaults.NewAreaHeightDip;

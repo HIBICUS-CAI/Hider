@@ -182,6 +182,34 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
+        public void Normalize_DecimalsInIntegerFields_RoundedNotBroken()
+        {
+            // A hand-edited file with "16.0" or "12.5" in an integer field keeps its areas (rounded), not the whole file lost.
+            File.WriteAllText(FilePath, """
+                { "version": 1.0, "areas": [ { "id": "0f3b8d2e", "x": 12.5, "y": -3e30,
+                  "mosaic": { "method": "pixelate", "common": { "levels": 16.0, "intervalMs": 250.4, "stripPx": 1e9 } },
+                  "generated": { "method": "block", "common": { "seed": 7.6 } } } ] }
+                """);
+            var a = Assert.Single(AreasFile.Load(FilePath, out var status).Areas);
+            Assert.Equal(LoadStatus.Loaded, status);
+            Assert.Equal((13, -AreasFile.MaxCoordinate), (a.X, a.Y));
+            Assert.Equal((16, 250), (a.Mosaic.Common.Levels, a.Mosaic.Common.IntervalMs));
+            Assert.Equal((int)CommonParams.Mosaic.Single(_p => _p.Key == CommonParams.StripPx).Max, a.Mosaic.Common.StripPx);
+            Assert.Equal(8, a.Generated.Common.Seed);
+            Assert.Contains("\"x\": 13,", AreasFile.ToJson(new AppState { Areas = { a } }), StringComparison.Ordinal);
+        }
+
+        [Theory]
+        [InlineData("\"12\"")]
+        [InlineData("1e400")]
+        public void IntegerFieldThatIsNoNumber_IsBroken(string _x)
+        {
+            File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "x": {{_x}} } ] }""");
+            AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Broken, status);
+        }
+
+        [Fact]
         public void CT26_InvalidJson_RenamedAndEmpty()
         {
             File.WriteAllText(FilePath, "{ this is not json");
