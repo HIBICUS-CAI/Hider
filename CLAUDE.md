@@ -16,7 +16,7 @@
 
 - ID は既存の最大番号 + 1（`git log --grep "pending: P-"` で一覧できる。P-1〜P-4 は archive/pr1-removed の docs/progress.md）。
 - ユーザーが承認・却下したら、その後のコミット本文に `resolved: <提案 ID>（承認 | 却下: 理由）` を書く（却下なら同じコミットで直す）。未決の提案 = pending にあって resolved にないもの（`git log --grep "resolved: P-"`）。
-- 承認済み: P-6（MIT ライセンス）。
+- 承認済み: P-6（MIT ライセンス）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）。
 
 ## 構成
 
