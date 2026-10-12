@@ -81,6 +81,18 @@ namespace Hider.Tray
             }
             icon.ToolTipText = ToolTip;
             fallback?.SetItems(Items, ToolTip);
+            // An open delete-all question follows the areas added or deleted meanwhile; with none left there is nothing to ask.
+            if (confirm is { IsVisible: true })
+            {
+                if (areas.Areas.Count == 0)
+                {
+                    confirm.Close();
+                }
+                else
+                {
+                    confirm.SetCount(areas.Areas.Count);
+                }
+            }
         }
 
         public async Task ExecuteAsync(TrayCommand _command)

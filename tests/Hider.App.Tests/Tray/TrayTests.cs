@@ -79,6 +79,24 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
+        public async Task GT18_DeleteAllDialog_FollowsAreasChangedWhileOpen()
+        {
+            using var f = new AreaFixture();
+            using var tray = CreateTray(f);
+            var first = f.Add(new PhysicalRect(100, 100, 300, 200));
+            first.ExitEdit();
+            var ask = tray.ConfirmDeleteAllAsync();
+            var dialog = tray.ConfirmWindow!;
+            Assert.Equal("1 個のエリアをすべて削除します。", dialog.MessageText.Text);
+            var second = f.Add(new PhysicalRect(500, 100, 300, 200));
+            Assert.Equal("2 個のエリアをすべて削除します。", dialog.MessageText.Text);
+            second.Delete();
+            first.Delete();
+            Assert.False(dialog.IsVisible);
+            Assert.False(await ask);
+        }
+
+        [AvaloniaFact]
         public void GT19_Popup_HasSameItemsAsNativeMenu()
         {
             using var f = new AreaFixture();
