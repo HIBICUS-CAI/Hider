@@ -121,6 +121,32 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
+        public void SliderArrowKeys_StayWithinTheTrack()
+        {
+            // The "at least one unit" step must not carry the value past the track's end (where the thumb cannot follow),
+            // and a typed value beyond the track is kept rather than pulled back to its end.
+            var (f, _, panel) = Open(PatternKind.Mosaic);
+            using (f)
+            {
+                var rows = panel.ParamRows.Where(_r => _r.Spec.Max > _r.Spec.SliderMax).ToList();
+                Assert.NotEmpty(rows);
+                foreach (var row in rows)
+                {
+                    string Shown(double _v) => Math.Round(_v * row.Spec.DisplayFactor).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    Type(row, Shown(row.Spec.SliderMax));
+                    row.Step(1, false);
+                    Assert.Equal(row.Spec.SliderMax, row.Value, 9);
+                    double beyond = row.Spec.Max;
+                    Type(row, Shown(beyond));
+                    row.Step(-1, false);
+                    Assert.Equal(beyond, row.Value, 9);
+                    row.Step(1, true);
+                    Assert.Equal(beyond, row.Value, 9);
+                }
+            }
+        }
+
+        [AvaloniaFact]
         public void Seed_StaysWithinTheHashRange()
         {
             // The pattern hash takes 65536 seeds: larger ones would show the same pattern as a smaller one.

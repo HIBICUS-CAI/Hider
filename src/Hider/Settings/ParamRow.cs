@@ -128,17 +128,23 @@ namespace Hider.Settings
 
         /// <summary>
         /// One keyboard step: 1% of the slider track (10% when large), at least one displayed unit (1 px, 1 ms, 1 %), as if
-        /// the slider had been moved.
+        /// the slider had been moved: never past the track's ends, and nothing for a typed value beyond them (the slider
+        /// could not have produced it either).
         /// </summary>
         public void Step(int _direction, bool _large)
         {
+            double low = Spec.FromSliderPosition(0.0), high = Spec.FromSliderPosition(1.0);
+            if (Value < low - 1e-9 || Value > high + 1e-9)
+            {
+                return;
+            }
             double position = Spec.ToSliderPosition(Value) + _direction * (_large ? 0.1 : 0.01);
             double value = Round(Spec.FromSliderPosition(position));
             if (_direction > 0 ? value <= Value : value >= Value)
             {
                 value = Value + _direction / Spec.DisplayFactor;
             }
-            Commit(value, false);
+            Commit(Math.Clamp(value, low, high), false);
         }
 
         /// <summary>Applies the text in the box (Enter / focus loss), clamped to Min..Max. Full-width digits are accepted.</summary>
