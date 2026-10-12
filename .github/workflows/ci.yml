@@ -71,9 +71,6 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
       - run: dotnet build -c Release --no-restore -warnaserror
-      # Formatting and code style as .editorconfig says (once: Windows checkouts may convert line endings).
-      - if: matrix.rid == 'linux-x64'
-        run: dotnet format Hider.slnx --verify-no-changes --no-restore
       - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
       - if: always()
         uses: actions/upload-artifact@v7
@@ -81,6 +78,23 @@ jobs:
           name: test-core-${{ matrix.rid }}
           path: TestResults/**
           retention-days: 14
+
+  # Formatting and code style as .editorconfig says, whatever the targets: once, on Linux (Windows checkouts may convert
+  # line endings).
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore --locked-mode
+      - run: dotnet format Hider.slnx --verify-no-changes --no-restore
 
   # scripts/*.py: strict type checks (mypy, pyright) and lint (ruff), as configured in pyproject.toml.
   python-lint:
@@ -168,12 +182,18 @@ jobs:
       - run: make -C native/hidercap RID=${{ matrix.rid }}
       # CT-90: which frames a grab skips (frame_time.h), without PipeWire.
       - run: make -C native/hidercap test RID=${{ matrix.rid }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libhidercap-${{ matrix.rid }}
+          path: native/hidercap/out/${{ matrix.rid }}/libhidercap.so
+          if-no-files-found: error
+          retention-days: 14
 
   publish:
-    # After every check that ran (the scripts' lint included: publish runs build.py): a skipped GUI test or native job
-    # (not chosen, no Linux target) does not hold it back.
+    # After every check that ran (format and the scripts' lint included: publish runs build.py): a skipped GUI test or
+    # native job (not chosen, no Linux target) does not hold it back.
     if: ${{ inputs.publish && !cancelled() && !failure() }}
-    needs: [plan, test-core, test-gui, native, python-lint]
+    needs: [plan, test-core, test-gui, native, format, python-lint]
     strategy:
       fail-fast: false
       matrix:
@@ -214,7 +234,7 @@ jobs:
 
   summary:
     if: always()
-    needs: [plan, test-core, test-gui, native, publish, python-lint]
+    needs: [plan, test-core, test-gui, native, publish, format, python-lint]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -227,5 +247,6 @@ jobs:
             echo "| test-gui | ${{ needs.test-gui.result }} |"
             echo "| native | ${{ needs.native.result }} |"
             echo "| publish | ${{ needs.publish.result }} |"
+            echo "| format | ${{ needs.format.result }} |"
             echo "| python-lint | ${{ needs.python-lint.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
