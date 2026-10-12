@@ -72,6 +72,7 @@ def render(size: int) -> list[bytes]:
 def png(size: int) -> bytes:
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xFFFFFFFF)
+
     raw = b''.join(b'\x00' + row for row in render(size))
     header = struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0)  # 8-bit RGBA
     return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b'')
@@ -100,11 +101,15 @@ def svg() -> str:
     rects = '\n'.join(
         f'    <rect x="{cx * step}" y="{cy * step}" width="{step}" height="{step}" '
         f'fill="{hex_color(cell_color(cx, cy))}"/>'
-        for cy in range(GRID) for cx in range(GRID))
+        for cy in range(GRID)
+        for cx in range(GRID)
+    )
     r = corner_radius(size)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">\n'
-            f'  <clipPath id="c"><rect width="{size}" height="{size}" rx="{r:g}"/></clipPath>\n'
-            f'  <g clip-path="url(#c)" shape-rendering="crispEdges">\n{rects}\n  </g>\n</svg>\n')
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">\n'
+        f'  <clipPath id="c"><rect width="{size}" height="{size}" rx="{r:g}"/></clipPath>\n'
+        f'  <g clip-path="url(#c)" shape-rendering="crispEdges">\n{rects}\n  </g>\n</svg>\n'
+    )
 
 
 def main() -> None:

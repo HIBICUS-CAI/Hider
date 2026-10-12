@@ -31,15 +31,17 @@ def install_windows(src_dir: Path, dest_dir: Path) -> None:
     copy_files(src_dir, dest_dir)
     # WScript.Shell is available on every Windows install, so no extra Python package is needed.
     # Paths go through environment variables and the script is passed encoded to avoid quoting issues.
-    script = '; '.join([
-        "$ErrorActionPreference = 'Stop'",
-        "$link = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'",
-        '$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($link)',
-        '$shortcut.TargetPath = $env:HIDER_TARGET_PATH',
-        '$shortcut.WorkingDirectory = $env:HIDER_WORKING_DIR',
-        '$shortcut.Save()',
-        "Write-Output ('Created shortcut: ' + $link)",
-    ])
+    script = '; '.join(
+        [
+            "$ErrorActionPreference = 'Stop'",
+            "$link = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'",
+            '$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($link)',
+            '$shortcut.TargetPath = $env:HIDER_TARGET_PATH',
+            '$shortcut.WorkingDirectory = $env:HIDER_WORKING_DIR',
+            '$shortcut.Save()',
+            "Write-Output ('Created shortcut: ' + $link)",
+        ]
+    )
     env = os.environ.copy()
     env['HIDER_TARGET_PATH'] = str(dest_dir / EXE_NAME)
     env['HIDER_WORKING_DIR'] = str(dest_dir)
@@ -70,25 +72,34 @@ def install_linux(src_dir: Path, dest_dir: Path, data_home: Path) -> None:
     apps_dir = data_home / 'applications'
     apps_dir.mkdir(parents=True, exist_ok=True)
     entry_path = apps_dir / 'Hider.desktop'
-    entry_path.write_text('\n'.join([
-        '[Desktop Entry]',
-        'Type=Application',
-        'Name=Hider',
-        'Comment=画面の一部をモザイクやパターンで覆って隠す',
-        f'Exec={desktop_exec_arg(str(exe_path))}',
-        f'Icon={desktop_string(str(dest_dir / "Assets" / "hider.svg"))}',
-        'Terminal=false',
-        'Categories=Utility;',
-        'StartupWMClass=Hider',
-        '',
-    ]), encoding='utf-8')
+    entry_path.write_text(
+        '\n'.join(
+            [
+                '[Desktop Entry]',
+                'Type=Application',
+                'Name=Hider',
+                'Comment=画面の一部をモザイクやパターンで覆って隠す',
+                f'Exec={desktop_exec_arg(str(exe_path))}',
+                f'Icon={desktop_string(str(dest_dir / "Assets" / "hider.svg"))}',
+                'Terminal=false',
+                'Categories=Utility;',
+                'StartupWMClass=Hider',
+                '',
+            ]
+        ),
+        encoding='utf-8',
+    )
     print(f'Created desktop entry: {entry_path}')
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-d', '--dest', help='Install folder. Default: %%LOCALAPPDATA%%\\Programs\\Hider on Windows, '
-                                             '$XDG_DATA_HOME/Hider (~/.local/share/Hider) on Linux.')
+    parser.add_argument(
+        '-d',
+        '--dest',
+        help='Install folder. Default: %%LOCALAPPDATA%%\\Programs\\Hider on Windows, '
+        '$XDG_DATA_HOME/Hider (~/.local/share/Hider) on Linux.',
+    )
     dest_arg: str | None = parser.parse_args().dest
 
     target = host_target()
@@ -110,7 +121,7 @@ def main() -> None:
         install_windows(src_dir, dest)
     else:
         data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local' / 'share')
-        dest = Path(dest_arg or data_home / "Hider").absolute()
+        dest = Path(dest_arg or data_home / 'Hider').absolute()
         install_linux(src_dir, dest, data_home)
     print(f'Installed to {dest}')
 

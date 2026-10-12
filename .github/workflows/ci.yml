@@ -97,6 +97,7 @@ jobs:
       - run: mypy
       - run: pyright
       - run: ruff check scripts
+      - run: ruff format --check scripts
 
   test-gui:
     if: ${{ inputs.run_gui_tests }}
@@ -154,9 +155,10 @@ jobs:
       - run: make -C native/hidercap RID=${{ matrix.rid }}
 
   publish:
-    # After every check that ran: a skipped GUI test or native job (not chosen, no Linux target) does not hold it back.
+    # After every check that ran (the scripts' lint included: publish runs build.py): a skipped GUI test or native job
+    # (not chosen, no Linux target) does not hold it back.
     if: ${{ inputs.publish && !cancelled() && !failure() }}
-    needs: [plan, test-core, test-gui, native]
+    needs: [plan, test-core, test-gui, native, python-lint]
     strategy:
       fail-fast: false
       matrix:

@@ -14,8 +14,13 @@ from common import NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, host_target, publis
 
 def parse_targets() -> list[str]:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('targets', nargs='*', choices=[*TARGETS, 'all'], metavar='target',
-                        help=f'Targets to build: {", ".join(TARGETS)} or all. Default is the current machine.')
+    parser.add_argument(
+        'targets',
+        nargs='*',
+        choices=[*TARGETS, 'all'],
+        metavar='target',
+        help=f'Targets to build: {", ".join(TARGETS)} or all. Default is the current machine.',
+    )
     chosen: list[str] = parser.parse_args().targets
     if 'all' in chosen:
         return list(TARGETS)
@@ -51,8 +56,10 @@ def build_native_helper(target: str) -> None:
         reason = f'make exited with {result.returncode} (its output is above)'
         if is_host:
             sys.exit(f'Building libhidercap.so for {target} failed: {reason}.')
-        warn(f'building libhidercap.so for {target} failed: {reason}; {target} is built without it '
-             '(a cross compiler and that architecture\'s libpipewire-0.3-dev are needed)')
+        warn(
+            f'building libhidercap.so for {target} failed: {reason}; {target} is built without it '
+            "(a cross compiler and that architecture's libpipewire-0.3-dev are needed)"
+        )
 
 
 def main() -> None:
@@ -69,8 +76,11 @@ def main() -> None:
             shutil.rmtree(out_dir)
         if target.startswith('linux'):
             build_native_helper(target)
-        subprocess.run(['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir)],
-                       check=True, env=env)
+        subprocess.run(
+            ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir)],
+            check=True,
+            env=env,
+        )
     print('Done.')
 
 
