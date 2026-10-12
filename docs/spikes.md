@@ -1,17 +1,17 @@
 # スパイク結果（設計書 §10）
 
-スパイクのプログラムと手順（`spikes/S-n/`）は PR #1 の終わりに削除した。必要なときはコミット 2982026 から取り出す（`git show 2982026:spikes/S-1/README.md`、`git archive 2982026 spikes | tar -x`）。結果はこの文書に残す。
+スパイクのプログラムと手順（`spikes/S-n/`）は PR #1 の終わりに削除した。必要なときはブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050）から取り出す（`git fetch origin archive/pr1-removed` の後、`git show FETCH_HEAD:spikes/S-1/README.md`、`git archive FETCH_HEAD spikes | tar -x`）。結果はこの文書に残す。
 
 ## 結果一覧
 
 | # | 検証 | 日付 | 機材 | OS 版 | 結果 | 実測値 |
 |---|---|---|---|---|---|---|
-| S-1 | Win11: 枠なし・Topmost・非アクティブ・透明窓 + TrayIcon 左右クリック | — | — | — | 未実施（デスクトップが必要。人間待ち、手順は 2982026 の spikes/S-1/README.md） | — |
-| S-2 | Ubuntu 26.04: 同上 + ARGB visual の GLX 描画 + 帯の透明化 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は 2982026 の spikes/S-2/README.md） | — |
+| S-1 | Win11: 枠なし・Topmost・非アクティブ・透明窓 + TrayIcon 左右クリック | — | — | — | 未実施（デスクトップが必要。人間待ち、手順は archive/pr1-removed の spikes/S-1/README.md） | — |
+| S-2 | Ubuntu 26.04: 同上 + ARGB visual の GLX 描画 + 帯の透明化 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は archive/pr1-removed の spikes/S-2/README.md） | — |
 | S-3 | SKRuntimeEffect のピクセル化（GPU / Software） | 2026-10-11 | GitHub Actions ランナー 3 種（4 コア）、作業コンテナ（Xeon 2.8 GHz 4 コア） | Windows Server 2025（10.0.26100）、Ubuntu 24.04（x64 / arm64） | CPU: **条件付き合格**（全解像度評価は不合格、セル単位評価なら合格）。GPU: 未実施（実機の GPU が必要、人間待ち） | 下表「S-3 CPU 実測」 |
-| S-4 | PrintWindow(PW_RENDERFULLCONTENT) の黒判定 | 2026-10-11（参考） | GitHub Actions windows-latest（GPU なし、1024×768） | Windows 10.0.26100 | 参考実行のみ（実機の Edge / VS Code / UWP / 管理者窓 / 排他全画面は人間待ち、手順は 2982026 の spikes/S-4/README.md） | 下表「S-4 参考実行」 |
-| S-5 | Screenshot ポータルの許可の記憶 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は 2982026 の spikes/S-5/README.md） | — |
-| S-6 | ScreenCast + PipeWire ヘルパ: restore_token、PTS 判定、帯 1 本のフレーム数、座標対応 | — | — | — | 未実施（GNOME 50 実機が必要。手順は 2982026 の spikes/S-6/README.md） | — |
+| S-4 | PrintWindow(PW_RENDERFULLCONTENT) の黒判定 | 2026-10-11（参考） | GitHub Actions windows-latest（GPU なし、1024×768） | Windows 10.0.26100 | 参考実行のみ（実機の Edge / VS Code / UWP / 管理者窓 / 排他全画面は人間待ち、手順は archive/pr1-removed の spikes/S-4/README.md） | 下表「S-4 参考実行」 |
+| S-5 | Screenshot ポータルの許可の記憶 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は archive/pr1-removed の spikes/S-5/README.md） | — |
+| S-6 | ScreenCast + PipeWire ヘルパ: restore_token、PTS 判定、帯 1 本のフレーム数、座標対応 | — | — | — | 未実施（GNOME 50 実機が必要。手順は archive/pr1-removed の spikes/S-6/README.md） | — |
 | S-7 | PublishTrimmed: JSON source-gen + Tmds.DBus.Protocol + ColorPicker + SkiaSharp 3 | 2026-10-11 | GitHub Actions ランナー 3 種、作業コンテナ | Windows 10.0.26100、Ubuntu 24.04（x64 / arm64） | **合格**（3 RID とも起動・保存・復元・D-Bus 呼び出し・ColorPicker 描画が通る） | 下表「S-7」 |
 | S-8 | linux-arm64 実機で S-3 再測定 | — | — | — | 未実施（実機の機材待ち。CI の arm64 ランナーでの CPU 値は S-3 に記載） | — |
 
@@ -29,7 +29,7 @@
 - SkSL を CPU（Skia のラスタパイプライン）で全画素評価すると 1 画素あたり約 30〜100 ns かかり、設計書 §4.4 の見積（CPU 5〜10 ms / 800×450）を大きく超える。定数色を返すだけのシェーダでも 1080p で 64 ms（作業コンテナ）。
 - 出力がセル単位で一定の手法（ピクセル化）は、セル数ぶんの縮小面でシェーダを評価して最近傍で拡大すると全解像度評価と画素単位で一致し、2 ms 前後になる。
 - 色数制限もセル単位の縮小面に掛ければ同じ結果になる（出力がセル単位で一定のため）。
-- 提案 P-1（コミット 3bdd958 の docs/progress.md、Step 1）として、パイプラインに「セル単位評価」と「結果のキャッシュ」を入れる。
+- 提案 P-1（archive/pr1-removed の docs/progress.md、Step 1）として、パイプラインに「セル単位評価」と「結果のキャッシュ」を入れる。
 
 ## S-4 参考実行（windows-latest、管理者、GPU なし）
 

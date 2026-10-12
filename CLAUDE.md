@@ -10,7 +10,7 @@
 | 作業指示書（Hider v2 実装作業指示書） | https://claude.ai/artifact/Cf2T1HM3yg78c6s5N8Crh7 | Step 0〜9 の順序・契約（§3）・完了条件・報告形式。タブ: 設計書 / テスト項目 / GitHub Actions / 付録: 現行コード |
 | 設計書 | docs/v2-implementation-plan.md | 方式比較・性能見積・スパイク定義・決定 D-1〜D-12 |
 | UI デザインキャンバス | https://claude.ai/artifact/VKTc6PcAYtSMLHgfw5814y | 画面 8 枚。寸法・配色・項目名の正 |
-| 過去の進捗報告 | コミット 3bdd958 の docs/progress.md | Step 0〜9 の報告と提案 P-1〜P-4。PR #1 の終わりに削除（`git show 3bdd958:docs/progress.md`、削除コミットは `git log --grep "progress.md を削除"`） |
+| 過去の進捗報告・スパイク | ブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050） | PR #1 の終わりに main から外した docs/progress.md（Step 0〜9 の報告、提案 P-1〜P-4）、docs/golden-diffs、spikes/。`git fetch origin archive/pr1-removed` の後 `git show FETCH_HEAD:docs/progress.md` |
 
 矛盾を見つけたら勝手に解釈せず、コミット本文に「提案」（問題 / 選択肢 / 推奨 / 影響する FR・決定）を書き、推奨案で実装してコミットに `pending: <提案 ID>` を付ける（ID は P-5 から。`git log --grep "pending: P-"` で一覧できる）。
 

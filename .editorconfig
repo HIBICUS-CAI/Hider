@@ -36,7 +36,7 @@ dotnet_style_qualification_for_method = false:suggestion
 # Unused usings (needs GenerateDocumentationFile to run in the build, see Directory.Build.props).
 dotnet_diagnostic.IDE0005.severity = warning
 
-# Proposal P-4 (docs/progress.md at commit 3bdd958): CA1707 (no underscores in names) and CA1725 (override parameters keep the base names)
+# Proposal P-4 (docs/progress.md on the branch archive/pr1-removed): CA1707 (no underscores in names) and CA1725 (override parameters keep the base names)
 # contradict CLAUDE.md's parameter convention "_name" (and the CT-xx_ / GT-xx_ test names), so they are off.
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1725.severity = none
