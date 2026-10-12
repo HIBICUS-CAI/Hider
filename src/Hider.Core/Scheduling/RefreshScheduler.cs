@@ -21,6 +21,7 @@ namespace Hider.Core.Scheduling
         private readonly TimeProvider time;
         private readonly object gate = new();
         private ITimer? timer;
+        private long nextTickAt;
         private int intervalMs;
         private bool running;
         private RefreshReason? pending;
@@ -48,9 +49,9 @@ namespace Hider.Core.Scheduling
 
         /// <summary>
         /// Sets the timer interval. Nothing is captured because of the change itself (D-10: from the next timer). A longer
-        /// interval applies after the tick already scheduled; a shorter one re-arms the timer to tick one new interval from
-        /// now (otherwise going from an hour to 100 ms would wait up to the hour). 0 stops the timer; going from 0 to a value
-        /// starts it from now.
+        /// interval applies after the tick already scheduled; a shorter one brings the scheduled tick forward to one new
+        /// interval from now when that is sooner (otherwise going from an hour to 100 ms would wait up to the hour), and never
+        /// puts it later. 0 stops the timer; going from 0 to a value starts it from now.
         /// </summary>
         public void Configure(int _intervalMs)
         {
@@ -75,11 +76,17 @@ namespace Hider.Core.Scheduling
                 }
                 if (timer is null)
                 {
-                    timer = time.CreateTimer(_ => OnTick(), null, TimeSpan.FromMilliseconds(interval), Timeout.InfiniteTimeSpan);
+                    timer = time.CreateTimer(_ => OnTick(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                    Arm(TimeSpan.FromMilliseconds(interval));
                 }
                 else if (interval < previous)
                 {
-                    timer.Change(TimeSpan.FromMilliseconds(interval), Timeout.InfiniteTimeSpan);
+                    var remaining = time.GetElapsedTime(time.GetTimestamp(), nextTickAt);
+                    var next = TimeSpan.FromMilliseconds(interval);
+                    if (next < remaining)
+                    {
+                        Arm(next);
+                    }
                 }
                 // Otherwise OnTick re-arms with the new interval after the tick already scheduled.
             }
@@ -142,13 +149,20 @@ namespace Hider.Core.Scheduling
                     return;
                 }
                 // Next tick on the current interval (a Configure since the last tick takes effect here).
-                timer.Change(TimeSpan.FromMilliseconds(intervalMs), Timeout.InfiniteTimeSpan);
+                Arm(TimeSpan.FromMilliseconds(intervalMs));
                 fire = !timerPaused;
             }
             if (fire)
             {
                 Raise(RefreshReason.Timer);
             }
+        }
+
+        /// <summary>Caller holds the gate and has a timer.</summary>
+        private void Arm(TimeSpan _dueIn)
+        {
+            nextTickAt = time.GetTimestamp() + (long)(_dueIn.TotalSeconds * time.TimestampFrequency);
+            timer!.Change(_dueIn, Timeout.InfiniteTimeSpan);
         }
 
         private void Raise(RefreshReason _reason)

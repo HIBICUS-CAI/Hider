@@ -71,6 +71,20 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
+        public void ShorterInterval_NeverPutsTheScheduledTickLater()
+        {
+            // 59 s into 60 s, changing to 30 s keeps the tick 1 s away instead of moving it to 30 s from now.
+            var (scheduler, time, log) = Create(true);
+            scheduler.Configure(60_000);
+            time.Advance(TimeSpan.FromSeconds(59));
+            scheduler.Configure(30_000);
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.Equal(60_000, (int)Assert.Single(log).Item1.TotalMilliseconds);
+            time.Advance(TimeSpan.FromSeconds(30));
+            Assert.Equal(90_000, (int)log[^1].Item1.TotalMilliseconds);
+        }
+
+        [Fact]
         public void CT40_MergingConfigureDisposeAndDrag()
         {
             var (scheduler, time, log) = Create();
