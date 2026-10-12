@@ -231,6 +231,35 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
+        public async Task AreaPartlyOffTheScreens_CapturesWhatIsOnThem_RestIsBlack()
+        {
+            // 640 x 480 screen, area 100 px past the right edge: the part on the screen is captured, the rest is opaque black
+            // (as on Windows), and the strips only cover the visible part.
+            var log = new List<string>();
+            var time = new FakeTimeProvider();
+            var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(640, 480)) { OnlyWhatItCovers = true };
+            var area = new StripArea("a", new PhysicalRect(600, 20, 140, 16), PatternKind.Mosaic);
+            using var coordinator = new StripCoordinator(grabber, new FakeStripHost(log, time), () => new[] { area }, time,
+                () => new PhysicalRect(0, 0, 640, 480));
+            var result = await coordinator.CaptureAsync(new CaptureRequest(area.Rect, Array.Empty<nint>(), 8), TestContext.Current.CancellationToken);
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((140, 16), (result.Frame!.Width, result.Frame.Height));
+            Assert.Equal((600, 20), CoordinateFrame.Decode(result.Frame, 0, 0));
+            Assert.Equal((639, 35), CoordinateFrame.Decode(result.Frame, 39, 15));
+            var span = result.Frame.Bgra.Span;
+            int i = 15 * result.Frame.Stride + 139 * 4;
+            Assert.Equal(new byte[] { 0, 0, 0, 255 }, span.Slice(i, 4).ToArray()); // off the screen: black
+            Assert.All(grabber.Needed, _n => Assert.Equal(new PhysicalRect(600, _n.Y, 40, 8), _n));
+
+            // Entirely off the screens: nothing is turned see-through, nothing is grabbed.
+            var gone = new StripArea("b", new PhysicalRect(700, 20, 100, 16), PatternKind.Mosaic);
+            int calls = grabber.Calls;
+            var none = await coordinator.CaptureAsync(new CaptureRequest(gone.Rect, Array.Empty<nint>(), 8), TestContext.Current.CancellationToken);
+            Assert.Equal(CaptureFailure.Unavailable, none.Failure);
+            Assert.Equal(calls, grabber.Calls);
+        }
+
+        [Fact]
         public async Task AreaAcrossStackedMonitors_StripsComeFromTheMonitorTheyAreOn()
         {
             // ScreenCast shares the top monitor (0..1080) and is asked first; the area spans the border to the bottom one.

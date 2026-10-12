@@ -90,7 +90,7 @@ namespace Hider
             {
                 var stage2 = new PipeWireGrabber(new ScreenCastPortal(), new Hidercap(), new RestoreTokenStore(StoragePaths.RestoreToken), () => _stripHost.Screens);
                 var stage1 = new PortalScreenshotGrabber(() => _stripHost.Screen);
-                return new StripCoordinator(new FallbackGrabber(stage2, stage1), _stripHost, () => _stripHost.Areas);
+                return new StripCoordinator(new FallbackGrabber(stage2, stage1), _stripHost, () => _stripHost.Areas, null, () => _stripHost.Screen);
             }
             return new UnavailableCapture();
         }
