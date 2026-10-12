@@ -51,6 +51,7 @@ CFLAGS ?= -O2
 # exporting only the API, and hardening (not left to the compiler's defaults, which differ between distributions).
 HIDERCAP_CFLAGS  := -std=c11 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fstack-protector-strong \
                     -fstack-clash-protection $(PW_CFLAGS)
+# After CPPFLAGS on the command line: a -D_FORTIFY_SOURCE=2 from dpkg-buildflags is undefined first, not redefined.
 HIDERCAP_CPPFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 HIDERCAP_LDFLAGS := -shared -Wl,--no-undefined -Wl,-soname,libhidercap.so -Wl,-z,relro,-z,now,-z,noexecstack
 
@@ -60,7 +61,7 @@ all: $(TARGET)
 
 $(TARGET): $(SRCS) hidercap.h Makefile
 	@mkdir -p $(OUT_DIR)
-	$(CC) $(HIDERCAP_CPPFLAGS) $(CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) $(SRCS) -o $@ $(HIDERCAP_LDFLAGS) $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) $(SRCS) -o $@ $(HIDERCAP_LDFLAGS) $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
 
 clean:
 	rm -rf out
