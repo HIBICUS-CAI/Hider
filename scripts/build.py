@@ -14,14 +14,18 @@ from common import NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, host_target, publis
 
 def parse_targets() -> list[str]:
     parser = argparse.ArgumentParser(description=__doc__)
+    # No choices= here: with nargs='*', argparse before Python 3.12 checks the empty default list against the choices
+    # and rejects a call without targets.
     parser.add_argument(
         'targets',
         nargs='*',
-        choices=[*TARGETS, 'all'],
         metavar='target',
         help=f'Targets to build: {", ".join(TARGETS)} or all. Default is the current machine.',
     )
     chosen: list[str] = parser.parse_args().targets
+    unknown = [t for t in chosen if t not in (*TARGETS, 'all')]
+    if unknown:
+        parser.error(f'invalid target {", ".join(unknown)} (choose from {", ".join([*TARGETS, "all"])})')
     if 'all' in chosen:
         return list(TARGETS)
     if chosen:

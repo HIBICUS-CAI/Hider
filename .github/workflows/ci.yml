@@ -99,6 +99,18 @@ jobs:
       - run: ruff check scripts
       - run: ruff format --check scripts
       - run: python scripts/check_wayland_list.py
+      # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
+      # building anything.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Scripts on Python 3.10
+        run: |
+          python --version
+          python scripts/build.py --help > /dev/null
+          python scripts/install.py --help > /dev/null
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
   test-gui:
     if: ${{ inputs.run_gui_tests }}
