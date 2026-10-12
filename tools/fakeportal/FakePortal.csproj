@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Development tool, not part of Hider.slnx: a fake org.freedesktop.portal.Screenshot for Xvfb (scripts/xvfb-strip-smoke.sh). -->
+  <!-- Development tool, not part of Hider.slnx: a fake xdg-desktop-portal (Screenshot and ScreenCast) for Xvfb (scripts/xvfb-strip-smoke.sh). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Hider.Tools.FakePortal</RootNamespace>

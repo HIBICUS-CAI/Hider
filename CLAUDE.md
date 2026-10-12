@@ -33,7 +33,7 @@ dotnet format Hider.slnx --verify-no-changes # 書式（CI は linux-x64 で実�
 dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
 make -C native/hidercap test                  # libhidercap のフレーム時刻の単体テスト（CT-90、PipeWire 不要）
-python scripts/build.py <rid>                 # bin/publish/<rid>/
+python scripts/build.py <rid>                 # bin/publish/<rid>/（Ubuntu では python3。scripts/ は直接実行もできる）
 bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
@@ -56,7 +56,7 @@ CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。`on: push` / `
 - `BeginMoveDrag` / `BeginResizeDrag`（ドラッグは自前実装）
 - スナップショット画像のディスク保存、旧 `setting.txt` の読込。FR-53、FR-65
 - テストの無効化・スキップで CI を緑にすること
-- 許可リスト外の NuGet: Avalonia 12.1.x 系、SkiaSharp（Avalonia と同版）、Tmds.DBus.Protocol、xunit 系、Avalonia.Headless.XUnit、BenchmarkDotNet（bench のみ）。版は Directory.Packages.props で一元管理
+- 許可リスト外の NuGet: Avalonia 12.1.x 系、SkiaSharp と SkiaSharp.NativeAssets.*（Avalonia と同版）、Tmds.DBus.Protocol、xunit 系と Microsoft.NET.Test.Sdk（テストのみ）、Avalonia.Headless.XUnit、BenchmarkDotNet（bench を作る場合のみ。現在 bench プロジェクトはない）。版は Directory.Packages.props で一元管理
 - 日本語以外の UI 文字列、Strings 以外に散らばる UI 文字列。FR-70
 
 ### コーディング規約
