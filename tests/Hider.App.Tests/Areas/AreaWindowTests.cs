@@ -363,6 +363,46 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void ModeChangeDuringStrips_CancelsAndRetakes_WithoutFallingBack()
+        {
+            // Entering or leaving edit mode moves the area inside its window: strips taken through the old layout are not
+            // used; the capture is cancelled (not a failure) and taken again right after.
+            var capture = new HangingStripCapture();
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            area.ExitEdit();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            capture.Hang = true;
+            area.Refresh();
+            int calls = capture.Calls;
+            capture.Hang = false;
+            area.EnterEdit();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
+            Assert.False(area.CaptureFailed);
+            Assert.Equal(calls + 1, capture.Calls); // taken again once
+        }
+
+        [AvaloniaFact]
+        public void ModeChangeDuringStrips_RebuildsTheClipForTheNewLayout()
+        {
+            // The clip is made from the area's place in the window; edit mode moves it down by the toolbar band.
+            using var f = new AreaFixture();
+            var area = f.Add(new PhysicalRect(100, 200, 120, 80), PatternKind.Generated);
+            area.ExitEdit();
+            _ = area.Window.SetTransparentRowsAsync(16, 24, TestContext.Current.CancellationToken);
+            area.EnterEdit();
+            Assert.True(area.AreaOffsetInWindow.Y > 0);
+            var group = (Avalonia.Media.GeometryGroup)area.Window.Root.Clip!;
+            var above = ((Avalonia.Media.RectangleGeometry)group.Children[0]).Rect;
+            var below = ((Avalonia.Media.RectangleGeometry)group.Children[1]).Rect;
+            double scale = area.Host.Scale;
+            Assert.Equal((area.AreaOffsetInWindow.Y + 16 - 1) / scale, above.Bottom, 3); // the strip moved with the area
+            Assert.Equal((area.AreaOffsetInWindow.Y + 24 + 1) / scale, below.Top, 3);
+            Assert.True(below.Bottom >= area.WindowRect.Height / scale, "the clip reaches the bottom of the larger window");
+        }
+
+        [AvaloniaFact]
         public void KeysPressedInTheSettingsPopup_DoNotMoveOrDeleteTheArea()
         {
             // Popup events bubble on to the window that owns the popup: arrows in a number box or Delete on a slider must

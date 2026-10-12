@@ -27,8 +27,9 @@ namespace Hider.Areas
         private readonly RefreshScheduler scheduler;
         private CancellationTokenSource? captureCancel;
         private RefreshReason? heldForSettings;
+        private RefreshReason? retakeAfterCancel;
         private RefreshReason runningReason;
-        private bool cancelledForSettings;
+        private bool cancelledToRetake;
         private bool disposed;
         private ResizeHandle dragHandle;
         private PixelPoint dragStartPointer;
@@ -123,6 +124,7 @@ namespace Hider.Areas
             }
             Mode = AreaMode.Editing;
             Transition?.Invoke("enter-edit");
+            RetakeRunningStrips();
             Layout();
             // Editing takes the keyboard (arrows, Delete, Esc: FR-33): the window is activated now. Showing an area does not
             // take the focus (FR-11, ShowActivated is false); entering edit mode is the user's request to work on it.
@@ -146,6 +148,7 @@ namespace Hider.Areas
             }
             Mode = AreaMode.Hidden;
             Transition?.Invoke("exit-edit");
+            RetakeRunningStrips();
             Layout();
             owner.ModeChanged(this);
             owner.SaveNow();
@@ -381,12 +384,34 @@ namespace Hider.Areas
         /// </summary>
         internal void HoldForSettings()
         {
+            if (CancelRunningStrips())
+            {
+                heldForSettings ??= runningReason;
+            }
+        }
+
+        /// <summary>
+        /// The window is laid out anew (edit mode entered or left) while a strip capture may run: the strips already taken
+        /// were seen through the old layout, so the capture is cancelled and taken again once it has ended.
+        /// </summary>
+        private void RetakeRunningStrips()
+        {
+            if (CancelRunningStrips())
+            {
+                retakeAfterCancel ??= runningReason;
+            }
+        }
+
+        /// <summary>Cancels a running strip capture without it counting as a failure (no FR-52 fallback).</summary>
+        private bool CancelRunningStrips()
+        {
             if (captureCancel is { } running && NeedsStrips && !running.IsCancellationRequested)
             {
-                cancelledForSettings = true;
-                heldForSettings ??= runningReason;
+                cancelledToRetake = true;
                 running.Cancel();
+                return true;
             }
+            return false;
         }
 
         /// <summary>Every settings popup is closed (UI thread): a capture held meanwhile runs now.</summary>
@@ -407,14 +432,20 @@ namespace Hider.Areas
                 {
                     return;
                 }
-                if (cancelledForSettings && _cancel.IsCancellationRequested)
-                {
-                    // Not a failure (no FR-52 fallback): taken again when the popups are closed.
-                    return;
-                }
                 if (_ok)
                 {
+                    // Finished before a cancel came: the frame is good and is shown; nothing needs taking again.
+                    if (cancelledToRetake)
+                    {
+                        heldForSettings = null;
+                        retakeAfterCancel = null;
+                    }
                     Window.PatternView.InvalidateVisual();
+                    return;
+                }
+                if (cancelledToRetake && _cancel.IsCancellationRequested)
+                {
+                    // Not a failure (no FR-52 fallback): taken again after the layout change or when the popups are closed.
                     return;
                 }
                 Log.Verbose($"area {Model.Id}: capture failed ({_result.Failure}) on {_reason}, switching to a generated pattern");
@@ -436,10 +467,15 @@ namespace Hider.Areas
                 if (captureCancel == _cancel)
                 {
                     captureCancel = null;
-                    cancelledForSettings = false;
+                    cancelledToRetake = false;
                 }
                 _cancel.Dispose();
                 scheduler.EndRun();
+                if (retakeAfterCancel is { } retake && captureCancel is null)
+                {
+                    retakeAfterCancel = null;
+                    RequestCapture(retake); // held instead if a settings popup is open (StartCapture)
+                }
                 if (!owner.AnySettingsOpen)
                 {
                     ResumeAfterSettings(); // the popups closed while the cancelled capture was finishing

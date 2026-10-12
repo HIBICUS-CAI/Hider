@@ -131,6 +131,10 @@ namespace Hider.Areas
             {
                 chrome.Arrange(area, controller.ToolbarInside, AreaController.ToolbarGapDip);
             }
+            if (TransparentRows is not null)
+            {
+                ApplyClip();
+            }
             RefreshPattern();
         }
 
@@ -167,11 +171,29 @@ namespace Hider.Areas
         public async Task SetTransparentRowsAsync(int _y0, int _y1, CancellationToken _ct)
         {
             TransparentRows = (_y0, _y1);
+            ApplyClip();
+            await WaitFramesAsync(_ct);
+        }
+
+        /// <summary>
+        /// Clips <see cref="TransparentRows"/> away for the current layout. Also run by <see cref="ApplyLayout"/>: a mode change
+        /// during a strip moves the area inside the window and resizes it, and a clip made for the old layout would show part
+        /// of the area's surroundings or keep rows opaque (the controller retakes such a capture).
+        /// </summary>
+        private void ApplyClip()
+        {
+            if (TransparentRows is not { } rows)
+            {
+                Root.Clip = null;
+                return;
+            }
             var host = controller.Host;
             int offset = controller.AreaOffsetInWindow.Y;
             // One physical px more on each side: a clip edge that falls between pixels never leaves a covered row half drawn.
-            double top = host.PxToDip(offset + _y0 - 1), bottom = host.PxToDip(offset + _y1 + 1);
-            double width = Math.Max(Bounds.Width, ClientSize.Width) + 1, height = Math.Max(Bounds.Height, ClientSize.Height) + 1;
+            double top = host.PxToDip(offset + rows.Y0 - 1), bottom = host.PxToDip(offset + rows.Y1 + 1);
+            // The window's new size may not have reached Bounds yet (a layout pass follows): the placed rectangle counts too.
+            double width = Math.Max(Math.Max(Bounds.Width, ClientSize.Width), host.PxToDip(controller.WindowRect.Width)) + 1;
+            double height = Math.Max(Math.Max(Bounds.Height, ClientSize.Height), host.PxToDip(controller.WindowRect.Height)) + 1;
             Root.Clip = new GeometryGroup
             {
                 Children =
@@ -180,7 +202,6 @@ namespace Hider.Areas
                     new RectangleGeometry(new Rect(-1, bottom, width + 2, Math.Max(0, height - bottom + 1))),
                 },
             };
-            await WaitFramesAsync(_ct);
         }
 
         /// <summary>Shows the whole window again (does not wait for the frame).</summary>
