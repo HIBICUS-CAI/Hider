@@ -23,11 +23,14 @@ namespace Hider.Areas
         /// <summary>A capture is about to start (UI thread): the strip capture's area list is refreshed.</summary>
         void CaptureStarting();
 
-        /// <summary>Whether any area's settings popup is open (Linux strip captures wait for them all to close).</summary>
-        bool AnySettingsOpen { get; }
+        /// <summary>
+        /// Whether any of Hider's popups is open: an area's settings popup or pattern menu, the delete-all question (Linux strip
+        /// captures wait for them all to close).
+        /// </summary>
+        bool AnyPopupOpen { get; }
 
-        /// <summary>An area's settings popup opened or closed.</summary>
-        void SettingsOpenChanged(AreaController _area, bool _open);
+        /// <summary>An area's settings popup or pattern menu opened or closed.</summary>
+        void PopupOpenChanged(bool _open);
 
         /// <summary>An area entered or left edit mode (the tray menu changes, FR-03).</summary>
         void ModeChanged(AreaController _area);

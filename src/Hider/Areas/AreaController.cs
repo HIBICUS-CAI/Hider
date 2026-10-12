@@ -27,7 +27,7 @@ namespace Hider.Areas
         private readonly RefreshScheduler scheduler;
         private CancellationTokenSource? captureCancel;
         private ITimer? nudgeTimer;
-        private RefreshReason? heldForSettings;
+        private RefreshReason? heldForPopups;
         private RefreshReason? retakeAfterCancel;
         private RefreshReason runningReason;
         private bool cancelledToRetake;
@@ -58,7 +58,7 @@ namespace Hider.Areas
                     Layout();
                 }
             };
-            Window.SettingsOpenChanged += _open => owner.SettingsOpenChanged(this, _open);
+            Window.PopupOpenChanged += _open => owner.PopupOpenChanged(_open);
         }
 
         public Area Model { get; }
@@ -323,12 +323,12 @@ namespace Hider.Areas
                 scheduler.EndRun(); // the run began when Due was raised
                 return;
             }
-            if (owner.AnySettingsOpen && NeedsStrips)
+            if (owner.AnyPopupOpen && NeedsStrips)
             {
-                // Linux: a settings popup is a top-level window of its own, outside the strip transparency, and may lie over
-                // this area (its own popup or another area's): a screenshot now would put the panel into the mosaic. Capture
+                // Linux: a settings popup, a pattern menu or the delete-all question is a top-level window of its own, outside
+                // the strip transparency, and may lie over this area: a screenshot now would put it into the mosaic. Capture
                 // once every popup is closed.
-                heldForSettings = _reason;
+                heldForPopups = _reason;
                 scheduler.EndRun();
                 return;
             }
@@ -391,18 +391,18 @@ namespace Hider.Areas
         private bool NeedsStrips => owner.Services.Capture.Traits.HasFlag(CaptureTraits.NeedsStripCooperation);
 
         /// <summary>
-        /// A settings popup opened (UI thread): a strip capture running now would put it into its remaining strips, so it is
-        /// cancelled and taken again once the popups are closed (<see cref="ResumeAfterSettings"/>). Before its first strip
+        /// A popup (settings, pattern menu, delete-all question) opened (UI thread): a strip capture running now would put it into its remaining strips, so it is
+        /// cancelled and taken again once the popups are closed (<see cref="ResumeAfterPopups"/>). Before its first strip
         /// the capture may be showing a portal permission dialog the user is answering: cancelling would close it, so the
         /// cancel waits for the first strip (and is dropped if the popups close before that).
         /// </summary>
-        internal void HoldForSettings()
+        internal void HoldForPopups()
         {
             if (captureCancel is not { IsCancellationRequested: false } || !NeedsStrips)
             {
                 return;
             }
-            heldForSettings ??= runningReason;
+            heldForPopups ??= runningReason;
             if (stripsStarted)
             {
                 CancelRunningStrips();
@@ -453,19 +453,19 @@ namespace Hider.Areas
             return false;
         }
 
-        /// <summary>Every settings popup is closed (UI thread): a capture held meanwhile runs now.</summary>
-        internal void ResumeAfterSettings()
+        /// <summary>Every popup is closed (UI thread): a capture held meanwhile runs now.</summary>
+        internal void ResumeAfterPopups()
         {
             if (cancelAtFirstStrip)
             {
                 // The popups closed before the capture's first strip: nothing has to be cancelled or taken again.
                 cancelAtFirstStrip = false;
-                heldForSettings = null;
+                heldForPopups = null;
                 return;
             }
-            if (heldForSettings is { } reason && captureCancel is null)
+            if (heldForPopups is { } reason && captureCancel is null)
             {
-                heldForSettings = null;
+                heldForPopups = null;
                 RequestCapture(reason);
             }
         }
@@ -483,7 +483,7 @@ namespace Hider.Areas
                     // Finished before a cancel came: the frame is good and is shown; nothing needs taking again.
                     if (cancelledToRetake)
                     {
-                        heldForSettings = null;
+                        heldForPopups = null;
                         retakeAfterCancel = null;
                     }
                     Window.PatternView.InvalidateVisual();
@@ -518,7 +518,7 @@ namespace Hider.Areas
                     {
                         // Ended before any strip (a refusal, no grabber ready): the popups were never in it.
                         cancelAtFirstStrip = false;
-                        heldForSettings = null;
+                        heldForPopups = null;
                     }
                 }
                 _cancel.Dispose();
@@ -526,11 +526,11 @@ namespace Hider.Areas
                 if (retakeAfterCancel is { } retake && captureCancel is null)
                 {
                     retakeAfterCancel = null;
-                    RequestCapture(retake); // held instead if a settings popup is open (StartCapture)
+                    RequestCapture(retake); // held instead if a popup is open (StartCapture)
                 }
-                if (!owner.AnySettingsOpen)
+                if (!owner.AnyPopupOpen)
                 {
-                    ResumeAfterSettings(); // the popups closed while the cancelled capture was finishing
+                    ResumeAfterPopups(); // the popups closed while the cancelled capture was finishing
                 }
             }
         }

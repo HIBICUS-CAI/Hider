@@ -51,9 +51,13 @@ namespace Hider.Areas
             {
                 if (_e.Property == Popup.IsOpenProperty)
                 {
-                    SettingsOpenChanged?.Invoke(settingsPopup.IsOpen);
+                    PopupOpenChanged?.Invoke(settingsPopup.IsOpen);
                 }
             };
+            // The pattern menu is a top-level window too (Linux: outside the strip transparency, like the settings popup).
+            var patternMenu = chrome.Toolbar.PatternMenu;
+            patternMenu.Opened += (_, _) => PopupOpenChanged?.Invoke(true);
+            patternMenu.Closed += (_, _) => PopupOpenChanged?.Invoke(false);
             Closing += (_, _e) => _e.Cancel = KeepOpen(closingAllowed, _e.CloseReason);
         }
 
@@ -77,8 +81,14 @@ namespace Hider.Areas
         /// <summary>↻ pressed.</summary>
         public event Action? RefreshRequested;
 
-        /// <summary>The settings popup opened (true) or closed (light dismiss, ⚙ again, or leaving edit mode).</summary>
-        public event Action<bool>? SettingsOpenChanged;
+        /// <summary>
+        /// The settings popup or the pattern menu opened (true) or closed (light dismiss, ⚙ again, a choice, or leaving edit
+        /// mode).
+        /// </summary>
+        public event Action<bool>? PopupOpenChanged;
+
+        /// <summary>Whether this window's settings popup or pattern menu is open.</summary>
+        public bool PopupOpen => settingsPopup.IsOpen || chrome.Toolbar.PatternMenu.IsOpen;
 
         /// <summary>The settings popup content while it is open (FR-35 .. FR-37).</summary>
         public SettingsPanel? Settings => settingsPopup.IsOpen ? settings : null;
@@ -118,6 +128,7 @@ namespace Hider.Areas
             if (!editing)
             {
                 settingsPopup.IsOpen = false;
+                chrome.Toolbar.PatternMenu.Hide();
             }
             if (editing && !ChromeAttached)
             {

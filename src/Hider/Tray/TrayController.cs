@@ -126,6 +126,8 @@ namespace Hider.Tray
             confirm?.Close();
             confirm = new ConfirmDeleteWindow();
             confirm.SetCount(areas.Areas.Count);
+            var hold = areas.HoldCapturesForDialog();
+            confirm.Closed += (_, _) => hold.Dispose();
             return confirm.AskAsync();
         }
 

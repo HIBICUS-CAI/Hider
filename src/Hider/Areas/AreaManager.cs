@@ -18,6 +18,7 @@ namespace Hider.Areas
         private readonly List<AreaController> areas = new();
         private readonly string areasPath;
         private ITimer? saveTimer;
+        private int openDialogs;
         private bool disposed;
         private bool saveBlocked;
         private StripArea[] stripAreas = Array.Empty<StripArea>();
@@ -121,13 +122,17 @@ namespace Hider.Areas
             }
         }
 
-        public bool AnySettingsOpen
+        public bool AnyPopupOpen
         {
             get
             {
+                if (openDialogs > 0)
+                {
+                    return true;
+                }
                 foreach (var area in areas)
                 {
-                    if (area.Window.Settings is not null)
+                    if (area.Window.PopupOpen)
                     {
                         return true;
                     }
@@ -136,17 +141,48 @@ namespace Hider.Areas
             }
         }
 
-        public void SettingsOpenChanged(AreaController _area, bool _open)
+        /// <summary>
+        /// A dialog of Hider's own (the delete-all question) is open until the result is disposed: Linux strip captures are
+        /// held meanwhile, as for an area's popups (the dialog is a top-level window outside the strip transparency).
+        /// </summary>
+        public IDisposable HoldCapturesForDialog()
+        {
+            openDialogs++;
+            PopupOpenChanged(true);
+            return new DialogHold(this);
+        }
+
+        private sealed class DialogHold : IDisposable
+        {
+            private AreaManager? manager;
+
+            public DialogHold(AreaManager _manager)
+            {
+                manager = _manager;
+            }
+
+            public void Dispose()
+            {
+                if (manager is { } m)
+                {
+                    manager = null;
+                    m.openDialogs--;
+                    m.PopupOpenChanged(false);
+                }
+            }
+        }
+
+        public void PopupOpenChanged(bool _open)
         {
             foreach (var area in areas.ToArray())
             {
                 if (_open)
                 {
-                    area.HoldForSettings();
+                    area.HoldForPopups();
                 }
-                else if (!AnySettingsOpen)
+                else if (!AnyPopupOpen)
                 {
-                    area.ResumeAfterSettings();
+                    area.ResumeAfterPopups();
                 }
             }
         }

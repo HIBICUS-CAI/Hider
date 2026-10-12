@@ -37,6 +37,9 @@ namespace Hider.Areas
             DoneButton.Click += (_, _) => DoneClicked?.Invoke();
         }
 
+        /// <summary>The pattern menu under the pattern button.</summary>
+        public MenuFlyout PatternMenu => (MenuFlyout)PatternButton.Flyout!;
+
         public event Action<PatternKind>? PatternSelected;
         public event Action? SettingsClicked;
         public event Action? RefreshClicked;

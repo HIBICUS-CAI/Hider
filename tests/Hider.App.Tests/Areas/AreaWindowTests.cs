@@ -336,6 +336,43 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(calls + 1, capture.Calls);
         }
 
+        [AvaloniaFact]
+        public void PatternMenuOpen_LinuxCaptureWaitsForItToClose()
+        {
+            var capture = new FakeUnderlayCapture { Traits = Hider.Core.Capture.CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            area.Window.Toolbar.PatternMenu.ShowAt(area.Window.Toolbar.PatternButton);
+            Assert.True(f.Manager.AnyPopupOpen);
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(calls, capture.Calls);
+            area.Window.Toolbar.PatternMenu.Hide();
+            Assert.Equal(calls + 1, capture.Calls);
+
+            // Leaving edit mode closes the menu with the toolbar.
+            area.Window.Toolbar.PatternMenu.ShowAt(area.Window.Toolbar.PatternButton);
+            area.ExitEdit();
+            Assert.False(f.Manager.AnyPopupOpen);
+        }
+
+        [AvaloniaFact]
+        public void DeleteAllQuestionOpen_LinuxCaptureWaitsForItToClose()
+        {
+            var capture = new FakeUnderlayCapture { Traits = Hider.Core.Capture.CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            using var tray = new Hider.Tray.TrayController(Avalonia.Application.Current!, f.Manager, () => { });
+            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            area.ExitEdit();
+            var ask = tray.ConfirmDeleteAllAsync();
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(calls, capture.Calls);
+            tray.ConfirmWindow!.Close();
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.False(f.Manager.AnyPopupOpen);
+        }
+
         /// <summary>A strip capture (Linux) that can hang until it is cancelled.</summary>
         private sealed class HangingStripCapture : Hider.Core.Capture.IUnderlayCapture
         {
