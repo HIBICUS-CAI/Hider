@@ -13,25 +13,38 @@ namespace Hider.Core.Persistence
             stream = _stream;
         }
 
-        /// <summary>The guard, or null when another instance holds the lock.</summary>
-        public static SingleInstance? TryAcquire(string _lockPath)
+        /// <summary>
+        /// The guard, or null when another instance holds the lock (<paramref name="_error"/> null) or the lock cannot be
+        /// taken at all (<paramref name="_error"/> says why: the folder is a file, no permission).
+        /// </summary>
+        public static SingleInstance? TryAcquire(string _lockPath, out string? _error)
         {
-            string? dir = Path.GetDirectoryName(Path.GetFullPath(_lockPath));
-            if (dir is not null)
+            _error = null;
+            try
             {
-                Directory.CreateDirectory(dir);
+                string? dir = Path.GetDirectoryName(Path.GetFullPath(_lockPath));
+                if (dir is not null)
+                {
+                    Directory.CreateDirectory(dir);
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                _error = $"cannot create the folder of {_lockPath}: {e.Message}";
+                return null;
             }
             try
             {
                 return new SingleInstance(new FileStream(_lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
             }
-            catch (IOException)
+            catch (UnauthorizedAccessException e)
             {
+                _error = $"cannot open {_lockPath}: {e.Message}";
                 return null;
             }
-            catch (UnauthorizedAccessException)
+            catch (IOException)
             {
-                return null;
+                return null; // sharing violation (Windows) or flock conflict (Linux): another instance
             }
         }
 

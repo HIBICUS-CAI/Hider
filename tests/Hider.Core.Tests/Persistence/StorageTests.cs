@@ -10,17 +10,38 @@ namespace Hider.Core.Tests.Persistence
             string path = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"), "instance.lock");
             try
             {
-                using (var first = SingleInstance.TryAcquire(path))
+                using (var first = SingleInstance.TryAcquire(path, out string? error))
                 {
                     Assert.NotNull(first);
-                    Assert.Null(SingleInstance.TryAcquire(path));
+                    Assert.Null(error);
+                    Assert.Null(SingleInstance.TryAcquire(path, out error));
+                    Assert.Null(error); // another instance, not an error
                 }
-                using var again = SingleInstance.TryAcquire(path);
+                using var again = SingleInstance.TryAcquire(path, out _);
                 Assert.NotNull(again);
             }
             finally
             {
                 Directory.Delete(Path.GetDirectoryName(path)!, true);
+            }
+        }
+
+        [Fact]
+        public void SingleInstance_FolderThatIsAFile_IsAnErrorNotAnotherInstance()
+        {
+            // ~/.hider existing as a file used to throw out of startup; it must be told apart from "already running".
+            string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string file = Path.Combine(root, ".hider");
+                File.WriteAllText(file, "");
+                Assert.Null(SingleInstance.TryAcquire(Path.Combine(file, "instance.lock"), out string? error));
+                Assert.NotNull(error);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
             }
         }
 

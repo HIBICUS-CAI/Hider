@@ -31,7 +31,13 @@ namespace Hider
             Log.Enabled = _args.Contains("--verbose");
 
             // Single instance (FR-08): a second process does nothing and exits.
-            using var instance = SingleInstance.TryAcquire(StoragePaths.InstanceLock);
+            using var instance = SingleInstance.TryAcquire(StoragePaths.InstanceLock, out string? lockError);
+            if (lockError is not null)
+            {
+                // Not a log line: the app cannot run, and a silent exit 0 would look like "already running".
+                Console.Error.WriteLine($"hider: {lockError}");
+                return 2;
+            }
             if (instance is null)
             {
                 Log.Verbose("another instance is running");

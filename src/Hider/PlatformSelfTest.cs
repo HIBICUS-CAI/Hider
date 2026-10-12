@@ -47,14 +47,22 @@ namespace Hider
                 _output.WriteLine("[skip] libhidercap.so not shipped: the Screenshot portal is used (D-6)");
                 return 0;
             }
-            var helper = new Hider.Platform.Linux.Hidercap();
-            if (!helper.IsAvailable)
+            try
             {
-                _output.WriteLine("[fail] libhidercap.so is shipped but does not load (is libpipewire-0.3 installed?)");
+                var helper = new Hider.Platform.Linux.Hidercap();
+                if (!helper.IsAvailable)
+                {
+                    _output.WriteLine("[fail] libhidercap.so is shipped but does not load (is libpipewire-0.3 installed?)");
+                    return 1;
+                }
+                _output.WriteLine($"[ok]   libhidercap: loaded, last sequence {helper.LastSequence()}");
+                return 0;
+            }
+            catch (Exception e)
+            {
+                _output.WriteLine($"[fail] libhidercap: {e.GetType().Name}: {e.Message} (an old libhidercap.so?)");
                 return 1;
             }
-            _output.WriteLine($"[ok]   libhidercap: loaded, last sequence {helper.LastSequence()}");
-            return 0;
         }
     }
 }
