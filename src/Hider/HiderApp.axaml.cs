@@ -76,7 +76,6 @@ namespace Hider
             }
         }
 
-        /// <summary>The platform's underlay capture: Windows window capture (design §5.2); Linux from Step 7 (until then FR-52).</summary>
         /// <summary>
         /// Windows: window capture (design §5.2). Linux: strips (design §5.3) grabbed through ScreenCast + libhidercap
         /// (stage 2), falling back to the Screenshot portal (stage 1) when the helper, the portal or the monitor does not fit.
