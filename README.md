@@ -38,6 +38,8 @@ python scripts/build.py linux-x64    # 対象を指定（win-x64 / linux-x64 / l
 bin/publish/linux-x64/Hider --selftest
 ```
 
+Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに次のプロンプトを出します（出力は起動元のコンソールに出ます）。終了コードまで見るときは `start /wait bin\publish\win-x64\Hider.exe --selftest` の後に `echo %ERRORLEVEL%`、PowerShell では `(Start-Process bin\publish\win-x64\Hider.exe --selftest -Wait -PassThru -NoNewWindow).ExitCode` を使います。
+
 出力は `bin/publish/<rid>/` です。別アーキテクチャの Linux 向けにクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
 
 アイコンを作り直す場合は `python scripts/make_icons.py`（生成物はリポジトリに含まれています）。
@@ -66,7 +68,7 @@ python scripts/install.py -d <folder>
 | `restore_token` | Linux の画面共有（ScreenCast）の許可を次回起動時も使うための値。消すと次回ダイアログが出ます |
 | `instance.lock` | 二重起動の防止 |
 
-`--verbose` を付けて起動すると、取得・保存などのログを標準エラー出力に出します。
+`--verbose` を付けて起動すると、取得・保存などのログを標準エラー出力に出します（Windows ではコンソールから起動したときにそのコンソールへ、リダイレクトしたときはその先へ）。
 
 ## 画面の取得と既知の制約
 

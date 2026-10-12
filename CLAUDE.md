@@ -34,7 +34,7 @@ dotnet format Hider.slnx --verify-no-changes # 書式（CI は linux-x64 で実�
 dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests
 python scripts/build.py <rid>                 # bin/publish/<rid>/
-bin/publish/<rid>/Hider --selftest            # 終了コード 0
+bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
 ```

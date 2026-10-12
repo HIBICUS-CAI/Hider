@@ -11,6 +11,10 @@ namespace Hider
         public static int Main(string[] _args)
         {
             // Command line switches are handled before Avalonia starts so that they work without a display.
+            if (_args.Length > 0 && OperatingSystem.IsWindows())
+            {
+                Hider.Platform.Windows.Win32Console.AttachToParent();
+            }
             if (_args.Contains("--version"))
             {
                 Console.WriteLine($"Hider {AppInfo.Version}");
