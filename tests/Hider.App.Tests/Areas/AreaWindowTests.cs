@@ -400,16 +400,33 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EditMargins_UseTheScaleOfTheAreaAlone()
+        public void EditMargins_FollowTheWindowsScale_WhenItIsLarger()
         {
-            // With the margins the window would reach a 200% monitor; worked out with that scale, the margins would move it
-            // back to the 100% one. They follow the area's own scale, so the layout is stable.
-            using var f = new AreaFixture(2.0);
+            // The area is on a 100% monitor, but with its margins and toolbar the window is mostly on a 150% one: the margins
+            // and the toolbar width are worked out at 150%, or the toolbar would be cut off.
+            using var f = new AreaFixture(1.5);
             var area = f.Add(areaRect, PatternKind.Mosaic);
             var host = f.Hosts.Single();
-            host.ScaleAt = _r => _r == areaRect ? 1.0 : 2.0; // the window is placed at 200% (host.Scale)
+            host.ScaleAt = _r => _r == areaRect ? 1.0 : 1.5;
             area.Layout();
-            Assert.Equal(areaRect.X - (int)AreaController.SideMarginDip, host.Last.X);
+            Assert.Equal(areaRect.X - 12, host.Last.X); // 8 DIP at 150%
+            Assert.True(host.Last.Width >= 12 + (int)Math.Ceiling(area.ToolbarWidthDip * 1.5), "the toolbar fits");
+            int count = host.Placements.Count;
+            area.Layout();
+            Assert.Equal(host.Placements[count - 1], host.Last); // stable
+        }
+
+        [AvaloniaFact]
+        public void EditMargins_StayAtTheAreasScale_WhenTheWindowsIsSmaller()
+        {
+            // Margins made at 200% would put the window on the 100% monitor: it keeps the larger margins (room to spare)
+            // instead of flipping between the two scales.
+            using var f = new AreaFixture(1.0);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            var host = f.Hosts.Single();
+            host.ScaleAt = _r => _r == areaRect ? 2.0 : 1.0;
+            area.Layout();
+            Assert.Equal(areaRect.X - 16, host.Last.X); // 8 DIP at 200%
             int count = host.Placements.Count;
             area.Layout();
             Assert.Equal(host.Placements[count - 1], host.Last);

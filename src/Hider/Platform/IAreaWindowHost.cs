@@ -20,7 +20,7 @@ namespace Hider.Platform
 
         /// <summary>
         /// Moves and sizes the window: position in physical pixels, size converted to DIP for the target screen. The window may
-        /// come out a pixel or two longer than <paramref name="_rect"/> where the platform could not keep the exact length (it never
+        /// come out a few pixels longer than <paramref name="_rect"/> where the platform could not keep the exact length (it never
         /// comes out shorter).
         /// </summary>
         void Place(PhysicalRect _rect);

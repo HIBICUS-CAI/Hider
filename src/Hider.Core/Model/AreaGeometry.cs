@@ -17,19 +17,22 @@ namespace Hider.Core.Model
         /// <summary>
         /// The shortest length of at least <paramref name="_px"/> physical pixels that survives Avalonia's Win32 round trip at
         /// <paramref name="_scale"/>: WM_SIZE stores px / scale and Resize sends back (int)(that × scale). A length that does
-        /// not survive (175%: 61 / 1.75 × 1.75 = 60.99…) would end up one pixel short, leaving a line of the content uncovered
-        /// (NFR-05); a pixel or two more (130%: 420 becomes 422) covers it.
+        /// not survive (175%: 61 / 1.75 × 1.75 = 60.99…) would end up a pixel short, leaving a line of the content uncovered
+        /// (NFR-05); a longer stable length covers it. Windows scales are dpi / 96: over all of 96..480 dpi and lengths up to
+        /// 16383 px the stable length is at most 37 px longer (263 dpi: 1479 becomes 1516), usually 0 to 5.
         /// </summary>
         public static int StableLength(int _px, double _scale)
         {
-            for (int p = _px; p < _px + 16; p++)
+            // The search is not cut short: any unstable value would shrink below the area. 4096 is far beyond the longest run
+            // of unstable lengths (37) and only keeps a malformed scale from looping forever.
+            for (int p = _px; p < _px + 4096; p++)
             {
                 if ((int)(p / _scale * _scale) == p)
                 {
                     return p;
                 }
             }
-            return _px + 1;
+            return _px + 4096;
         }
 
         /// <summary>Minimum width / height in physical pixels for a window scale (24 DIP, FR-32).</summary>

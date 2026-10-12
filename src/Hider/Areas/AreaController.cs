@@ -246,22 +246,39 @@ namespace Hider.Areas
             }
             else
             {
-                // The margins are worked out with the scale of the area alone, not of the window with its margins: the margins
-                // would otherwise decide the window's monitor, whose scale changes the margins (an area across a 100% / 200%
-                // border could flip between the two forever). The window may then get another scale than the margins were
-                // computed with; its content is laid out from the placed pixels (Host.Scale), so it still lines up.
+                // The window's scale is decided by the window with its margins, and the margins (DIP) by the scale. Starting
+                // from the area's own scale, the margins are worked out again only while the window would get a larger scale:
+                // a window at a smaller scale than its margins were made for just has room to spare (its content is laid out
+                // from the placed pixels, Host.Scale), while a larger one would cut the toolbar off. The scale only grows, so
+                // this ends, and an area across a 100% / 200% border no longer flips between the two.
                 double scale = Host.ScaleFor(area);
-                int side = DipToPx(SideMarginDip, scale);
-                int toolbarBand = DipToPx(ToolbarHeightDip + ToolbarGapDip, scale);
-                int toolbarWidth = DipToPx(ToolbarWidthDip, scale);
-                var screen = owner.Screens.ScreenAt(area.X, area.Y);
-                int screenTop = screen?.Bounds.Y ?? int.MinValue;
-                ToolbarInside = area.Y - toolbarBand < screenTop;
-                int top = ToolbarInside ? side : toolbarBand;
-                WindowRect = new PhysicalRect(area.X - side, area.Y - top, Math.Max(area.Width + 2 * side, side + toolbarWidth), area.Height + top + side);
+                WindowRect = EditRect(area, scale);
+                for (int i = 0; i < 8; i++)
+                {
+                    double windowScale = Host.ScaleFor(WindowRect);
+                    if (windowScale <= scale)
+                    {
+                        break;
+                    }
+                    scale = windowScale;
+                    WindowRect = EditRect(area, scale);
+                }
             }
             Host.Place(WindowRect);
             Window.ApplyLayout();
+        }
+
+        /// <summary>The window rectangle in edit mode: margins, handles and the toolbar around the area at a scale.</summary>
+        private PhysicalRect EditRect(PhysicalRect _area, double _scale)
+        {
+            int side = DipToPx(SideMarginDip, _scale);
+            int toolbarBand = DipToPx(ToolbarHeightDip + ToolbarGapDip, _scale);
+            int toolbarWidth = DipToPx(ToolbarWidthDip, _scale);
+            var screen = owner.Screens.ScreenAt(_area.X, _area.Y);
+            int screenTop = screen?.Bounds.Y ?? int.MinValue;
+            ToolbarInside = _area.Y - toolbarBand < screenTop;
+            int top = ToolbarInside ? side : toolbarBand;
+            return new PhysicalRect(_area.X - side, _area.Y - top, Math.Max(_area.Width + 2 * side, side + toolbarWidth), _area.Height + top + side);
         }
 
         private static int DipToPx(double _dip, double _scale)
