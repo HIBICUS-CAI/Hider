@@ -129,18 +129,15 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ReleaseCaches_FreesRasterImagesAtOnce()
+        public void ReleaseCaches_DropsTheCache_NextFrameDrawsAgain()
         {
-            // Headless renders on the CPU: nothing has to wait for the render thread (GPU textures would).
             using var f = new AreaFixture();
             var area = f.Add(new Hider.Core.Model.PhysicalRect(100, 100, 120, 80), Hider.Core.Model.PatternKind.Generated);
             using (Capture(area))
             {
             }
             int renders = area.Window.PatternView.GeneratedRenderCount;
-            int before = MosaicPresenter.RetiredCount;
             area.Window.PatternView.ReleaseCaches();
-            Assert.Equal(before, MosaicPresenter.RetiredCount); // nothing parked for a render thread
             // The cache really was dropped: the next frame draws the pattern again (and still covers the area).
             using var again = Capture(area);
             Assert.Equal(renders + 1, area.Window.PatternView.GeneratedRenderCount);

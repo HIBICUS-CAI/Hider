@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using Hider.Areas;
 using Hider.Core.Model;
+using Hider.Core.Persistence;
 using Hider.Core.Tests.Fakes;
 
 namespace Hider.App.Tests.Areas
@@ -387,17 +388,38 @@ namespace Hider.App.Tests.Areas
         [AvaloniaFact]
         public void EnteringEditMode_ActivatesTheWindow_ShowingDoesNot()
         {
-            // Arrows, Delete and Esc (FR-33) must work right after "add" or "edit all" from the tray, without a click first.
+            // Arrows, Delete and Esc (FR-33) must work right after "add" or "edit all" from the tray, without a click first;
+            // restoring hidden areas at startup must not take the focus from the user's window (FR-11).
             using var f = new AreaFixture();
-            var area = f.Manager.AddNew();
+            AreasFile.Save(f.AreasPath, new AppState
+            {
+                Areas =
+                {
+                    new AreaState { Id = "0f3b8d2e", X = 100, Y = 100, Width = 300, Height = 200, Pattern = PatternKind.Fill },
+                    new AreaState { Id = "1a2b3c4d", X = 700, Y = 100, Width = 300, Height = 200, Pattern = PatternKind.Fill },
+                },
+            });
+            var user = new Window { Width = 200, Height = 100 };
+            user.Show();
+            user.Activate();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-            Assert.True(area.Window.IsActive);
-            area.ExitEdit();
-            var other = f.Add(new PhysicalRect(700, 100, 300, 200));
-            other.ExitEdit();
+            Assert.True(user.IsActive);
+
+            f.Manager.Restore();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.All(f.Manager.Areas, _a => Assert.False(_a.Window.IsActive));
+            Assert.True(user.IsActive);
+
+            // (The headless platform does not deactivate the other window; that the areas were inactive before is the check.)
             f.Manager.EditAll();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-            Assert.True(area.Window.IsActive || other.Window.IsActive);
+            Assert.Contains(f.Manager.Areas, _a => _a.Window.IsActive);
+
+            f.Manager.EndEditAll();
+            var added = f.Manager.AddNew();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(added.Window.IsActive);
+            user.Close();
         }
     }
 }

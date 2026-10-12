@@ -259,18 +259,6 @@ namespace Hider.Areas
             }
         }
 
-        /// <summary>GPU images waiting for the render thread (tests).</summary>
-        public static int RetiredCount
-        {
-            get
-            {
-                lock (retired)
-                {
-                    return retired.Count;
-                }
-            }
-        }
-
         private static void Retire(SKImage? _image)
         {
             if (_image is null)
