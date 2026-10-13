@@ -55,7 +55,7 @@ Avalonia 12.1 からネイティブ Wayland バックエンド（Avalonia.Waylan
 |---|---|---|
 | Windows: 下の窓の列挙・取得・実矩形 | P/Invoke: EnumWindows / PrintWindow(PW_RENDERFULLCONTENT) / DwmGetWindowAttribute | user32, dwmapi, gdi32 |
 | Linux: スクリーンショット・スクリーンキャスト | DBus（org.freedesktop.portal.*） | Tmds.DBus.Protocol |
-| Linux: PipeWire フレーム取得 | C ヘルパ libhidercap.so（start / grab_after） | gcc, libpipewire-0.3-dev |
+| Linux: PipeWire フレーム取得 | C ヘルパ libhidercap.so（start / grab_after / last_sequence / stop。提案 P-2） | gcc, libpipewire-0.3-dev |
 | 単一インスタンス | ~/.hider/instance.lock を FileShare.None で開いたまま保持（.NET は Unix で flock に変換） | なし |
 
 ### 2.4 代替案（Avalonia を捨てる場合）
@@ -355,7 +355,7 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | 日付 | 節 | 内容 | 根拠 |
 |---|---|---|---|
 | 2026-10-12 | 冒頭 | 保守方針を追加 | PR #1 の指摘 |
-| 2026-10-12 | §8 | ネイティブヘルパの関数数（2 → 4）と同梱先（runtimes/<rid>/native/ → 実行ファイルと同じディレクトリ）を現状に合わせた | 提案 P-2 |
+| 2026-10-12 | §2.3、§8 | ネイティブヘルパの関数数（2 → 4）と同梱先（runtimes/<rid>/native/ → 実行ファイルと同じディレクトリ）を現状に合わせた | 提案 P-2 |
 | 2026-10-12 | §9 | D-10 に未承認の提案 P-5 を併記していたのを、元の決定と区別して明記 | 提案 P-5 |
 | 2026-10-12 | §8 | Windows ランナーを windows-2025 の固定から windows-latest に戻した（作業指示書どおり） | ユーザー指示 |
 | 2026-10-12 | §8 | CI の作業指示書との差を承認済みとした | 提案 P-8（承認） |
