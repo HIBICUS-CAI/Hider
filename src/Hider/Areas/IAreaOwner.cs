@@ -24,7 +24,7 @@ namespace Hider.Areas
         void CaptureStarting();
 
         /// <summary>
-        /// Whether any of Hider's popups is open: an area's settings popup or pattern menu, the delete-all question (Linux strip
+        /// Whether any of Hider's popups is open: an area's settings popup, pattern menu or toolbar tooltip, the delete-all question (Linux strip
         /// captures wait for them all to close).
         /// </summary>
         bool AnyPopupOpen { get; }

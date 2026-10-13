@@ -377,6 +377,28 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void ToolbarTooltipOpen_LinuxCaptureWaitsForItToClose()
+        {
+            // ⚙ / ↻ / 🗑 tooltips are top-level windows below the pointer, over the area's top.
+            var capture = new FakeUnderlayCapture { Traits = Hider.Core.Capture.CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaFixture(_capture: capture, _isWindows: false);
+            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var settings = area.Window.Toolbar.SettingsButton;
+            ToolTip.SetIsOpen(settings, true);
+            Assert.True(f.Manager.AnyPopupOpen);
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(calls, capture.Calls);
+            ToolTip.SetIsOpen(settings, false);
+            Assert.Equal(calls + 1, capture.Calls);
+
+            // Leaving edit mode closes it with the toolbar.
+            ToolTip.SetIsOpen(area.Window.Toolbar.DeleteButton, true);
+            area.ExitEdit();
+            Assert.False(f.Manager.AnyPopupOpen);
+        }
+
+        [AvaloniaFact]
         public void DeleteAllQuestionOpen_LinuxCaptureWaitsForItToClose()
         {
             var capture = new FakeUnderlayCapture { Traits = Hider.Core.Capture.CaptureTraits.NeedsStripCooperation };
