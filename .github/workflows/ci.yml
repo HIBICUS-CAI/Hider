@@ -1,8 +1,11 @@
-name: CI (manual)
+name: CI
 
-# Manual only (GitHub Actions tab), and the release workflow (release.yml, on the merged commit): never add push /
-# pull_request / schedule triggers.
+# Pull requests to main (the required check before merging is the job "summary", which fails when any job failed), a
+# manual run from the Actions tab, and the release workflow (release.yml, on the merged commit). Never add push /
+# schedule triggers.
 on:
+  pull_request:
+    branches: [main]
   workflow_call:
     inputs:
       ref:
@@ -28,10 +31,11 @@ on:
 permissions:
   contents: read
 
-# github.workflow is the caller's name when release.yml calls this file, so a release does not wait for a manual run.
+# github.workflow is the caller's name when release.yml calls this file, so a release does not wait for (or cancel) a pull
+# request's run. A new push to a pull request cancels its older run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.workflow == 'CI' }}
 
 env:
   DOTNET_NOLOGO: 1
@@ -50,7 +54,7 @@ jobs:
       - id: set
         shell: bash
         env:
-          # Empty on workflow_call: every target.
+          # Empty on pull_request and workflow_call: every target.
           TARGETS: ${{ inputs.targets || 'all' }}
         run: |
           all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
@@ -152,7 +156,7 @@ jobs:
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
   test-gui:
-    # Only a manual run can turn it off (the input is empty on workflow_call).
+    # Only a manual run can turn it off (the input is empty on pull_request and workflow_call).
     if: ${{ format('{0}', inputs.run_gui_tests) != 'false' }}
     needs: plan
     strategy:
@@ -261,6 +265,8 @@ jobs:
           path: bin/publish/${{ matrix.rid }}/
           retention-days: 14
 
+  # The required status check of pull requests to main: red when any job failed or was cancelled (a job not chosen in a
+  # manual run is skipped, which passes).
   summary:
     if: always()
     needs: [plan, test-core, test-gui, native, publish, format, python-lint]
@@ -268,6 +274,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - shell: bash
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
           {
             echo "| job | result |"
@@ -279,3 +287,4 @@ jobs:
             echo "| format | ${{ needs.format.result }} |"
             echo "| python-lint | ${{ needs.python-lint.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAILED" = true ]; then echo "::error::a job failed or was cancelled"; exit 1; fi

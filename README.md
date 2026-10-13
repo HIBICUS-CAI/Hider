@@ -99,7 +99,14 @@ dotnet test tests/Hider.App.Tests
 scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
 ```
 
-設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`（手動実行）、リリースは `.github/workflows/release.yml` を参照してください。
+設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`、リリースは `.github/workflows/release.yml` を参照してください。
+
+### CI と main の保護
+
+CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします。リポジトリ側で次を設定してください（ワークフローからは設定できません）。
+
+- Settings → Rules → Rulesets（または Branches）で main に「Require a pull request before merging」と「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を選ぶ。
+- Settings → Actions → General で「Allow GitHub Actions to create and approve pull requests」を有効にする（リリースの PR を作るため）。
 
 ### リリース
 
@@ -108,7 +115,7 @@ scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽
 1. リポジトリのオーナーが Actions タブの「Release」→「Run workflow」で実行します（ブランチは main のまま。main 以外では失敗します）。`bump` は既定の minor で `2.x.0` → `2.(x+1).0`、patch で `2.1.0` → `2.1.1`、major で `3.0.0` になります。
    - `Directory.Build.props` の `<Version>` を上げたブランチ `release/v<版>` を作り、main への PR「step9: バージョンを <版> にする（リリース v<版>）」を開き、そのブランチで CI を起動します（Actions のトークンで開いた PR では pull_request の CI が起動しないため）。版はここだけにあり、`--version` と `AppInfo.Version` はアセンブリから読みます。
    - 同じ版のタグかブランチが既にあれば失敗します（前回の PR が開いたままのときなど）。
-2. CI が緑になったら PR をマージします。リリースしない場合は PR を閉じてブランチを削除します。
+2. CI（必須チェック `summary`）が緑になったら PR をマージします。リリースしない場合は PR を閉じてブランチを削除します。
 3. マージで release ワークフローが動き、マージ後のコミットで次を行います。
    1. CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。
    2. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
