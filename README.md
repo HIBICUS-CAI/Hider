@@ -105,25 +105,29 @@ scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽
 
 CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします。リポジトリ側で次を設定してください（ワークフローからは設定できません）。
 
-- Settings → Rules → Rulesets（または Branches）で main に「Require a pull request before merging」と「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を選ぶ。
-- Settings → Actions → General で「Allow GitHub Actions to create and approve pull requests」を有効にする（リリースの PR を作るため）。
+- Settings → Rules → Rulesets で main（Default branch）に「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を追加する。これで main に入るコミットは `summary` が緑であることが必要になり、main への直接 push も、そのコミットが他のブランチで CI を通っていない限り拒否されます（直接 push を残したい場合は Bypass list に自分を入れる）。「Require a pull request before merging」は不要です（付ける場合は必要な承認数を 0 に。1 以上だとリリース PR を自動でマージできません）。
+- Settings → Actions → General → Workflow permissions で「Allow GitHub Actions to create and approve pull requests」を有効にする（リリースの PR を作るため）。
 
 ### リリース
 
-リリースは `.github/workflows/release.yml` が、版を上げる PR とそのマージの 2 段階で行います。main へ直接 push はしません。
+オーナーの操作は、Actions タブの「Release」→「Run workflow」→「Run workflow」だけです（ブランチは main のまま。main 以外では失敗します）。あとは `.github/workflows/release.yml` が行います。main へ直接 push はしません。
 
-1. リポジトリのオーナーが Actions タブの「Release」→「Run workflow」で実行します（ブランチは main のまま。main 以外では失敗します）。`bump` は既定の minor で `2.x.0` → `2.(x+1).0`、patch で `2.1.0` → `2.1.1`、major で `3.0.0` になります。
-   - `Directory.Build.props` の `<Version>` を上げたブランチ `release/v<版>` を作り、main への PR「step9: バージョンを <版> にする（リリース v<版>）」を開き、そのブランチで CI を起動します（Actions のトークンで開いた PR では pull_request の CI が起動しないため）。版はここだけにあり、`--version` と `AppInfo.Version` はアセンブリから読みます。
-   - 同じ版のタグかブランチが既にあれば失敗します（前回の PR が開いたままのときなど）。
-2. CI（必須チェック `summary`）が緑になったら PR をマージします。リリースしない場合は PR を閉じてブランチを削除します。
-3. マージで release ワークフローが動き、マージ後のコミットで次を行います。
+1. 版を決める（版は `Directory.Build.props` の `<Version>` だけにあり、`--version` と `AppInfo.Version` はアセンブリから読みます）。
+   - 現在の版のタグ `v<版>` がまだない（初回、または PR で版を手で変えた後）: 版を上げずに、main をそのままリリースします。
+   - タグがある: 版を上げ（`bump` の既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）、ブランチ `release/v<版>` と main への PR を作り、そのブランチで CI を起動します（Actions のトークンで開いた PR では pull_request の CI が起動しないため）。CI（必須チェック `summary`）が緑になると PR をマージします。
+2. リリースするコミットで次を行います。
    1. CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。
    2. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
    3. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
-   4. release: マージ後のコミットにタグ `v<版>` を付けて GitHub Release を作り、アセットを添付する。
+   4. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する。
    5. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
 
-書き込み権限は、手順 1 のジョブ（ブランチの push、PR の作成、CI の起動）と手順 3-4 のジョブ（タグと Release）だけが持ちます。手順 1 には Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」が必要です（オフの場合はブランチまで作って失敗するので、表示される URL から PR を手で開きます）。手順 3 が途中で失敗した場合は、その実行の「Re-run failed jobs」でやり直せます。
+失敗したときだけ人の操作が要ります。
+
+- リリース PR の CI が赤: PR は開いたまま残ります。ブランチで直して push し、CI が緑になったら手でマージすると、そのマージで手順 2 が始まります。リリースをやめる場合は PR を閉じてブランチを削除します。
+- 手順 2 の途中で失敗: その実行の「Re-run failed jobs」でやり直せます。
+
+書き込み権限は、手順 1 のジョブ（ブランチの push、PR の作成とマージ、CI の起動）と手順 2-4 のジョブ（タグと Release）だけが持ちます。
 
 ## ライセンス
 
