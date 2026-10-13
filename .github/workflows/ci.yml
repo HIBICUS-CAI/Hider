@@ -28,12 +28,12 @@ concurrency:
 env:
   DOTNET_NOLOGO: 1
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   AVALONIA_TELEMETRY_OPTOUT: 1
 
 jobs:
   plan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
       linux_matrix: ${{ steps.set.outputs.linux_matrix }}
@@ -41,9 +41,11 @@ jobs:
     steps:
       - id: set
         shell: bash
+        env:
+          TARGETS: ${{ inputs.targets }}
         run: |
           all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
-          t='${{ inputs.targets }}'
+          t="$TARGETS"
           if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
           lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
@@ -57,6 +59,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,13 +71,60 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
       - run: dotnet build -c Release --no-restore -warnaserror
-      - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
+      - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
       - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-core-${{ matrix.rid }}
           path: TestResults/**
           retention-days: 14
+
+  # Formatting and code style as .editorconfig says, whatever the targets: once, on Linux (Windows checkouts may convert
+  # line endings).
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore --locked-mode
+      - run: dotnet format Hider.slnx --verify-no-changes --no-restore
+
+  # scripts/*.py: strict type checks (mypy, pyright) and lint (ruff), as configured in pyproject.toml.
+  python-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install mypy pyright ruff
+      - run: mypy
+      - run: pyright
+      - run: ruff check scripts
+      - run: ruff format --check scripts
+      - run: python scripts/check_wayland_list.py
+      # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
+      # building anything.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Scripts on Python 3.10
+        run: |
+          python --version
+          python scripts/build.py --help > /dev/null
+          python scripts/install.py --help > /dev/null
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
   test-gui:
     if: ${{ inputs.run_gui_tests }}
@@ -84,6 +134,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -95,7 +146,17 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
       - run: dotnet build -c Release --no-restore -warnaserror
-      - run: dotnet test tests/Hider.App.Tests -c Release --no-build --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
+      - run: dotnet test tests/Hider.App.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
+      # Linux strip capture end to end on Xvfb with a fake portal (scripts/xvfb-strip-smoke.sh): stage 1 (Screenshot), then
+      # stage 2 (ScreenCast through a private PipeWire and libhidercap).
+      - if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xcompmgr imagemagick dbus
+          build-essential libpipewire-0.3-dev pipewire wireplumber gstreamer1.0-pipewire gstreamer1.0-plugins-good gstreamer1.0-tools
+      - if: runner.os == 'Linux'
+        run: scripts/xvfb-strip-smoke.sh
+      - if: runner.os == 'Linux'
+        run: scripts/xvfb-strip-smoke.sh --screencast
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -111,26 +172,34 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.plan.outputs.linux_matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+      # A compile check on each architecture (-Werror, hardening flags); publish builds the helper it ships itself.
       - run: make -C native/hidercap RID=${{ matrix.rid }}
+      # CT-90: which frames a grab skips (frame_time.h), without PipeWire.
+      - run: make -C native/hidercap test RID=${{ matrix.rid }}
       - uses: actions/upload-artifact@v7
         with:
           name: hidercap-${{ matrix.rid }}
           path: native/hidercap/out/${{ matrix.rid }}/libhidercap.so
+          if-no-files-found: error
           retention-days: 14
 
   publish:
-    if: ${{ inputs.publish }}
-    needs: [plan, test-core]
+    # After every check that ran (format and the scripts' lint included: publish runs build.py): a skipped GUI test or
+    # native job (not chosen, no Linux target) does not hold it back.
+    if: ${{ inputs.publish && !cancelled() && !failure() }}
+    needs: [plan, test-core, test-gui, native, format, python-lint]
     strategy:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -153,6 +222,10 @@ jobs:
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
           "$exe" --version
           "$exe" --selftest
+      # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
+      - if: ${{ startsWith(matrix.rid, 'win') }}
+        shell: pwsh
+        run: scripts/windows-stress.ps1 -Exe bin/publish/${{ matrix.rid }}/Hider.exe -Seconds 90
       - uses: actions/upload-artifact@v7
         with:
           name: Hider-${{ matrix.rid }}
@@ -161,8 +234,9 @@ jobs:
 
   summary:
     if: always()
-    needs: [plan, test-core, test-gui, native, publish]
+    needs: [plan, test-core, test-gui, native, publish, format, python-lint]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - shell: bash
         run: |
@@ -173,4 +247,6 @@ jobs:
             echo "| test-gui | ${{ needs.test-gui.result }} |"
             echo "| native | ${{ needs.native.result }} |"
             echo "| publish | ${{ needs.publish.result }} |"
+            echo "| format | ${{ needs.format.result }} |"
+            echo "| python-lint | ${{ needs.python-lint.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"

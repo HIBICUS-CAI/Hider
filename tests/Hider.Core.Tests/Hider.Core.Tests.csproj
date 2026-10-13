@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CUI tests (test IDs CT-xx). Runs on every CI runner, needs no display. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Hider.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <!-- Hider.Core only references the managed SkiaSharp; the app gets the Linux natives through Avalonia.Skia. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Hider.Core/Hider.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fakes of App-side interfaces (IAreaWindowHost, IScreenService) are compiled only into Hider.App.Tests. -->
+    <Compile Remove="Fakes/App/**" />
+  </ItemGroup>
+
+</Project>

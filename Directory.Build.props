@@ -1,0 +1,39 @@
+<Project>
+
+  <!-- Shared by every project in the solution. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>2.0.0</Version>
+  </PropertyGroup>
+
+  <!-- The conventions of CLAUDE.md are checked by the build: analyzers in the recommended mode of the SDK in use (new rules
+       of a newer SDK are fixed in the code when they come), code style (.editorconfig, naming and block-scoped namespaces
+       included) as build warnings, which TreatWarningsAsErrors turns into errors. The
+       documentation file only lets IDE0005 (unused usings) run in the build; missing XML comments (CS1591) and
+       parameters left out of a partly documented member (CS1573) are not required. -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- The XML files exist for the analyzers only: not shipped. -->
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <!-- Deterministic paths in the shipped (embedded) PDB instead of the runner's checkout directory. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- packages.lock.json is committed; CI (GitHub sets CI=true) restores in locked mode only. -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- Distro-built SDKs (e.g. Ubuntu's dotnet-sdk-10.0) add a local library-packs source whose ILLink package
+         differs from the nuget.org one, which breaks the lock file hashes. Always restore from nuget.org. -->
+    <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+// hexcell: pointy-top hexagons of `radius` px (centre to corner) on a lattice anchored at the area origin; every pixel shows
+// `src` sampled at its hexagon's centre (clamped into the area). At radius <= 1 the output is the input (identity).
+// uniforms: radius (effective, px), areaSize (px), areaOrigin (px; unused: cells follow the area)
+// children: src (captured image or pyramid level, in area pixel coordinates)
+uniform float radius;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform shader src;
+
+half4 main(float2 p) {
+    if (radius <= 1.0) {
+        return src.eval(p);
+    }
+    // Axial coordinates, then cube rounding to the nearest hexagon.
+    float q = (0.57735027 * p.x - 0.33333333 * p.y) / radius;
+    float r = (0.66666667 * p.y) / radius;
+    float x = q;
+    float z = r;
+    float y = -x - z;
+    float rx = floor(x + 0.5);
+    float ry = floor(y + 0.5);
+    float rz = floor(z + 0.5);
+    float dx = abs(rx - x);
+    float dy = abs(ry - y);
+    float dz = abs(rz - z);
+    if (dx > dy && dx > dz) {
+        rx = -ry - rz;
+    } else if (dy <= dz) {
+        rz = -rx - ry;
+    }
+    float2 centre = radius * float2(1.7320508 * (rx + rz * 0.5), 1.5 * rz);
+    return src.eval(clamp(centre, float2(0.5), areaSize - 0.5));
+}

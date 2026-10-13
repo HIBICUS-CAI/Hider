@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- The SDK adds Microsoft.NET.ILLink.Tasks (trimming) at the runtime version it bundles, and packages.lock.json records
+       that version: a newer SDK would change the lock files and fail the locked restore of CI. The version is fixed here
+       instead, so any 10.0.x SDK restores the same packages; raise it together with the lock files. -->
+  <PropertyGroup>
+    <HiderILLinkVersion>10.0.12</HiderILLinkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderILLinkVersion)" />
+  </ItemGroup>
+
+  <!-- Avalonia.BuildServices (transitive) sends build statistics to avaloniaui.net from its AvaloniaStats target. The
+       documented opt-out is the AVALONIA_TELEMETRY_OPTOUT environment variable, which every machine would have to set;
+       replacing the target with an empty one turns it off for every build of this repository. -->
+  <Target Name="AvaloniaStats" />
+
+</Project>

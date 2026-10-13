@@ -1,0 +1,12 @@
+// blur: the Gaussian blur happens in the fixed pre-blur stage (BlurMethod.PreBlurRadius), so the shader only passes the
+// blurred capture through.
+// uniforms: radius (effective, px; used by the pre-blur stage), areaSize (px), areaOrigin (px; unused)
+// children: src (blurred capture, in area pixel coordinates)
+uniform float radius;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform shader src;
+
+half4 main(float2 p) {
+    return src.eval(p);
+}

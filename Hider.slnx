@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hider.Core/Hider.Core.csproj" />
+    <Project Path="src/Hider/Hider.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hider.App.Tests/Hider.App.Tests.csproj" />
+    <Project Path="tests/Hider.Core.Tests/Hider.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,47 @@
+// block (generated): cells of `cellSize` px aligned to the area origin. Each cell is the base color shifted by
+// variance * (hash - 0.5) on every channel (same shift, so the hue is kept); joints of `gap` px on the right and bottom of
+// each cell stay the base color. Opaque output: the window applies the opacity.
+// uniforms: cellSize (px, integer), variance (0..1), gap (px), areaSize (px), areaOrigin (px; unused, cells follow the
+//           area so moving it does not change the pattern), baseColor (rgb 0..1),
+//           seed (float3: LatticeHash.SeedDigits, the seed as three digits base 251)
+// children: none
+uniform float cellSize;
+uniform float variance;
+uniform float gap;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform float3 baseColor;
+uniform float3 seed;
+
+// Exact cell hash, the same as LatticeHash.cs: whole numbers below 2^16 only, so every backend computes the same value.
+float mod251(float x) {
+    return x - floor((x + 0.5) * (1.0 / 251.0)) * 251.0;
+}
+
+float permute(float x) {
+    return mod251(mod251(x * x) * x);
+}
+
+float hash(float2 cell) {
+    float2 q = floor((cell + 0.5) * (1.0 / 251.0));
+    float2 r = cell - q * 251.0;
+    float h = permute(mod251(seed.x + r.x));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + seed.y));
+    h = permute(mod251(h + r.x));
+    h = permute(mod251(h + seed.z));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + q.x));
+    h = permute(mod251(h + q.y));
+    return (h + 0.5) * (1.0 / 251.0);
+}
+
+half4 main(float2 p) {
+    float2 cell = floor(p / cellSize);
+    float2 local = p - cell * cellSize;
+    if (gap > 0.0 && (local.x >= cellSize - gap || local.y >= cellSize - gap)) {
+        return half4(half3(baseColor), 1);
+    }
+    float shift = variance * (hash(cell) - 0.5);
+    return half4(half3(clamp(baseColor + shift, 0.0, 1.0)), 1);
+}

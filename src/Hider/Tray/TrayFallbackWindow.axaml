@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:tray="using:Hider.Tray"
+        x:Class="Hider.Tray.TrayFallbackWindow"
+        CanResize="False"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterScreen"
+        Background="#F9F9F9"
+        Title="Hider">
+    <!-- D-9: no tray on this desktop, so the tray menu lives in a small ordinary window. -->
+    <StackPanel Width="248" Margin="6" Spacing="4">
+        <TextBlock x:Name="Status" Margin="10,6,10,2" FontSize="12" Foreground="#5F6368" TextWrapping="Wrap" />
+        <tray:TrayMenuPanel x:Name="Items" />
+    </StackPanel>
+</Window>

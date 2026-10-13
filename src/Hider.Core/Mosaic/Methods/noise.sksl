@@ -1,0 +1,47 @@
+// noise (generated): value noise on a lattice of `scale` * 4 px anchored to the area origin, quantised to `levels` steps
+// spread over base color ± 0.15 on every channel (same shift, so the hue is kept). Opaque output: the window applies the
+// opacity.
+// uniforms: scale (lattice step / 4 px), levels (integer >= 2), areaSize (px), areaOrigin (px; unused, the lattice follows
+//           the area), baseColor (rgb 0..1),
+//           seed (float3: LatticeHash.SeedDigits, the seed as three digits base 251)
+// children: none
+uniform float scale;
+uniform float levels;
+uniform float2 areaSize;
+uniform float2 areaOrigin;
+uniform float3 baseColor;
+uniform float3 seed;
+
+// Exact cell hash, the same as LatticeHash.cs: whole numbers below 2^16 only, so every backend computes the same value.
+float mod251(float x) {
+    return x - floor((x + 0.5) * (1.0 / 251.0)) * 251.0;
+}
+
+float permute(float x) {
+    return mod251(mod251(x * x) * x);
+}
+
+float hash(float2 cell) {
+    float2 q = floor((cell + 0.5) * (1.0 / 251.0));
+    float2 r = cell - q * 251.0;
+    float h = permute(mod251(seed.x + r.x));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + seed.y));
+    h = permute(mod251(h + r.x));
+    h = permute(mod251(h + seed.z));
+    h = permute(mod251(h + r.y));
+    h = permute(mod251(h + q.x));
+    h = permute(mod251(h + q.y));
+    return (h + 0.5) * (1.0 / 251.0);
+}
+
+half4 main(float2 p) {
+    float2 q = p / (scale * 4.0);
+    float2 i = floor(q);
+    float2 f = q - i;
+    float2 u = f * f * (3.0 - 2.0 * f);
+    float v = mix(mix(hash(i), hash(i + float2(1, 0)), u.x), mix(hash(i + float2(0, 1)), hash(i + float2(1, 1)), u.x), u.y);
+    float step = min(floor(v * levels), levels - 1.0);
+    float shift = 0.3 * (step / (levels - 1.0) - 0.5);
+    return half4(half3(clamp(baseColor + shift, 0.0, 1.0)), 1);
+}

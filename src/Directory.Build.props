@@ -1,0 +1,17 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Shipped code must stay trim-safe: the app is published trimmed (NFR-06). -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!-- "dotnet publish -r" passes the RID to project references too, so every shipped project lists the publish
+       targets. packages.lock.json then covers them and CI can restore a RID-specific publish in locked mode. -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+</Project>

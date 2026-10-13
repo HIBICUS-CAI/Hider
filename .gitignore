@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+*.user
+.vs/
+.idea/
+.vscode/
+
+# Test output (trx, golden actual/diff images)
+TestResults/
+
+# Native helper output
+native/hidercap/out/
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Python
+__pycache__/
+.venv/
+.mypy_cache/
+.ruff_cache/
+
