@@ -12,6 +12,10 @@ on:
         description: "Commit to check out (default: the commit of the event)"
         type: string
         default: ""
+      version:
+        description: "Version to publish (default: <Version> of Directory.Build.props)"
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       targets:
@@ -141,6 +145,7 @@ jobs:
           XDG_DATA_HOME="$d/data" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh"
           [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
           test -f "$d/data/applications/Hider.desktop"
+          (cd "$d/out" && sha256sum -c SHA256SUMS.txt)
       # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
       # building anything.
       - uses: actions/setup-python@v7
@@ -152,6 +157,8 @@ jobs:
           python scripts/build.py --help > /dev/null
           python scripts/install.py --help > /dev/null
           python scripts/make_release.py --help > /dev/null
+          [ "$(python scripts/make_release.py bump minor 2.0.0)" = 2.1.0 ]
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', '--version', '2.1.0']; import build; print(build.parse_args())"
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
@@ -247,13 +254,21 @@ jobs:
           python-version: "3.12"
       - if: ${{ startsWith(matrix.rid, 'linux') }}
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
-      - run: python scripts/build.py ${{ matrix.rid }}
+      # release.yml passes the version it tags (taken from the tags, not from Directory.Build.props).
+      - shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python scripts/build.py ${{ matrix.rid }} ${VERSION:+--version "$VERSION"}
       - name: Self test on the trimmed binary
         shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           exe="bin/publish/${{ matrix.rid }}/Hider"
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
-          "$exe" --version
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
       # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
       - if: ${{ startsWith(matrix.rid, 'win') }}

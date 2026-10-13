@@ -2,15 +2,15 @@
 """Release helpers for the release workflow (.github/workflows/release.yml).
 
     python scripts/make_release.py version
-    python scripts/make_release.py bump minor
-    python scripts/make_release.py package 2.1.0 --repo OWNER/NAME --input-dir artifacts --out-dir release
+    python scripts/make_release.py bump minor 2.1.0
+    python scripts/make_release.py package 2.2.0 --repo OWNER/NAME --input-dir artifacts --out-dir release
 
-version prints <Version> of Directory.Build.props, the only place the version is kept (AppInfo.Version and --version
-read it from the assembly). bump increases it (minor: 2.1.0 -> 2.2.0, patch: 2.1.0 -> 2.1.1, major: 2.1.0 -> 3.0.0),
-writes it back and prints the new version. package turns the publish outputs (one folder per target, named Hider-<rid>
-as CI's publish artifacts are, or bin/publish/<rid>) into the release assets: one archive per target, the installers
-install.bat / install.sh (they download that release's archive and check its SHA-256), SHA256SUMS.txt and
-release-notes.md.
+version prints <Version> of Directory.Build.props (the version of the first release, while there is no tag, and of
+builds from source). bump prints the version after the given one (minor: 2.1.0 -> 2.2.0, patch: 2.1.0 -> 2.1.1,
+major: 2.1.0 -> 3.0.0); the release workflow gives it the latest tag. package turns the publish outputs (one folder per
+target, named Hider-<rid> as CI's publish artifacts are, or bin/publish/<rid>) into the release assets: one archive per
+target, the installers install.bat / install.sh (they download that release's archive and check its SHA-256),
+SHA256SUMS.txt and release-notes.md.
 """
 
 from __future__ import annotations
@@ -50,28 +50,23 @@ def parse_version(version: str) -> tuple[int, int, int]:
     return major, minor, patch
 
 
-def read_props() -> tuple[str, str]:
-    """Return the text of Directory.Build.props and its version."""
-    text = PROPS_FILE.read_text(encoding='utf-8')
-    found = PROPS_VERSION.findall(text)
+def props_version() -> str:
+    """Return <Version> of Directory.Build.props."""
+    found = PROPS_VERSION.findall(PROPS_FILE.read_text(encoding='utf-8'))
     if len(found) != 1:
         sys.exit(f'{PROPS_FILE} must have exactly one <Version> element')
     version: str = found[0]
     parse_version(version)
-    return text, version
+    return version
 
 
-def bump(part: str) -> str:
-    text, current = read_props()
+def bump(part: str, current: str) -> str:
     major, minor, patch = parse_version(current)
     if part == 'major':
-        version = f'{major + 1}.0.0'
-    elif part == 'minor':
-        version = f'{major}.{minor + 1}.0'
-    else:
-        version = f'{major}.{minor}.{patch + 1}'
-    PROPS_FILE.write_text(PROPS_VERSION.sub(f'<Version>{version}</Version>', text), encoding='utf-8')
-    return version
+        return f'{major + 1}.0.0'
+    if part == 'minor':
+        return f'{major}.{minor + 1}.0'
+    return f'{major}.{minor}.{patch + 1}'
 
 
 def find_input(input_dir: Path | None, target: str) -> Path:
@@ -157,8 +152,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('version', help='Print <Version> of Directory.Build.props.')
-    bump_parser = commands.add_parser('bump', help='Increase <Version> in Directory.Build.props and print it.')
+    bump_parser = commands.add_parser('bump', help='Print the version after the given one.')
     bump_parser.add_argument('part', choices=BUMPS)
+    bump_parser.add_argument('current', metavar='version')
     package_parser = commands.add_parser('package', help='Make the release assets.')
     package_parser.add_argument('version')
     package_parser.add_argument('--repo', required=True, help='GitHub repository OWNER/NAME the release belongs to.')
@@ -170,10 +166,11 @@ def main() -> None:
 
     command: str = args.command
     if command == 'version':
-        print(read_props()[1])
+        print(props_version())
     elif command == 'bump':
         part: str = args.part
-        print(bump(part))
+        current: str = args.current
+        print(bump(part, current))
     else:
         version: str = args.version
         parse_version(version)

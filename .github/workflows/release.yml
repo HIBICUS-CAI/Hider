@@ -1,34 +1,30 @@
 name: Release
 
-# The owner's only step is Run workflow (Actions tab, on main); README "リリース", proposal P-9.
-# 1. prepare: when <Version> of Directory.Build.props has no tag v<version> yet (the first release, or a version raised
-#    by hand in a merged pull request), main is released as it is. Otherwise the version goes up (minor by default:
-#    2.x.0 -> 2.(x+1).0) on a new branch release/v<version>, a pull request to main is opened, CI is started on the branch
-#    (its check "summary" is the required check: a pull request opened with GITHUB_TOKEN does not start pull_request
-#    workflows), and once CI is green the pull request is merged (the owner's decision). Nothing is pushed to main
-#    directly.
-# 2. On the released commit: CI again (ci.yml), the release assets (scripts/make_release.py), the installers tried on
-#    each target, the tag v<version> with the GitHub Release, then the installers downloaded from the release.
-# A release pull request merged by hand (when CI failed and was fixed on the branch) starts stage 2 by itself. The merge
-# done by this workflow does not (GITHUB_TOKEN events start no workflow), so a release never runs twice.
+# The owner's only step is Run workflow (Actions tab, on main); README "リリース", proposal P-9. Nothing is pushed to
+# main: the version comes from the tags, and the release is main's HEAD.
+# 1. prepare: the version. No tag v<MAJOR.MINOR.PATCH> yet (the first release): <Version> of Directory.Build.props as it
+#    is. Otherwise the latest such tag, increased by the input "bump" (minor by default: 2.x.0 -> 2.(x+1).0);
+#    Directory.Build.props is not read then. Fails when main's HEAD already has a tag (released already, e.g. Run
+#    workflow pressed twice: the runs queue in one concurrency group and the second would release the same commit).
+# 2. ci: CI on that commit (ci.yml), publishing with that version (build.py --version, a global property over
+#    Directory.Build.props).
+# 3. package: the release assets (scripts/make_release.py). 4. verify: the installers tried on each target.
+# 5. release: the tag v<version> on that commit and the GitHub Release (the only job with write access).
+# 6. smoke: the installers downloaded from the published release.
 on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "Part of the version to increase (minor: 2.x.0 -> 2.(x+1).0)"
+        description: "Part of the latest version to increase (minor: 2.x.0 -> 2.(x+1).0)"
         type: choice
         default: minor
         options: [minor, patch, major]
-  pull_request:
-    types: [closed]
-    branches: [main]
 
 permissions:
   contents: read
 
-# One group per release branch: closing other pull requests never waits for, or replaces, a release.
 concurrency:
-  group: release-${{ github.event.pull_request.head.ref || 'run' }}
+  group: release
   cancel-in-progress: false
 
 env:
@@ -36,110 +32,48 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  # Decides the version and the commit to release: on Run workflow as described above, on a merged pull request from
-  # release/v<version> of this repository its merge commit.
   prepare:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged &&
-      startsWith(github.event.pull_request.head.ref, 'release/v') &&
-      github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
-    # Waits for CI on the release branch.
-    timeout-minutes: 150
-    permissions:
-      contents: write # the branch release/v<version>, merging its pull request
-      pull-requests: write # opening and merging the pull request
-      actions: write # CI on the branch
+    timeout-minutes: 10
     outputs:
-      version: ${{ steps.merged.outputs.version || steps.run.outputs.version }}
-      sha: ${{ steps.merged.outputs.sha || steps.run.outputs.sha }}
-    env:
-      GH_TOKEN: ${{ github.token }}
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.version.outputs.sha }}
     steps:
-      - if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+      - if: ${{ github.ref != 'refs/heads/main' }}
         run: |
           echo "::error::Run the release workflow on main (the branch selector of Run workflow)."
           exit 1
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha || 'main' }}
-      - id: merged
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          SHA: ${{ github.event.pull_request.merge_commit_sha }}
-        run: |
-          fail() { echo "::error::$1"; exit 1; }
-          version="$(python3 scripts/make_release.py version)"
-          [ "$HEAD_REF" = "release/v$version" ] || fail "main has version $version, the branch was $HEAD_REF"
-          if git ls-remote --exit-code origin "refs/tags/v$version" > /dev/null; then fail "tag v$version exists already"; fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-      - id: run
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+          ref: main
+          persist-credentials: false
+      - id: version
         env:
           BUMP: ${{ inputs.bump }}
         run: |
           fail() { echo "::error::$1"; exit 1; }
-          current="$(python3 scripts/make_release.py version)"
-          if ! git ls-remote --exit-code origin "refs/tags/v$current" > /dev/null; then
-            echo "v$current is not released yet: releasing main as it is"
-            echo "version=$current" >> "$GITHUB_OUTPUT"
-            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-            exit 0
+          sha="$(git rev-parse HEAD)"
+          tags="$(git ls-remote --tags origin 'refs/tags/v*')"
+          # Annotated tags are listed twice, the second time peeled (^{}) to their commit.
+          released="$(echo "$tags" | awk -v sha="$sha" '$1 == sha { sub("refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2 }' | head -n 1)"
+          [ -z "$released" ] || fail "main ($sha) is released already as $released"
+          latest="$(echo "$tags" | sed -n 's#.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+          if [ -z "$latest" ]; then
+            version="$(python3 scripts/make_release.py version)"
+            echo "No release yet: $version (Directory.Build.props)"
+          else
+            version="$(python3 scripts/make_release.py bump "$BUMP" "$latest")"
+            echo "v$latest -> v$version ($BUMP)"
           fi
-          version="$(python3 scripts/make_release.py bump "$BUMP")"
-          tag="v$version"
-          branch="release/$tag"
-          echo "$current -> $version"
-          if git ls-remote --exit-code origin "refs/tags/$tag" "refs/heads/$branch" > /dev/null; then
-            fail "$tag or $branch exists already (a release pull request still open?)"
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "$branch"
-          git commit -a -m "step9: バージョンを $version にする" \
-            -m "リリース $tag の準備（release ワークフロー、$current → $version）。確認した RID: win-x64, linux-x64, linux-arm64（このブランチの CI と、マージ後の release ワークフロー）。"
-          git push origin "$branch"
-          head="$(git rev-parse HEAD)"
-          gh workflow run ci.yml --ref "$branch"
-          body="$(printf '%s\n' \
-            "Hider $version のリリース（\`Directory.Build.props\` の \`<Version>\` を $current から $version に）。release ワークフローが作り、CI（必須チェック）が緑になると自動でマージし、続けて配布物の作成・インストーラの確認・タグ $tag と GitHub Release の作成を行います。" \
-            '' \
-            'CI が失敗した場合: このブランチで直して push すると CI が再び動きます。緑になったら手でマージすれば、release ワークフローがリリースを行います。リリースしない場合は、この PR を閉じてブランチを削除してください。')"
-          url="$(gh pr create --base main --head "$branch" --title "step9: バージョンを $version にする（リリース $tag）" --body "$body")" \
-            || fail "could not open the pull request (Settings > Actions > General: allow GitHub Actions to create pull requests); open it by hand from $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch and merge it once CI is green"
-          echo "Pull request: $url"
-          # The CI run started above on the branch head.
-          id=''
-          for _ in $(seq 30); do
-            id="$(gh run list --workflow ci.yml --branch "$branch" --event workflow_dispatch --json databaseId,headSha \
-              --jq ".[] | select(.headSha == \"$head\") | .databaseId" | head -n 1)"
-            [ -n "$id" ] && break
-            sleep 10
-          done
-          [ -n "$id" ] || fail "the CI run on $branch did not start ($url)"
-          echo "CI: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id"
-          gh run watch "$id" --exit-status --interval 60 > /dev/null \
-            || fail "CI failed on $branch: fix it on the branch and merge $url by hand once green (that starts the release)"
-          # Whichever merge method the repository allows; the check may need a moment to count.
-          merged=false
-          for _ in 1 2 3; do
-            for method in --merge --squash --rebase; do
-              if gh pr merge "$url" "$method"; then merged=true; break 2; fi
-            done
-            sleep 30
-          done
-          $merged || fail "could not merge $url (rules of main: required approvals?); merge it by hand to release"
-          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" > /dev/null 2>&1 || true
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "sha=$(gh pr view "$url" --json mergeCommit --jq .mergeCommit.oid)" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   ci:
     needs: prepare
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ needs.prepare.outputs.sha }}
+      version: ${{ needs.prepare.outputs.version }}
 
   package:
     needs: [prepare, ci]
@@ -259,12 +193,13 @@ jobs:
       - if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat
+          # Assets of a release made a moment ago can take a few seconds to be served.
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat -MaximumRetryCount 5 -RetryIntervalSec 10
           cmd.exe /c install.bat installed
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - if: runner.os == 'Linux'
         run: |
-          curl -fsSL -o install.sh "$URL/install.sh"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o install.sh "$URL/install.sh"
           sh install.sh -d installed
       - name: Installed binary
         shell: bash

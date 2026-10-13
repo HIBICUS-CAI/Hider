@@ -39,7 +39,7 @@
 
 - 更新も同じ操作です（既存のファイルを上書きします）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください（起動中はインストーラが止まります）。
 - インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
-- インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダに置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
+- インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
 - Windows では、ダウンロードや実行の時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「保存」「詳細情報」→「実行」で続けます。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除するだけです（設定は `~/.hider` に残ります）。
 
@@ -103,31 +103,25 @@ scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽
 
 ### CI と main の保護
 
-CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします。リポジトリ側で次を設定してください（ワークフローからは設定できません）。
+CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします（リポジトリの設定で、ワークフローからは設定できません）。
 
-- Settings → Rules → Rulesets で main（Default branch）に「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を追加する。これで main に入るコミットは `summary` が緑であることが必要になり、main への直接 push も、そのコミットが他のブランチで CI を通っていない限り拒否されます（直接 push を残したい場合は Bypass list に自分を入れる）。「Require a pull request before merging」は不要です（付ける場合は必要な承認数を 0 に。1 以上だとリリース PR を自動でマージできません）。
-- Settings → Actions → General → Workflow permissions で「Allow GitHub Actions to create and approve pull requests」を有効にする（リリースの PR を作るため）。
+- Settings → Rules → Rulesets で main（Default branch）に「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を追加する。main に入るコミットは `summary` が緑であることが必要になり、main への直接 push も、そのコミットが他のブランチで CI を通っていない限り拒否されます（直接 push を残したい場合は Bypass list に自分を入れる）。「Require a pull request before merging」は任意です（リリースは PR を作らないので、付けても付けなくても動きます）。
 
 ### リリース
 
-オーナーの操作は、Actions タブの「Release」→「Run workflow」→「Run workflow」だけです（ブランチは main のまま。main 以外では失敗します）。あとは `.github/workflows/release.yml` が行います。main へ直接 push はしません。
+オーナーの操作は、Actions タブの「Release」→「Run workflow」→「Run workflow」だけです（ブランチは main のまま。main 以外では失敗します）。あとは `.github/workflows/release.yml` が行います。リリースするのは main の HEAD で、main へは何も push しません。
 
-1. 版を決める（版は `Directory.Build.props` の `<Version>` だけにあり、`--version` と `AppInfo.Version` はアセンブリから読みます）。
-   - 現在の版のタグ `v<版>` がまだない（初回、または PR で版を手で変えた後）: 版を上げずに、main をそのままリリースします。
-   - タグがある: 版を上げ（`bump` の既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）、ブランチ `release/v<版>` と main への PR を作り、そのブランチで CI を起動します（Actions のトークンで開いた PR では pull_request の CI が起動しないため）。CI（必須チェック `summary`）が緑になると PR をマージします。
-2. リリースするコミットで次を行います。
-   1. CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。
-   2. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
-   3. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
-   4. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する。
-   5. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
+1. prepare: 版を決める。版の正はタグ（`v<MAJOR.MINOR.PATCH>`）です。
+   - タグがまだない（初回）: `Directory.Build.props` の `<Version>`（2.0.0）をそのまま使う。
+   - タグがある: 最新のタグを `bump` で上げる（既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）。このとき `Directory.Build.props` は見ません（`<Version>` はソースからビルドしたときの版で、更新は任意です）。
+   - main の HEAD に既にタグがある（リリース済み。誤って 2 回実行した場合など）は失敗します。
+2. ci: そのコミットで CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。publish は決めた版でビルドし（`build.py --version`）、`--version` の表示が一致することを確かめます。
+3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
+4. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
+5. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する（書き込み権限を持つのはこのジョブだけ）。
+6. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
 
-失敗したときだけ人の操作が要ります。
-
-- リリース PR の CI が赤: PR は開いたまま残ります。ブランチで直して push し、CI が緑になったら手でマージすると、そのマージで手順 2 が始まります。リリースをやめる場合は PR を閉じてブランチを削除します。
-- 手順 2 の途中で失敗: その実行の「Re-run failed jobs」でやり直せます。
-
-書き込み権限は、手順 1 のジョブ（ブランチの push、PR の作成とマージ、CI の起動）と手順 2-4 のジョブ（タグと Release）だけが持ちます。
+途中で失敗した場合は、その実行の「Re-run failed jobs」でやり直せます（タグは手順 5 まで付かないので、手順 1 からやり直しても同じ版になります）。
 
 ## ライセンス
 

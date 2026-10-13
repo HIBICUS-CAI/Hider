@@ -1,4 +1,4 @@
-"""Paths and targets shared by build.py, install.py, make_icons.py and check_wayland_list.py."""
+"""Paths and targets shared by build.py, install.py, make_icons.py, check_wayland_list.py and make_release.py."""
 
 from __future__ import annotations
 

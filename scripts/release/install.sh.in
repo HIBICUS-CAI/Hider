@@ -4,7 +4,8 @@
 #   sh install.sh [-d <folder>]
 #   curl -fsSL https://github.com/<owner>/<repo>/releases/latest/download/install.sh | sh
 #
-# Downloads Hider-@HIDER_VERSION@-<rid>.tar.gz from the release (or uses it when it sits next to this script), checks
+# Downloads Hider-@HIDER_VERSION@-<rid>.tar.gz from the release (or uses it when it sits next to this script: in the
+# current directory when piped to sh), checks
 # its SHA-256, copies it into the folder (default $XDG_DATA_HOME/Hider, ~/.local/share/Hider) overwriting existing files,
 # and writes ~/.local/share/applications/Hider.desktop (same result as scripts/install.py on a source checkout), then
 # starts Hider when there is a display, unless HIDER_NO_LAUNCH is set.
@@ -96,7 +97,7 @@ else
     url="$BASE_URL/$archive"
     say "Downloading $url"
     if command -v curl > /dev/null 2>&1; then
-        curl -fL --proto '=https' --tlsv1.2 --retry 3 -o "$work/$archive" "$url" || die "download failed: $url"
+        curl -fL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$work/$archive" "$url" || die "download failed: $url"
     elif command -v wget > /dev/null 2>&1; then
         wget --https-only -O "$work/$archive" "$url" || die "download failed: $url"
     else
