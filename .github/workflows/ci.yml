@@ -138,7 +138,7 @@ jobs:
           touch "$d/in/Hider-win-x64/Hider.exe"
           for rid in linux-x64 linux-arm64; do printf '#!/bin/sh\necho "Hider 0.0.0"\n' > "$d/in/Hider-$rid/Hider"; done
           python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
-          XDG_DATA_HOME="$d/data" sh "$d/out/install.sh"
+          XDG_DATA_HOME="$d/data" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh"
           [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
           test -f "$d/data/applications/Hider.desktop"
       # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without

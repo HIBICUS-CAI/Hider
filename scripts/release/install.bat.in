@@ -5,15 +5,16 @@ rem   install.bat [folder]
 rem
 rem Downloads Hider-@HIDER_VERSION@-win-x64.zip from the release (or uses it when it sits next to this file), checks its
 rem SHA-256, copies it into the folder (default %LOCALAPPDATA%\Programs\Hider) overwriting existing files, and creates
-rem the desktop shortcut Hider.lnk. Same result as scripts/install.py on a source checkout. The PowerShell part below
-rem the marker line does the work; values go through environment variables to avoid quoting issues.
+rem the desktop shortcut Hider.lnk (same result as scripts/install.py on a source checkout), then starts Hider unless
+rem HIDER_NO_LAUNCH is set. The PowerShell part below the marker line does the work; values go through environment
+rem variables to avoid quoting issues.
 setlocal
 set "HIDER_SCRIPT=%~f0"
 set "HIDER_DEST=%~1"
 powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$t = [IO.File]::ReadAllText($env:HIDER_SCRIPT); $m = '#' + '#POWERSHELL#' + '#'; Invoke-Expression $t.Substring($t.IndexOf($m) + $m.Length)"
 set "HIDER_EXIT=%ERRORLEVEL%"
-rem Started without arguments (double-clicked): keep the window open to show the result.
-if "%~1"=="" pause
+rem Double-clicked (no arguments) and failed: keep the window open to show the error. On success it just closes.
+if not "%HIDER_EXIT%"=="0" if "%~1"=="" pause
 exit /b %HIDER_EXIT%
 
 ##POWERSHELL##
@@ -87,6 +88,10 @@ try {
     $shortcut.Save()
     Write-Output "Created shortcut: $link"
     Write-Output "Installed Hider $version to $dest"
+    if (-not $env:HIDER_NO_LAUNCH) {
+        Start-Process -FilePath (Join-Path $dest 'Hider.exe') -WorkingDirectory $dest
+        Write-Output 'Started Hider (tray icon).'
+    }
 } catch {
     [Console]::Error.WriteLine("error: $($_.Exception.Message)")
     exit 1

@@ -1,13 +1,13 @@
 ## インストール
 
-下の Assets からインストーラを 1 つだけダウンロードして実行します。インストーラがこのリリースのビルド済みファイルをダウンロードし、SHA-256 を確かめてからインストールします（.NET や Python は不要です）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください。
+インストーラを 1 つダウンロードして実行するだけです。インストーラがこのリリースのビルド済みファイルをダウンロードし、SHA-256 を確かめてからインストールし、Hider を起動します（.NET や Python は不要です）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください。
 
-| OS | ダウンロード | 実行 | インストール先 |
-|---|---|---|---|
-| Windows 11（x64） | [install.bat](@HIDER_BASE_URL@/install.bat) | ダブルクリック | `%LOCALAPPDATA%\Programs\Hider`、デスクトップに Hider.lnk |
-| Linux（x64 / arm64） | [install.sh](@HIDER_BASE_URL@/install.sh) | `sh install.sh` | `~/.local/share/Hider`、`~/.local/share/applications/Hider.desktop` |
+| OS | 操作 | インストール先 |
+|---|---|---|
+| Windows 11（x64） | [install.bat](@HIDER_BASE_URL@/install.bat) をダウンロードしてダブルクリック | `%LOCALAPPDATA%\Programs\Hider`、デスクトップに Hider.lnk |
+| Linux（x64 / arm64） | 端末で `curl -fsSL @HIDER_BASE_URL@/install.sh \| sh`（または [install.sh](@HIDER_BASE_URL@/install.sh) をダウンロードして `sh install.sh`） | `~/.local/share/Hider`、`~/.local/share/applications/Hider.desktop` |
 
-- インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。既存のファイルは上書きします。
-- アーカイブ（Hider-@HIDER_VERSION@-*.zip / .tar.gz）をインストーラと同じフォルダに置くと、ダウンロードせずにそれを使います。
+- 更新も同じ操作です（既存のファイルを上書きします）。インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。
 - Windows では、ダウンロードした install.bat の実行時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「詳細情報」→「実行」または「実行」で続けます。
+- アーカイブ（Hider-@HIDER_VERSION@-*.zip / .tar.gz）をインストーラと同じフォルダに置くと、ダウンロードせずにそれを使います。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除します。設定は `~/.hider` に残ります。

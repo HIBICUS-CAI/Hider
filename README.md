@@ -30,18 +30,18 @@
 
 ## インストール
 
-[Releases](https://github.com/HIBICUS-CAI/Hider/releases) の最新版から、インストーラを 1 つだけダウンロードして実行します。インストーラがそのリリースのビルド済みファイル（.NET ランタイム込み）をダウンロードし、SHA-256 を確かめてからインストールします。.NET SDK や Python、リポジトリのクローンは要りません。
+インストーラを 1 つ実行するだけです。最新のリリースのビルド済みファイル（.NET ランタイム込み）をダウンロードし、SHA-256 を確かめてからインストールし、Hider を起動します。.NET SDK や Python、リポジトリのクローンは要りません。
 
-| OS | ダウンロード | 実行 | インストール先 | 作るもの |
-|---|---|---|---|---|
-| Windows | `install.bat` | ダブルクリック（または `install.bat <フォルダ>`） | `%LOCALAPPDATA%\Programs\Hider` | デスクトップのショートカット |
-| Linux | `install.sh` | `sh install.sh`（または `sh install.sh -d <フォルダ>`） | `~/.local/share/Hider` | `~/.local/share/applications/Hider.desktop`（アクティビティから検索・ドックに固定できる） |
+| OS | 操作 | インストール先 | 作るもの |
+|---|---|---|---|
+| Windows | [install.bat](https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.bat) をダウンロードしてダブルクリック | `%LOCALAPPDATA%\Programs\Hider` | デスクトップのショートカット |
+| Linux | 端末で `curl -fsSL https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.sh \| sh` | `~/.local/share/Hider` | `~/.local/share/applications/Hider.desktop`（アクティビティから検索・ドックに固定できる） |
 
-- 既存のファイルは上書きします。Hider を起動している場合は、トレイの「終了」で終了してから実行してください（起動中はインストーラが止まります）。
+- 更新も同じ操作です（既存のファイルを上書きします）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください（起動中はインストーラが止まります）。
+- インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
 - インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダに置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
-- Windows では、ダウンロードした install.bat の実行時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。
+- Windows では、ダウンロードや実行の時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「保存」「詳細情報」→「実行」で続けます。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除するだけです（設定は `~/.hider` に残ります）。
-- 更新は新しいリリースのインストーラを同じように実行します。
 
 ## ビルド
 

@@ -156,6 +156,8 @@ jobs:
     timeout-minutes: 15
     env:
       VERSION: ${{ needs.plan.outputs.version }}
+      # The installers start Hider after installing; not on the runner.
+      HIDER_NO_LAUNCH: 1
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -225,6 +227,7 @@ jobs:
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/v${{ needs.plan.outputs.version }}
+      HIDER_NO_LAUNCH: 1
     steps:
       - if: runner.os == 'Windows'
         shell: pwsh
