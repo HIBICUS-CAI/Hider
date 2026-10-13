@@ -2,18 +2,20 @@
 
 スパイクのプログラムと手順（`spikes/S-n/`）は PR #1 の終わりに削除した。必要なときはブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050）から取り出す（`git fetch origin archive/pr1-removed` の後、`git show FETCH_HEAD:spikes/S-1/README.md`、`git archive FETCH_HEAD spikes | tar -x`）。結果はこの文書に残す。
 
+**状況（2026-10-12）**: 依頼者の判断で、v2.0 では Windows・Linux とも実機での検証・計測を行わない（提案 P-3 承認、docs/manual-tests.md）。以下の実機が必要なスパイク（S-1、S-2、S-4 の実機分、S-5、S-6、S-8、S-3 の GPU）は未実施のまま残し、CI・作業コンテナで測れた値だけを載せている。
+
 ## 結果一覧
 
 | # | 検証 | 日付 | 機材 | OS 版 | 結果 | 実測値 |
 |---|---|---|---|---|---|---|
-| S-1 | Win11: 枠なし・Topmost・非アクティブ・透明窓 + TrayIcon 左右クリック | — | — | — | 未実施（デスクトップが必要。人間待ち、手順は archive/pr1-removed の spikes/S-1/README.md） | — |
-| S-2 | Ubuntu 26.04: 同上 + ARGB visual の GLX 描画 + 帯の透明化 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は archive/pr1-removed の spikes/S-2/README.md） | — |
-| S-3 | SKRuntimeEffect のピクセル化（GPU / Software） | 2026-10-11 | GitHub Actions ランナー 3 種（4 コア）、作業コンテナ（Xeon 2.8 GHz 4 コア） | Windows Server 2025（10.0.26100）、Ubuntu 24.04（x64 / arm64） | CPU: **条件付き合格**（全解像度評価は不合格、セル単位評価なら合格）。GPU: 未実施（実機の GPU が必要、人間待ち） | 下表「S-3 CPU 実測」 |
-| S-4 | PrintWindow(PW_RENDERFULLCONTENT) の黒判定 | 2026-10-11（参考） | GitHub Actions windows-latest（GPU なし、1024×768） | Windows 10.0.26100 | 参考実行のみ（実機の Edge / VS Code / UWP / 管理者窓 / 排他全画面は人間待ち、手順は archive/pr1-removed の spikes/S-4/README.md） | 下表「S-4 参考実行」 |
-| S-5 | Screenshot ポータルの許可の記憶 | — | — | — | 未実施（GNOME 50 実機が必要。人間待ち、手順は archive/pr1-removed の spikes/S-5/README.md） | — |
-| S-6 | ScreenCast + PipeWire ヘルパ: restore_token、PTS 判定、帯 1 本のフレーム数、座標対応 | — | — | — | 未実施（GNOME 50 実機が必要。手順は archive/pr1-removed の spikes/S-6/README.md） | — |
+| S-1 | Win11: 枠なし・Topmost・非アクティブ・透明窓 + TrayIcon 左右クリック | — | — | — | 未実施（デスクトップが必要。v2.0 では実施しない（P-3）。手順は archive/pr1-removed の spikes/S-1/README.md） | — |
+| S-2 | Ubuntu 26.04: 同上 + ARGB visual の GLX 描画 + 帯の透明化 | — | — | — | 未実施（GNOME 50 実機が必要。v2.0 では実施しない（P-3）。手順は archive/pr1-removed の spikes/S-2/README.md） | — |
+| S-3 | SKRuntimeEffect のピクセル化（GPU / Software） | 2026-10-11 | GitHub Actions ランナー 3 種（4 コア）、作業コンテナ（Xeon 2.8 GHz 4 コア） | Windows Server 2025（10.0.26100）、Ubuntu 24.04（x64 / arm64） | CPU: **条件付き合格**（全解像度評価は不合格、セル単位評価なら合格）。GPU: 未実施（実機の GPU が必要、v2.0 では実施しない（P-3）） | 下表「S-3 CPU 実測」 |
+| S-4 | PrintWindow(PW_RENDERFULLCONTENT) の黒判定 | 2026-10-11（参考） | GitHub Actions windows-latest（GPU なし、1024×768） | Windows 10.0.26100 | 参考実行のみ（実機の Edge / VS Code / UWP / 管理者窓 / 排他全画面は v2.0 では実施しない（P-3）。手順は archive/pr1-removed の spikes/S-4/README.md） | 下表「S-4 参考実行」 |
+| S-5 | Screenshot ポータルの許可の記憶 | — | — | — | 未実施（GNOME 50 実機が必要。v2.0 では実施しない（P-3）。手順は archive/pr1-removed の spikes/S-5/README.md） | — |
+| S-6 | ScreenCast + PipeWire ヘルパ: restore_token、PTS 判定、帯 1 本のフレーム数、座標対応 | — | — | — | 未実施（GNOME 50 実機が必要。v2.0 では実施しない（P-3）。手順は archive/pr1-removed の spikes/S-6/README.md） | — |
 | S-7 | PublishTrimmed: JSON source-gen + Tmds.DBus.Protocol + ColorPicker + SkiaSharp 3 | 2026-10-11 | GitHub Actions ランナー 3 種、作業コンテナ | Windows 10.0.26100、Ubuntu 24.04（x64 / arm64） | **合格**（3 RID とも起動・保存・復元・D-Bus 呼び出し・ColorPicker 描画が通る） | 下表「S-7」 |
-| S-8 | linux-arm64 実機で S-3 再測定 | — | — | — | 未実施（実機の機材待ち。CI の arm64 ランナーでの CPU 値は S-3 に記載） | — |
+| S-8 | linux-arm64 実機で S-3 再測定 | — | — | — | 未実施（実機は v2.0 では測らない（P-3）。CI の arm64 ランナーでの CPU 値は S-3 に記載） | — |
 
 ## S-3 CPU 実測（1920×1080、ブロック 12、単一スレッド、30 フレーム平均）
 
@@ -39,7 +41,7 @@
 | 10 | CASCADIA_HOSTING_WINDOW_CLASS | WindowsTerminal | no | 29.5 |
 | 47 | Progman | explorer | no | 30.7 |
 
-所見: GPU なしの仮想環境では 1 窓あたり約 30 ms（窓の全サイズを複写するため）。実機（GPU あり）の値が NFR-04 の判定材料になる。実機で 1 窓 10 ms を超えるなら D-7（Windows.Graphics.Capture への昇格）の条件に近づく。
+所見: GPU なしの仮想環境では 1 窓あたり約 30 ms（窓の全サイズを複写するため）。実機（GPU あり）の値が NFR-04 の判定材料になるが、v2.0 では測らない（P-3）。実機で 1 窓 10 ms を超えるなら D-7（Windows.Graphics.Capture への昇格）の条件に近づく。
 
 ## S-7（トリミング後の単一ファイル）
 
@@ -55,14 +57,14 @@
 
 | §11 | 項目 | スパイク | 状態 |
 |---|---|---|---|
-| 1 | PrintWindow(PW_RENDERFULLCONTENT) | S-4 | 参考実行のみ（実機待ち） |
+| 1 | PrintWindow(PW_RENDERFULLCONTENT) | S-4 | 参考実行のみ（実機は v2.0 では確認しない、P-3） |
 | 2 | Avalonia TrayIcon のクリック | S-1 | 未実施 |
 | 3 | BeginMoveDrag / BeginResizeDrag | — | 使用しない（指示書 §2.2 で禁止、自前ドラッグ） |
 | 4 | ピクセル単位アルファ（XWayland） | S-2 | 実機未実施。Xvfb + xcompmgr では帯の行がアルファ 0 になり下が写ることを確認（scripts/xvfb-strip-smoke.sh、CI） |
 | 5 | 最前面（Mutter / XWayland） | S-1, S-2 | 未実施 |
-| 6 | ポータル（Screenshot の許可、ScreenCast の restore_token） | S-5, S-6 | 実装済み（Step 7、8）。偽ポータルで呼び出し・restore_token の受け渡しを確認。GNOME の許可の記憶は実機待ち |
-| 7 | PipeWire の PTS 判定と帯 1 本のフレーム数 | S-6 | 実装済み（Step 8）。専用 PipeWire + GStreamer で通し確認（PTS 無しの受信時刻判定で 2 フレーム）。Mutter の PTS は実機待ち |
+| 6 | ポータル（Screenshot の許可、ScreenCast の restore_token） | S-5, S-6 | 実装済み（Step 7、8）。偽ポータルで呼び出し・restore_token の受け渡しを確認。GNOME の許可の記憶は実機で確認していない（P-3） |
+| 7 | PipeWire の PTS 判定と帯 1 本のフレーム数 | S-6 | 実装済み（Step 8）。専用 PipeWire + GStreamer で通し確認（PTS 無しの受信時刻判定で 2 フレーム）。Mutter の PTS は実機で確認していない（P-3） |
 | 8 | 座標系（分数スケーリング） | S-2, S-6 | 倍率・オフセットの写像は実装・テスト済み（CT-88、MapStream）。実機の座標は未確認 |
 | 9 | トリミング（System.Text.Json source-gen、ColorPicker） | S-7 | 検証済み |
-| 10 | 性能（PrintWindow、生成パターンの再生成時間） | S-3, S-4, S-8 | CPU 側のみ測定済み（GPU・実機待ち） |
-| 11 | セッション終了時の保存 | PT-08 | 都度保存（FR-61）と終了時保存を実装済み（Step 3）。実機の PT-08 待ち |
+| 10 | 性能（PrintWindow、生成パターンの再生成時間） | S-3, S-4, S-8 | CPU 側のみ測定済み（GPU・実機は v2.0 では測らない、P-3） |
+| 11 | セッション終了時の保存 | PT-08 | 都度保存（FR-61）と終了時保存を実装済み（Step 3）。実機の PT-08 は v2.0 では実施しない（P-3） |
