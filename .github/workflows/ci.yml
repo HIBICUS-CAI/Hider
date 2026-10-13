@@ -1,6 +1,10 @@
 name: CI (manual)
 
 # Manual only (GitHub Actions tab): never add push / pull_request / schedule triggers.
+# With the input "release" (proposal P-9), the same run also makes a release once every check is green: the publish
+# outputs become archives plus install.bat / install.sh (scripts/make_release.py), the installers are tried on each
+# target, then <Version> is bumped on the default branch, tagged v<version>, and the GitHub Release is created. Only the
+# job "release" gets contents: write.
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +21,10 @@ on:
         description: "Publish self-contained builds and run --selftest"
         type: boolean
         default: true
+      release:
+        description: "Release version (e.g. 2.0.1), run on the default branch with all targets, GUI tests and publish. Empty: no release"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -38,7 +46,28 @@ jobs:
       matrix: ${{ steps.set.outputs.matrix }}
       linux_matrix: ${{ steps.set.outputs.linux_matrix }}
       has_linux: ${{ steps.set.outputs.has_linux }}
+      release_date: ${{ steps.release.outputs.date }}
     steps:
+      # Fails a release run before anything is built when it could not be released.
+      - id: release
+        if: ${{ inputs.release != '' }}
+        shell: bash
+        env:
+          VERSION: ${{ inputs.release }}
+          TARGETS: ${{ inputs.targets }}
+          GUI_TESTS: ${{ inputs.run_gui_tests }}
+          PUBLISH: ${{ inputs.publish }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          # Same pattern as VERSION_PATTERN in scripts/make_release.py.
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || fail "release: invalid version '$VERSION' (e.g. 2.0.1)"
+          [ "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH" ] || fail "release: run on the default branch $DEFAULT_BRANCH"
+          [ "$TARGETS" = all ] && [ "$GUI_TESTS" = true ] && [ "$PUBLISH" = true ] || fail "release: needs targets=all, run_gui_tests and publish"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" > /dev/null 2>&1; then fail "release: tag v$VERSION exists already"; fi
+          # The time of the version commit and the tag: a re-run of the failed release job makes the same objects.
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: set
         shell: bash
         env:
@@ -107,12 +136,24 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install mypy pyright ruff
+      - run: python -m pip install mypy pyright ruff shellcheck-py
       - run: mypy
       - run: pyright
       - run: ruff check scripts
       - run: ruff format --check scripts
       - run: python scripts/check_wayland_list.py
+      - run: shellcheck -s sh scripts/release/install.sh.in
+      # The release packaging and the Linux installer on dummy publish outputs (a release run does it on real ones).
+      - name: Release packaging on dummy files
+        run: |
+          d="$RUNNER_TEMP/dummy"
+          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid/Assets"; done
+          touch "$d/in/Hider-win-x64/Hider.exe"
+          for rid in linux-x64 linux-arm64; do printf '#!/bin/sh\necho "Hider 0.0.0-test"\n' > "$d/in/Hider-$rid/Hider"; done
+          python scripts/make_release.py package 0.0.0-test --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
+          XDG_DATA_HOME="$d/data" sh "$d/out/install.sh"
+          [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0-test" ]
+          test -f "$d/data/applications/Hider.desktop"
       # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
       # building anything.
       - uses: actions/setup-python@v7
@@ -123,6 +164,7 @@ jobs:
           python --version
           python scripts/build.py --help > /dev/null
           python scripts/install.py --help > /dev/null
+          python scripts/make_release.py --help > /dev/null
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
@@ -214,13 +256,23 @@ jobs:
           python-version: "3.12"
       - if: ${{ startsWith(matrix.rid, 'linux') }}
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+      # A release builds the version it tags (the job "release" commits the same change).
+      - if: ${{ inputs.release != '' }}
+        shell: bash
+        env:
+          VERSION: ${{ inputs.release }}
+        run: python scripts/make_release.py set-version "$VERSION"
       - run: python scripts/build.py ${{ matrix.rid }}
       - name: Self test on the trimmed binary
         shell: bash
+        env:
+          VERSION: ${{ inputs.release }}
         run: |
           exe="bin/publish/${{ matrix.rid }}/Hider"
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
-          "$exe" --version
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
       # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
       - if: ${{ startsWith(matrix.rid, 'win') }}
@@ -232,9 +284,160 @@ jobs:
           path: bin/publish/${{ matrix.rid }}/
           retention-days: 14
 
+  # Release run only (input "release"), after publish: the release assets in the artifact release-<version>.
+  release-package:
+    if: ${{ inputs.release != '' }}
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Hider-*
+          path: artifacts
+      - env:
+          VERSION: ${{ inputs.release }}
+        run: python scripts/make_release.py package "$VERSION" --repo "$GITHUB_REPOSITORY" --input-dir artifacts --out-dir release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ inputs.release }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Each target runs its installer as a user would, with the archive next to it (no download: the release does not
+  # exist yet), then the installed binary.
+  release-verify:
+    if: ${{ inputs.release != '' }}
+    needs: [plan, release-package]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.release }}
+          path: release
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmd.exe /c release\install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+      - if: runner.os == 'Linux'
+        run: |
+          sh release/install.sh -d installed
+          test -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/Hider.desktop"
+      - name: Installed binary
+        shell: bash
+        env:
+          VERSION: ${{ inputs.release }}
+        run: |
+          exe=installed/Hider
+          [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest
+
+  # The only job with write access: bumps <Version> on the default branch, tags it and creates the GitHub Release. The
+  # branch and the tag are pushed together (--atomic), and not at all if the branch moved since the run started.
+  release:
+    if: ${{ inputs.release != '' }}
+    needs: [plan, release-package, release-verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.release }}
+      TAG: v${{ inputs.release }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.release }}
+          path: ${{ runner.temp }}/release
+      - name: Version commit and tag
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GIT_AUTHOR_DATE: ${{ needs.plan.outputs.release_date }}
+          GIT_COMMITTER_DATE: ${{ needs.plan.outputs.release_date }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 scripts/make_release.py set-version "$VERSION"
+          if ! git diff --quiet; then
+            git commit -a -m "step9: バージョンを $VERSION にする" \
+              -m "リリース $TAG（CI の release 入力）。確認した RID: win-x64, linux-x64, linux-arm64（同じ実行のテスト・publish・インストーラ）。"
+          fi
+          git tag -a "$TAG" -m "Hider $VERSION"
+          # A re-run after a failed release step finds the same tag (fixed dates) already pushed.
+          if [ "$(git ls-remote origin "refs/tags/$TAG" | cut -f1)" = "$(git rev-parse "$TAG")" ]; then
+            echo "$TAG is pushed already"
+          else
+            git push --atomic origin "HEAD:refs/heads/$DEFAULT_BRANCH" "refs/tags/$TAG"
+          fi
+      - name: GitHub Release
+        run: |
+          dir="$RUNNER_TEMP/release"
+          assets=("$dir"/Hider-* "$dir/install.bat" "$dir/install.sh" "$dir/SHA256SUMS.txt")
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            prerelease=()
+            [[ "$VERSION" == *-* ]] && prerelease=(--prerelease)
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "Hider $VERSION" \
+              --notes-file "$dir/release-notes.md" --generate-notes "${prerelease[@]}"
+          fi
+
+  # After the release: the installers downloaded from it and run on each target, downloading the archive.
+  release-smoke:
+    if: ${{ inputs.release != '' }}
+    needs: [plan, release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ inputs.release }}
+      URL: https://github.com/${{ github.repository }}/releases/download/v${{ inputs.release }}
+    steps:
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat
+          cmd.exe /c install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o install.sh "$URL/install.sh"
+          sh install.sh -d installed
+      - name: Installed binary
+        shell: bash
+        run: |
+          exe=installed/Hider
+          [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest
+
   summary:
     if: always()
-    needs: [plan, test-core, test-gui, native, publish, format, python-lint]
+    needs: [plan, test-core, test-gui, native, publish, format, python-lint, release-package, release-verify, release, release-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -249,4 +452,8 @@ jobs:
             echo "| publish | ${{ needs.publish.result }} |"
             echo "| format | ${{ needs.format.result }} |"
             echo "| python-lint | ${{ needs.python-lint.result }} |"
+            echo "| release-package | ${{ needs.release-package.result }} |"
+            echo "| release-verify | ${{ needs.release-verify.result }} |"
+            echo "| release | ${{ needs.release.result }} |"
+            echo "| release-smoke | ${{ needs.release-smoke.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -40,7 +40,7 @@
   <ItemGroup>
     <!-- Tray and window icons (AppIcons). -->
     <AvaloniaResource Include="Assets/hider.ico;Assets/hider-32.png;Assets/hider-48.png" />
-    <!-- Used by the Linux desktop entry written by scripts/install.py. -->
+    <!-- Used by the Linux desktop entry written by scripts/install.py and the release installer install.sh. -->
     <None Update="Assets/hider.svg" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
