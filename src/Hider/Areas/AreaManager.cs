@@ -242,6 +242,12 @@ namespace Hider.Areas
             {
                 return; // only the strip capture (Linux) reads these
             }
+            // A toolbar tooltip stays open while the pointer rests on its button and would be in the strips. It is closed
+            // rather than waited for: waiting would hold every area's capture for as long as the pointer stays there.
+            foreach (var area in areas)
+            {
+                area.Window.Toolbar.CloseTips();
+            }
             // XWAYLAND-ASSUMPTION: area rectangles and the monitor union are absolute X11 coordinates, and a portal frame covers
             // that union (StripCoordinator maps between them by scale and offset).
             Volatile.Write(ref stripAreas, areas.Select(_a => new StripArea(_a.Model.Id, _a.Model.Rect, _a.Model.Pattern)).ToArray());

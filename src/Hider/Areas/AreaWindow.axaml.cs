@@ -58,7 +58,6 @@ namespace Hider.Areas
             var patternMenu = chrome.Toolbar.PatternMenu;
             patternMenu.Opened += (_, _) => PopupOpenChanged?.Invoke(true);
             patternMenu.Closed += (_, _) => PopupOpenChanged?.Invoke(false);
-            chrome.Toolbar.TipOpenChanged += _open => PopupOpenChanged?.Invoke(_open);
             Closing += (_, _e) => _e.Cancel = KeepOpen(closingAllowed, _e.CloseReason);
         }
 
@@ -83,13 +82,13 @@ namespace Hider.Areas
         public event Action? RefreshRequested;
 
         /// <summary>
-        /// The settings popup, the pattern menu or a toolbar tooltip opened (true) or closed (light dismiss, ⚙ again, a choice,
-        /// the pointer leaving, or leaving edit mode).
+        /// The settings popup or the pattern menu opened (true) or closed (light dismiss, ⚙ again, a choice, or leaving edit
+        /// mode).
         /// </summary>
         public event Action<bool>? PopupOpenChanged;
 
-        /// <summary>Whether this window's settings popup, pattern menu or a toolbar tooltip is open.</summary>
-        public bool PopupOpen => settingsPopup.IsOpen || chrome.Toolbar.PatternMenu.IsOpen || chrome.Toolbar.AnyTipOpen;
+        /// <summary>Whether this window's settings popup or pattern menu is open.</summary>
+        public bool PopupOpen => settingsPopup.IsOpen || chrome.Toolbar.PatternMenu.IsOpen;
 
         /// <summary>The settings popup content while it is open (FR-35 .. FR-37).</summary>
         public SettingsPanel? Settings => settingsPopup.IsOpen ? settings : null;

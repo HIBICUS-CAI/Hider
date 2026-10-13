@@ -27,16 +27,6 @@ namespace Hider.Areas
             AutomationSet(SettingsButton, Strings.ToolbarSettings);
             AutomationSet(RefreshButton, Strings.ToolbarRefresh);
             AutomationSet(DeleteButton, Strings.ToolbarDelete);
-            foreach (var button in TipButtons)
-            {
-                button.PropertyChanged += (_, _e) =>
-                {
-                    if (_e.Property == ToolTip.IsOpenProperty)
-                    {
-                        TipOpenChanged?.Invoke(_e.NewValue is true);
-                    }
-                };
-            }
 
             FillItem.Click += (_, _) => PatternSelected?.Invoke(PatternKind.Fill);
             MosaicItem.Click += (_, _) => PatternSelected?.Invoke(PatternKind.Mosaic);
@@ -49,16 +39,13 @@ namespace Hider.Areas
 
         private Button[] TipButtons => new[] { SettingsButton, RefreshButton, DeleteButton };
 
-        /// <summary>
-        /// A tooltip of the toolbar opened (true) or closed. A tooltip is a top-level window of its own and opens below the
-        /// pointer, over the area: Linux strip captures wait for it as for the other popups.
-        /// </summary>
-        public event Action<bool>? TipOpenChanged;
-
         /// <summary>Whether one of the toolbar's tooltips is open.</summary>
         public bool AnyTipOpen => TipButtons.Any(ToolTip.GetIsOpen);
 
-        /// <summary>Closes the toolbar's tooltips (the toolbar is about to leave the window).</summary>
+        /// <summary>
+        /// Closes the toolbar's tooltips: the toolbar leaves the window, or a Linux strip capture starts (a tooltip is a
+        /// top-level window of its own below the pointer, over the area's top, outside the strip transparency).
+        /// </summary>
         public void CloseTips()
         {
             foreach (var button in TipButtons)

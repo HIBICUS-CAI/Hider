@@ -377,25 +377,25 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ToolbarTooltipOpen_LinuxCaptureWaitsForItToClose()
+        public void ToolbarTooltips_ClosedWhenALinuxCaptureStarts_WithoutHoldingIt()
         {
-            // ⚙ / ↻ / 🗑 tooltips are top-level windows below the pointer, over the area's top.
+            // ⚙ / ↻ / 🗑 tooltips are top-level windows below the pointer, over an area's top, and stay open while the pointer
+            // rests there: closed when a strip capture starts (any area's), never waited for.
             var capture = new FakeUnderlayCapture { Traits = Hider.Core.Capture.CaptureTraits.NeedsStripCooperation };
             using var f = new AreaFixture(_capture: capture, _isWindows: false);
-            var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
-            var settings = area.Window.Toolbar.SettingsButton;
-            ToolTip.SetIsOpen(settings, true);
-            Assert.True(f.Manager.AnyPopupOpen);
-            int calls = capture.Calls;
-            area.Refresh();
-            Assert.Equal(calls, capture.Calls);
-            ToolTip.SetIsOpen(settings, false);
-            Assert.Equal(calls + 1, capture.Calls);
-
-            // Leaving edit mode closes it with the toolbar.
-            ToolTip.SetIsOpen(area.Window.Toolbar.DeleteButton, true);
-            area.ExitEdit();
+            var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
+            ToolTip.SetIsOpen(a.Window.Toolbar.SettingsButton, true);
             Assert.False(f.Manager.AnyPopupOpen);
+            int calls = capture.Calls;
+            b.Refresh();
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.False(a.Window.Toolbar.AnyTipOpen);
+
+            // Leaving edit mode closes them with the toolbar.
+            ToolTip.SetIsOpen(a.Window.Toolbar.DeleteButton, true);
+            a.ExitEdit();
+            Assert.False(a.Window.Toolbar.AnyTipOpen);
         }
 
         [AvaloniaFact]
