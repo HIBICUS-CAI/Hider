@@ -99,20 +99,24 @@ dotnet test tests/Hider.App.Tests
 scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
 ```
 
-設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`（手動実行）を参照してください。
+設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`（手動実行）、リリースは `.github/workflows/release.yml` を参照してください。
 
 ### リリース
 
-リポジトリのオーナーが Actions タブの「CI (manual)」→「Run workflow」で、ブランチに既定ブランチ（main）を選び、`release` に版番号（例 `2.0.1`、プレリリースは `2.1.0-rc.1`）を入れて実行します（targets = all、run_gui_tests と publish はオンのまま）。
+リリースは `.github/workflows/release.yml` が、版を上げる PR とそのマージの 2 段階で行います。main へ直接 push はしません。
 
-1. 入力を確かめる（版の形式、既定ブランチであること、タグ `v<版>` がまだないこと）。
-2. 通常の CI（テスト・format・python-lint・native・publish と `--selftest`）。publish は `<Version>` を `<版>` にしてビルドし、`--version` が一致することも確かめます。
-3. release-package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
-4. release-verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
-5. release: 既定ブランチの `Directory.Build.props` の `<Version>` を更新してコミットし、タグ `v<版>` と一緒に push（`--atomic`。実行の開始後に既定ブランチが進んでいたら何も push せず失敗するので、もう一度実行します）。続けて GitHub Release を作り、アセットを添付します。
-6. release-smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をします。
+1. リポジトリのオーナーが Actions タブの「Release」→「Run workflow」で実行します（ブランチは main のまま。main 以外では失敗します）。`bump` は既定の minor で `2.x.0` → `2.(x+1).0`、patch で `2.1.0` → `2.1.1`、major で `3.0.0` になります。
+   - `Directory.Build.props` の `<Version>` を上げたブランチ `release/v<版>` を作り、main への PR「step9: バージョンを <版> にする（リリース v<版>）」を開き、そのブランチで CI を起動します（Actions のトークンで開いた PR では pull_request の CI が起動しないため）。版はここだけにあり、`--version` と `AppInfo.Version` はアセンブリから読みます。
+   - 同じ版のタグかブランチが既にあれば失敗します（前回の PR が開いたままのときなど）。
+2. CI が緑になったら PR をマージします。リリースしない場合は PR を閉じてブランチを削除します。
+3. マージで release ワークフローが動き、マージ後のコミットで次を行います。
+   1. CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。
+   2. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
+   3. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
+   4. release: マージ後のコミットにタグ `v<版>` を付けて GitHub Release を作り、アセットを添付する。
+   5. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
 
-書き込み権限（`contents: write`）を持つのは release ジョブだけです。既定ブランチに保護ルールがあり Actions からの push を許していない場合、release ジョブは失敗します。release ジョブの GitHub Release の作成だけが失敗した場合は「Re-run failed jobs」でやり直せます（コミットとタグは同じものになり、push は飛ばします）。
+書き込み権限は、手順 1 のジョブ（ブランチの push、PR の作成、CI の起動）と手順 3-4 のジョブ（タグと Release）だけが持ちます。手順 1 には Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」が必要です（オフの場合はブランチまで作って失敗するので、表示される URL から PR を手で開きます）。手順 3 が途中で失敗した場合は、その実行の「Re-run failed jobs」でやり直せます。
 
 ## ライセンス
 

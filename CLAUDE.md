@@ -43,7 +43,7 @@ scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
 ```
 
-CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。入力 `release` に版番号を入れるとリリースも行う（全ジョブ緑の後、`<Version>` 更新・タグ `v<版>`・GitHub Release。手順は README の「リリース」、提案 P-9）。`on: push` / `pull_request` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
+CI は `.github/workflows/ci.yml`（workflow_dispatch と、release.yml からの workflow_call）。リリースは `.github/workflows/release.yml`: 手動実行で `<Version>`（Directory.Build.props のみ）を上げた `release/v<版>` の PR を作り、そのマージで CI・配布物・インストーラの確認・タグ `v<版>`・GitHub Release（手順は README の「リリース」、提案 P-9）。ci.yml への `on: push` / `pull_request` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
 
 ## 作業ルール（指示書 §2 の要約）
 

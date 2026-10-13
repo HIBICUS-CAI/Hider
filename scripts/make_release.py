@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Release helpers for the release run of CI (.github/workflows/ci.yml, input "release").
+"""Release helpers for the release workflow (.github/workflows/release.yml).
 
-    python scripts/make_release.py set-version 2.0.1
-    python scripts/make_release.py package 2.0.1 --repo OWNER/NAME --input-dir artifacts --out-dir release
+    python scripts/make_release.py version
+    python scripts/make_release.py bump minor
+    python scripts/make_release.py package 2.1.0 --repo OWNER/NAME --input-dir artifacts --out-dir release
 
-set-version rewrites <Version> in Directory.Build.props. package turns the publish outputs (one folder per target, named
-Hider-<rid> as CI's publish artifacts are, or bin/publish/<rid>) into the release assets: one archive per target, the
-installers install.bat / install.sh (they download that release's archive and check its SHA-256), SHA256SUMS.txt and
+version prints <Version> of Directory.Build.props, the only place the version is kept (AppInfo.Version and --version
+read it from the assembly). bump increases it (minor: 2.1.0 -> 2.2.0, patch: 2.1.0 -> 2.1.1, major: 2.1.0 -> 3.0.0),
+writes it back and prints the new version. package turns the publish outputs (one folder per target, named Hider-<rid>
+as CI's publish artifacts are, or bin/publish/<rid>) into the release assets: one archive per target, the installers
+install.bat / install.sh (they download that release's archive and check its SHA-256), SHA256SUMS.txt and
 release-notes.md.
 """
 
@@ -24,8 +27,9 @@ from common import ROOT_DIR, TARGETS, publish_dir
 
 PROPS_FILE = ROOT_DIR / 'Directory.Build.props'
 TEMPLATE_DIR = ROOT_DIR / 'scripts' / 'release'
-VERSION_PATTERN = re.compile(r'\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?')
-PROPS_VERSION = re.compile(r'<Version>[^<]*</Version>')
+VERSION_PATTERN = re.compile(r'(\d+)\.(\d+)\.(\d+)')
+PROPS_VERSION = re.compile(r'<Version>([^<]*)</Version>')
+BUMPS = ['minor', 'patch', 'major']
 PLACEHOLDER = re.compile(r'@HIDER_[A-Z0-9_]+@')
 
 
@@ -38,18 +42,36 @@ def archive_name(version: str, target: str) -> str:
     return f'Hider-{version}-{target}.{extension}'
 
 
-def check_version(version: str) -> str:
-    if VERSION_PATTERN.fullmatch(version) is None:
-        sys.exit(f'invalid version "{version}" (expected MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-PRERELEASE)')
-    return version
+def parse_version(version: str) -> tuple[int, int, int]:
+    match = VERSION_PATTERN.fullmatch(version)
+    if match is None:
+        sys.exit(f'invalid version "{version}" (expected MAJOR.MINOR.PATCH)')
+    major, minor, patch = (int(part) for part in match.groups())
+    return major, minor, patch
 
 
-def set_version(version: str) -> None:
+def read_props() -> tuple[str, str]:
+    """Return the text of Directory.Build.props and its version."""
     text = PROPS_FILE.read_text(encoding='utf-8')
-    if len(PROPS_VERSION.findall(text)) != 1:
+    found = PROPS_VERSION.findall(text)
+    if len(found) != 1:
         sys.exit(f'{PROPS_FILE} must have exactly one <Version> element')
+    version: str = found[0]
+    parse_version(version)
+    return text, version
+
+
+def bump(part: str) -> str:
+    text, current = read_props()
+    major, minor, patch = parse_version(current)
+    if part == 'major':
+        version = f'{major + 1}.0.0'
+    elif part == 'minor':
+        version = f'{major}.{minor + 1}.0'
+    else:
+        version = f'{major}.{minor}.{patch + 1}'
     PROPS_FILE.write_text(PROPS_VERSION.sub(f'<Version>{version}</Version>', text), encoding='utf-8')
-    print(f'{PROPS_FILE.name}: Version = {version}')
+    return version
 
 
 def find_input(input_dir: Path | None, target: str) -> Path:
@@ -134,8 +156,9 @@ def package(version: str, repo: str, input_dir: Path | None, out_dir: Path) -> N
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)
-    set_parser = commands.add_parser('set-version', help='Rewrite <Version> in Directory.Build.props.')
-    set_parser.add_argument('version')
+    commands.add_parser('version', help='Print <Version> of Directory.Build.props.')
+    bump_parser = commands.add_parser('bump', help='Increase <Version> in Directory.Build.props and print it.')
+    bump_parser.add_argument('part', choices=BUMPS)
     package_parser = commands.add_parser('package', help='Make the release assets.')
     package_parser.add_argument('version')
     package_parser.add_argument('--repo', required=True, help='GitHub repository OWNER/NAME the release belongs to.')
@@ -146,10 +169,14 @@ def main() -> None:
     args = parser.parse_args()
 
     command: str = args.command
-    version = check_version(args.version)
-    if command == 'set-version':
-        set_version(version)
+    if command == 'version':
+        print(read_props()[1])
+    elif command == 'bump':
+        part: str = args.part
+        print(bump(part))
     else:
+        version: str = args.version
+        parse_version(version)
         repo: str = args.repo
         if re.fullmatch(r'[\w.-]+/[\w.-]+', repo) is None:
             sys.exit(f'invalid repository "{repo}" (expected OWNER/NAME)')

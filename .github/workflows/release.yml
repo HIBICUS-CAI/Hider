@@ -1,0 +1,249 @@
+name: Release
+
+# Two stages (README "リリース", proposal P-9):
+# 1. Run workflow (Actions tab, main only): <Version> of Directory.Build.props goes up (minor by default:
+#    2.x.0 -> 2.(x+1).0) on a new branch release/v<version>, a pull request to main is opened, and CI is started on the
+#    branch, which gives the pull request its required check (a pull request opened with GITHUB_TOKEN does not start
+#    pull_request workflows).
+# 2. Merging that pull request: CI again on the merged commit, the release assets (scripts/make_release.py), the
+#    installers tried on each target, the tag v<version> with the GitHub Release, then the installers downloaded from the
+#    release. Nothing is pushed to main by this workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Part of the version to increase (minor: 2.x.0 -> 2.(x+1).0)"
+        type: choice
+        default: minor
+        options: [minor, patch, major]
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One group per release branch: closing other pull requests never waits for, or replaces, a release.
+concurrency:
+  group: release-${{ github.event.pull_request.head.ref || 'prepare' }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # the branch release/v<version>
+      pull-requests: write # its pull request
+      actions: write # CI on the branch
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUMP: ${{ inputs.bump }}
+    steps:
+      - if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          echo "::error::Run the release workflow on main (the branch selector of Run workflow)."
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - name: Version branch, pull request and CI
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          current="$(python3 scripts/make_release.py version)"
+          version="$(python3 scripts/make_release.py bump "$BUMP")"
+          tag="v$version"
+          branch="release/$tag"
+          echo "$current -> $version"
+          if git ls-remote --exit-code origin "refs/tags/$tag" "refs/heads/$branch" > /dev/null; then
+            fail "$tag or $branch exists already (an open release pull request?)"
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git commit -a -m "step9: バージョンを $version にする" \
+            -m "リリース $tag の準備（release ワークフロー、$current → $version）。確認した RID: なし（マージ後の release ワークフローで win-x64, linux-x64, linux-arm64 を確認する）。"
+          git push origin "$branch"
+          gh workflow run ci.yml --ref "$branch"
+          body="$(printf '%s\n' \
+            "Hider $version のリリース（\`Directory.Build.props\` の \`<Version>\` を $current から $version に）。" \
+            '' \
+            "CI（必須チェック）が緑になったらマージしてください。マージすると release ワークフローが、マージ後のコミットで CI をもう一度実行し、配布物（アーカイブ・install.bat・install.sh）の作成、各 RID でのインストーラの確認、タグ $tag と GitHub Release の作成を行います。" \
+            '' \
+            'リリースしない場合は、マージせずにこの PR を閉じてブランチを削除してください。')"
+          gh pr create --base main --head "$branch" --title "step9: バージョンを $version にする（リリース $tag）" --body "$body" \
+            || fail "could not open the pull request (Settings > Actions > General: allow GitHub Actions to create pull requests); open it by hand from $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch"
+
+  # Stage 2: a merged pull request from release/v<version> of this repository.
+  plan:
+    if: >-
+      ${{ github.event_name == 'pull_request' && github.event.pull_request.merged &&
+      startsWith(github.event.pull_request.head.ref, 'release/v') &&
+      github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - id: check
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          version="$(python3 scripts/make_release.py version)"
+          [ "$HEAD_REF" = "release/v$version" ] || fail "main has version $version, the branch was $HEAD_REF"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$version" > /dev/null 2>&1; then fail "tag v$version exists already"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: plan
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.plan.outputs.sha }}
+
+  package:
+    needs: [plan, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # The publish outputs of the ci job (artifacts Hider-<rid>).
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Hider-*
+          path: artifacts
+      - env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: python scripts/make_release.py package "$VERSION" --repo "$GITHUB_REPOSITORY" --input-dir artifacts --out-dir release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Each target runs its installer with the archive next to it (no download: the release does not exist yet), then the
+  # installed binary.
+  verify:
+    needs: [plan, package]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmd.exe /c release\install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+      - if: runner.os == 'Linux'
+        run: |
+          sh release/install.sh -d installed
+          test -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/Hider.desktop"
+      - name: Installed binary
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          exe=installed/Hider
+          [[ "$RID" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest
+
+  # The tag v<version> on the merged commit and the GitHub Release. A re-run after a failure here adds the assets to the
+  # release made already.
+  release:
+    needs: [plan, package, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: v${{ needs.plan.outputs.version }}
+      SHA: ${{ needs.plan.outputs.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release
+      - run: |
+          assets=(release/Hider-* release/install.bat release/install.sh release/SHA256SUMS.txt)
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "Hider $VERSION" \
+              --notes-file release/release-notes.md --generate-notes
+          fi
+
+  # The installers downloaded from the published release, downloading the archive as a user's would.
+  smoke:
+    needs: [plan, release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/v${{ needs.plan.outputs.version }}
+    steps:
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat
+          cmd.exe /c install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o install.sh "$URL/install.sh"
+          sh install.sh -d installed
+      - name: Installed binary
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          exe=installed/Hider
+          [[ "$RID" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest

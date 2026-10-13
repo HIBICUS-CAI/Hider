@@ -298,7 +298,7 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | バージョン固定 | Avalonia 12.1.4。SkiaSharp と Tmds.DBus.Protocol は Avalonia が参照する版に合わせる |
 | ネイティブヘルパ | native/hidercap: C、公開関数 4 つ（hidercap_start / grab_after / last_sequence / stop。提案 P-2）、-fvisibility=hidden。linux-x64 / linux-arm64 を scripts/build.py が make（gcc）で native/hidercap/out/<rid>/ に作り、Hider.csproj が実行ファイルと同じディレクトリに同梱（single-file の外。既定の探索で読み込まれる） |
 | CI | GitHub Actions（workflow_dispatch のみ）: windows-latest（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）は提案 P-8 で承認済み |
-| リリース | ci.yml の入力 release（版番号）で、同じ実行の全ジョブが緑になった後に配布物を作る（提案 P-9、未承認）: publish 出力を RID ごとのアーカイブ（win-x64 は zip、Linux は tar.gz）にし、そのリリースからアーカイブをダウンロードして SHA-256 を照合し install.py と同じ場所に入れる install.bat / install.sh を生成（scripts/make_release.py）、各 RID のランナーでインストーラを試した後、既定ブランチの <Version> を更新して v<版> のタグを付け、GitHub Release を作る。書き込み権限（contents: write）はそのジョブだけ。build.py / install.py はソースからのビルド・インストール用に維持（FR-72） |
+| リリース | release.yml（提案 P-9、未承認）: 手動実行で Directory.Build.props の `<Version>` を上げた（既定は minor）ブランチ release/v<版> と main への PR を作り、そのブランチで CI を起動。PR のマージで、マージ後のコミットに対して CI（ci.yml を workflow_call）→ publish 出力を RID ごとのアーカイブ（win-x64 は zip、Linux は tar.gz）にし、そのリリースからアーカイブをダウンロードして SHA-256 を照合し install.py と同じ場所に入れる install.bat / install.sh を生成（scripts/make_release.py）→ 各 RID のランナーでインストーラを試す → タグ v<版> と GitHub Release → 公開後のリリースからインストーラを試す。main へは直接 push しない。build.py / install.py はソースからのビルド・インストール用に維持（FR-72） |
 | 24.04 ランナーで 26.04 向けに作る | glibc は後方互換なので可。PipeWire は 0.3 系 ABI（libpipewire-0.3.so.0）で互換 |
 | アイコン | Windows .ico（16/20/24/32/48/256）、Linux PNG + svg。生成スクリプトを scripts に追加 |
 
@@ -367,4 +367,4 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | 2026-10-12 | §5.3、§10 | v2.0 では実機を要するスパイクを実施しないことを注記した | 提案 P-3（承認） |
 | 2026-10-12 | §3.1、§6.4 | StripCoordinator の配置（Platform/Linux → Hider.Core の Capture）と、DIP ↔ 物理 px の変換箇所（AreaWindow → IAreaWindowHost の実装）を実装に合わせた | PR #1 の指摘 |
 | 2026-10-12 | §4.5 | 全画素評価の 1 画素あたりの時間を、実測（1080p 38〜215 ms）と合う「約 20〜100 ns」に直した（docs/spikes.md も同じ） | PR #1 の指摘 |
-| 2026-10-13 | §8 | リリース（ci.yml の入力 release、インストーラ install.bat / install.sh）を追加した | ユーザー指示、提案 P-9（未承認） |
+| 2026-10-13 | §8 | リリース（release.yml、インストーラ install.bat / install.sh）を追加した | ユーザー指示、提案 P-9（未承認） |
