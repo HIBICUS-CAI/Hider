@@ -71,13 +71,13 @@ Qt 6（C++, Widgets）が唯一の現実的な代替。QSystemTrayIcon（SNI）�
 │ Tray / AreaWindow / Toolbar / SettingsPopup / Dialogs        (UI, 日本語文字列) │
 │ MosaicPresenter: ISkiaSharpApiLeaseFeature で描画 (GPU) / Offscreen (CPU)       │
 │ Platform/Windows: Win32UnderlayCapture (PrintWindow)                            │
-│ Platform/Linux:   StripCoordinator + PortalScreenshotGrabber / PipeWireGrabber  │
+│ Platform/Linux:   PortalScreenshotGrabber / PipeWireGrabber (IScreenGrabber)    │
 └──────────────┬───────────────────────────────────────────────────────────────┘
                │ 依存（Core は Avalonia を知らない）
 ┌──────────────▼────────────── Hider.Core (net10.0) ────────────────────────────┐
 │ Model: Area, Pattern(Fill / Mosaic / Generated), ParamValues, AppState          │
 │ Mosaic: IMosaicMethod, ParamSpec, MethodRegistry, SkSL ソース, パイプライン定義 │
-│ Capture: IUnderlayCapture, CaptureRequest / Result, 失敗理由                    │
+│ Capture: IUnderlayCapture, CaptureRequest / Result, 失敗理由, StripCoordinator  │
 │ Persistence: AreasFile (System.Text.Json source-gen, tmp → rename)              │
 │ Scheduling: RefreshScheduler (更新間隔・契機)                                   │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -260,7 +260,7 @@ Mosaic 取得失敗 ──▶ Pattern = Generated（ツールバーに「取得�
 
 ### 6.4 座標系ルール
 
-- Core・取得・モザイクは物理 px のみ。DIP が出るのは Avalonia の Width / Height / ポインタ座標だけで、変換は AreaWindow の 1 箇所に閉じ込める。
+- Core・取得・モザイクは物理 px のみ。DIP が出るのは Avalonia の Width / Height / ポインタ座標だけで、変換は IAreaWindowHost の実装（AvaloniaWindowHost と、その派生の Win32WindowHost / X11WindowHost）の 1 箇所に閉じ込める。
 - 保存形式は仕様どおり（x, y 物理 / width, height DIP）。復元時は Screens.ScreenFromPoint のスケールで物理サイズを求める。
 
 ## 7. 永続化・単一インスタンス
@@ -364,3 +364,4 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | 2026-10-12 | §9 | D-10 に提案 P-5 の承認を取り込んだ | 提案 P-5（承認） |
 | 2026-10-12 | §4.4、§4.5 | CPU の処理時間を当初見積から実測（S-3、CT-58）に改め、P-1 のセル単位評価とキャッシュを本文に取り込んだ | 提案 P-1（承認） |
 | 2026-10-12 | §5.3、§10 | v2.0 では実機を要するスパイクを実施しないことを注記した | 提案 P-3（承認） |
+| 2026-10-12 | §3.1、§6.4 | StripCoordinator の配置（Platform/Linux → Hider.Core の Capture）と、DIP ↔ 物理 px の変換箇所（AreaWindow → IAreaWindowHost の実装）を実装に合わせた | PR #1 の指摘 |
