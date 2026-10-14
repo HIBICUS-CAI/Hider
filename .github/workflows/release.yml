@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: main
-          persist-credentials: false
+          # Credentials kept (the token is read-only here) so that git ls-remote below also works on a private repository.
       - id: version
         env:
           BUMP: ${{ inputs.bump }}
