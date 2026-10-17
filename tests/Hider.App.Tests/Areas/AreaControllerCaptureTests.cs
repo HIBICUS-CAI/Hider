@@ -61,10 +61,13 @@ namespace Hider.App.Tests.Areas
             return _capture.Tokens[^1];
         }
 
-        /// <summary>The capture's first strip turns rows of the window see-through (as StripCoordinator does).</summary>
-        private static void StartStrip(AreaController _area, CancellationToken _token)
+        /// <summary>
+        /// The capture's first strip turns rows of the window see-through (as StripCoordinator does) and restores them when
+        /// the capture is cancelled (<see cref="StripKit.AssertEnded"/>).
+        /// </summary>
+        private static Task StartStrip(AreaController _area, CancellationToken _token)
         {
-            _ = _area.Window.SetTransparentRowsAsync(0, 8, _token);
+            return StripKit.FirstStripAsync(_area, _token);
         }
 
         [AvaloniaFact]
@@ -334,7 +337,7 @@ namespace Hider.App.Tests.Areas
             using var f = new AreaHarness(_capture: capture, _queuePosts: true);
             var area = Mosaic(f);
             var token = StartWaiting(f, capture, area);
-            StartStrip(area, token);
+            _ = StartStrip(area, token);
             using (f.Manager.HoldCapturesForDialog())
             {
                 Assert.False(token.IsCancellationRequested);
@@ -372,7 +375,7 @@ namespace Hider.App.Tests.Areas
                 var area = Mosaic(f);
                 var log = Log(area);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 int calls = capture.Calls;
                 var hold = f.Manager.HoldCapturesForDialog();
                 Assert.True(token.IsCancellationRequested);
@@ -387,6 +390,7 @@ namespace Hider.App.Tests.Areas
                 f.RunPosts();
                 Assert.Equal(calls + 1, capture.Calls);
                 Assert.False(area.CaptureFailed);
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -398,7 +402,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 int calls = capture.Calls;
                 var hold = f.Manager.HoldCapturesForDialog();
                 Assert.True(token.IsCancellationRequested); // its finish is posted, not run yet
@@ -408,6 +412,7 @@ namespace Hider.App.Tests.Areas
                 f.RunPosts();
                 Assert.Equal(calls + 1, capture.Calls);
                 Assert.False(area.CaptureFailed);
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -420,7 +425,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 long version = area.Frames.Version;
                 capture.Complete(); // the finish is posted
                 Assert.Equal(version + 1, area.Frames.Version);
@@ -432,6 +437,7 @@ namespace Hider.App.Tests.Areas
                 Assert.Equal(calls, capture.Calls);
                 Assert.False(area.CaptureFailed);
                 Assert.NotNull(area.Frames.Read((_front, _) => _front));
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -448,7 +454,7 @@ namespace Hider.App.Tests.Areas
                 {
                     Assert.False(token.IsCancellationRequested); // a permission dialog may be open: not cancelled yet
                 }
-                StartStrip(area, token);
+                _ = StartStrip(area, token);
                 Assert.False(token.IsCancellationRequested); // the held cancel was dropped
                 capture.Complete();
                 f.RunPosts();
@@ -469,7 +475,7 @@ namespace Hider.App.Tests.Areas
                 var first = f.Manager.HoldCapturesForDialog();
                 var second = f.Manager.HoldCapturesForDialog();
                 Assert.False(token.IsCancellationRequested);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 Assert.True(token.IsCancellationRequested);
                 f.RunPosts();
                 capture.Next = ScriptedCapture.Immediate;
@@ -480,6 +486,7 @@ namespace Hider.App.Tests.Areas
                 f.RunPosts();
                 Assert.Equal(calls + 1, capture.Calls);
                 Assert.False(area.CaptureFailed);
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -512,7 +519,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 int calls = capture.Calls;
                 area.ExitEdit();
                 Assert.True(token.IsCancellationRequested);
@@ -525,6 +532,7 @@ namespace Hider.App.Tests.Areas
                 Assert.Equal(calls + 1, capture.Calls);
                 Assert.False(area.CaptureFailed);
                 Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -536,7 +544,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                var strip = StartStrip(area, token);
                 int calls = capture.Calls;
                 var hold = f.Manager.HoldCapturesForDialog();
                 Assert.True(token.IsCancellationRequested);
@@ -549,6 +557,7 @@ namespace Hider.App.Tests.Areas
                 area.EnterEdit();
                 f.RunPosts();
                 Assert.Equal(calls + 1, capture.Calls);
+                StripKit.AssertEnded(strip, area);
             }
         }
 
@@ -560,7 +569,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 var token = StartWaiting(f, capture, area);
-                StartStrip(area, token);
+                _ = StartStrip(area, token);
                 capture.Complete();
                 f.RunPosts();
                 int calls = capture.Calls;
@@ -579,7 +588,7 @@ namespace Hider.App.Tests.Areas
             {
                 var area = Mosaic(f);
                 using var other = new CancellationTokenSource();
-                StartStrip(area, other.Token); // another area's strip while this one is idle
+                _ = StartStrip(area, other.Token); // another area's strip while this one is idle
                 area.ExitEdit();
                 f.RunPosts();
                 int calls = capture.Calls;

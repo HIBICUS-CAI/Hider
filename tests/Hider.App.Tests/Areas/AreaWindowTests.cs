@@ -461,13 +461,13 @@ namespace Hider.App.Tests.Areas
             var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
             var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
             capture.Hang = true;
-            capture.BeforeHang = _ct => _ = StartStripAsync(b, _ct); // the capture is in its strips
+            capture.BeforeHang = _ct => _ = StripKit.FirstStripAsync(b, _ct); // the capture is in its strips
             b.Refresh();
             int calls = capture.Calls;
 
             a.Window.ToggleSettings();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // the cancelled capture finishes on the UI thread
-            AssertRestored(b);
+            StripKit.AssertRestored(b);
             Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
             Assert.False(b.CaptureFailed);
             capture.Hang = false;
@@ -478,32 +478,6 @@ namespace Hider.App.Tests.Areas
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.Equal(calls + 1, capture.Calls);
             Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
-        }
-
-        /// <summary>
-        /// The first strip of a capture, as StripCoordinator runs it on the UI thread: the rows stay see-through while the frame
-        /// is awaited (until the capture is cancelled here), then the window is restored, also after a cancel.
-        /// </summary>
-        private static async Task StartStripAsync(AreaController _area, CancellationToken _ct)
-        {
-            try
-            {
-                await _area.Window.SetTransparentRowsAsync(0, 8, _ct);
-                await Task.Delay(Timeout.Infinite, _ct);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            finally
-            {
-                await _area.Window.RestoreRowsAsync();
-            }
-        }
-
-        private static void AssertRestored(AreaController _area)
-        {
-            Assert.Null(_area.Window.TransparentRows);
-            Assert.Null(_area.Window.Root.Clip);
         }
 
         [AvaloniaFact]
@@ -534,11 +508,11 @@ namespace Hider.App.Tests.Areas
             Assert.False(running.IsCancellationRequested, "a settings popup before the strips cancelled the capture");
 
             capture.Hang = false;
-            var strip = StartStripAsync(b, running); // the dialog was answered, the strips begin: now the held cancel happens
+            var strip = StripKit.FirstStripAsync(b, running); // the dialog was answered, the strips begin: now the held cancel happens
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.True(running.IsCancellationRequested);
             Assert.True(strip.IsCompleted);
-            AssertRestored(b);
+            StripKit.AssertRestored(b);
             Assert.Equal(PatternKind.Mosaic, b.Model.Pattern);
             Assert.False(b.CaptureFailed);
             Assert.Equal(calls, capture.Calls);
@@ -565,7 +539,7 @@ namespace Hider.App.Tests.Areas
             a.Refresh();
             Assert.True(running.CanBeCanceled, "A's capture is running");
             using var other = new CancellationTokenSource(); // B's capture
-            var strip = StartStripAsync(a, other.Token); // B's strip reaches A's window
+            var strip = StripKit.FirstStripAsync(a, other.Token); // B's strip reaches A's window
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
             a.EnterEdit();
@@ -574,7 +548,7 @@ namespace Hider.App.Tests.Areas
             other.Cancel();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.True(strip.IsCompleted);
-            AssertRestored(a);
+            StripKit.AssertRestored(a);
         }
 
         [AvaloniaFact]
@@ -588,13 +562,13 @@ namespace Hider.App.Tests.Areas
             area.ExitEdit();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             capture.Hang = true;
-            capture.BeforeHang = _ct => _ = StartStripAsync(area, _ct);
+            capture.BeforeHang = _ct => _ = StripKit.FirstStripAsync(area, _ct);
             area.Refresh();
             int calls = capture.Calls;
             capture.Hang = false;
             area.EnterEdit();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-            AssertRestored(area);
+            StripKit.AssertRestored(area);
             Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
             Assert.False(area.CaptureFailed);
             Assert.Equal(calls + 1, capture.Calls); // taken again once
