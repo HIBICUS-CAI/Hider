@@ -282,6 +282,34 @@ jobs:
           echo "$v"
           if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
+      # scripts/install.py on the build for real: the installed binary runs, and the Linux desktop entry / the Windows
+      # shortcut (made through Windows PowerShell, next step) point at it.
+      - name: Install with scripts/install.py
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          dest="$RUNNER_TEMP/hider-install"
+          XDG_DATA_HOME="$RUNNER_TEMP/data" python scripts/install.py --dest "$dest"
+          exe="$dest/Hider"
+          [[ "$RID" == win-* ]] && exe="$exe.exe"
+          "$exe" --version
+          if [[ "$RID" == linux-* ]]; then
+            entry="$RUNNER_TEMP/data/applications/Hider.desktop"
+            cat "$entry"
+            grep -Fqx "Exec=\"$dest/Hider\"" "$entry"
+            grep -Fqx "Icon=$dest/Assets/hider.svg" "$entry"
+            grep -Fqx "StartupWMClass=Hider" "$entry"
+          fi
+      - if: ${{ startsWith(matrix.rid, 'win') }}
+        name: Desktop shortcut of scripts/install.py
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'hider-install'
+          $link = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'
+          $s = (New-Object -ComObject WScript.Shell).CreateShortcut($link)
+          Write-Host "$link -> $($s.TargetPath) in $($s.WorkingDirectory)"
+          if ($s.TargetPath -ne (Join-Path $dest 'Hider.exe') -or $s.WorkingDirectory -ne $dest) { throw 'the shortcut does not point at the install' }
       # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
       - if: ${{ startsWith(matrix.rid, 'win') }}
         shell: pwsh
@@ -292,10 +320,12 @@ jobs:
           path: bin/publish/${{ matrix.rid }}/
           retention-days: 14
 
-  # install.bat on dummy publish outputs, started from PowerShell 7 as release.yml does (python-lint covers install.sh).
+  # The Windows installers for real (python-lint covers install.sh): install.bat's failure and success paths and
+  # install.py's shortcut through Windows PowerShell (the Windows-only modules of tests/scripts, skipped on Linux), then
+  # install.bat on dummy publish outputs, started from PowerShell 7 as release.yml does.
   installer-windows:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       HIDER_NO_LAUNCH: 1
     steps:
@@ -306,6 +336,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # On Windows nothing of these may be skipped (proposal P-11).
+      - name: Windows-only unit tests of the installers
+        shell: bash
+        run: |
+          python -m unittest -v tests.scripts.test_install_bat tests.scripts.test_install_windows 2>&1 | tee "$RUNNER_TEMP/windows-tests.log"
+          if grep -q skipped "$RUNNER_TEMP/windows-tests.log"; then echo "::error::a Windows-only test was skipped"; exit 1; fi
       - name: Release packaging on dummy files
         shell: bash
         run: |
