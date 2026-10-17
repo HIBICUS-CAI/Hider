@@ -99,6 +99,51 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(_captures, Fake(f).Calls);
         }
 
+        /// <summary>The timer's first tick comes exactly one interval from now (the area was just shown), not before.</summary>
+        private static void AssertFirstTickAfter(AreaHarness _f, int _intervalMs)
+        {
+            int calls = Fake(_f).Calls;
+            _f.Time.Advance(TimeSpan.FromMilliseconds(_intervalMs - 1));
+            Assert.Equal(calls, Fake(_f).Calls);
+            _f.Time.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.Equal(calls + 1, Fake(_f).Calls);
+            _f.Time.Advance(TimeSpan.FromMilliseconds(_intervalMs));
+            Assert.Equal(calls + 2, Fake(_f).Calls);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Show_NewArea_StartsTheTimerAtTheOsDefaultInterval(bool _isWindows)
+        {
+            // FR-51: the periodic refresh starts when the area is shown, without a settings change.
+            using var f = new AreaHarness(_isWindows: _isWindows);
+            var area = f.Manager.AddNew();
+            int interval = AreaDefaults.IntervalMs(_isWindows);
+            Assert.Equal(_isWindows ? 100 : 300000, interval);
+            Assert.Equal(interval, area.Model.Mosaic.Common.IntervalMs);
+            Assert.Equal(1, Fake(f).Calls); // the creation capture
+            AssertFirstTickAfter(f, interval);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Show_RestoredMosaicArea_StartsTheTimerAtItsStoredInterval(bool _isWindows)
+        {
+            using var f = new AreaHarness(_isWindows: _isWindows);
+            int interval = AreaDefaults.IntervalMs(_isWindows);
+            var stored = new AreaState { Id = "0f3b8d2e", X = 100, Y = 120, Width = 300, Height = 200, Pattern = PatternKind.Mosaic };
+            stored.Mosaic.Common.IntervalMs = interval;
+            AreasFile.Save(f.AreasPath, new AppState { Areas = { stored } });
+            f.Manager.Restore();
+            var area = f.Manager.Areas.Single();
+            Assert.Equal(AreaMode.Hidden, area.Mode);
+            Assert.Equal(interval, area.Model.Mosaic.Common.IntervalMs);
+            Assert.Equal(1, Fake(f).Calls); // the creation capture
+            AssertFirstTickAfter(f, interval);
+        }
+
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic, 1)]
         [InlineData(PatternKind.Fill, 0)]
