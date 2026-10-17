@@ -242,6 +242,73 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
+        public void TwoThreads_TicksAndRequests_NeverOverlapARun()
+        {
+            // The timer fires on its own thread while requests come from another and runs end on a third. Between a Due and
+            // its EndRun no other Due may be raised, and every run is ended exactly once.
+            var time = new KeepingTimeProvider();
+            using var scheduler = new RefreshScheduler(time);
+            int open = 0, overlaps = 0, raised = 0;
+            scheduler.Due += _ =>
+            {
+                Interlocked.Increment(ref raised);
+                if (Interlocked.Exchange(ref open, 1) == 1)
+                {
+                    Interlocked.Increment(ref overlaps);
+                }
+            };
+            scheduler.Configure(100);
+            var timer = Assert.Single(time.Timers);
+            const int count = 10_000;
+            int producersLeft = 2;
+            var ticks = new Thread(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    timer.Fire();
+                }
+                Interlocked.Decrement(ref producersLeft);
+            });
+            var requests = new Thread(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    scheduler.Request(RefreshReason.Manual);
+                }
+                Interlocked.Decrement(ref producersLeft);
+            });
+            int ended = 0;
+            var ender = new Thread(() =>
+            {
+                while (!(Volatile.Read(ref producersLeft) == 0 && Volatile.Read(ref open) == 0))
+                {
+                    if (Volatile.Read(ref open) == 1)
+                    {
+                        // Closed before EndRun: EndRun may raise the merged request at once, on this thread.
+                        Volatile.Write(ref open, 0);
+                        ended++;
+                        scheduler.EndRun();
+                    }
+                    else
+                    {
+                        Thread.Yield();
+                    }
+                }
+            });
+            ender.Start();
+            ticks.Start();
+            requests.Start();
+            Assert.True(ticks.Join(TimeSpan.FromMinutes(1)) && requests.Join(TimeSpan.FromMinutes(1)) && ender.Join(TimeSpan.FromMinutes(1)));
+            Assert.Equal(0, overlaps);
+            Assert.Equal(raised, ended);
+            Assert.InRange(raised, 1, 2 * count);
+            // Nothing is left waiting: the next request is raised at once.
+            int before = raised;
+            scheduler.Request(RefreshReason.Committed);
+            Assert.Equal(before + 1, raised);
+        }
+
+        [Fact]
         public void Request_WithoutAHandler_StartsNoRun()
         {
             // Nobody would call EndRun: the next request after a handler is attached must not be stuck behind it.
