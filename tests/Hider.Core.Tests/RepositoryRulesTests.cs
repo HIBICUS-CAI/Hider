@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Hider.Core.Persistence;
+using Hider.Core.Tests.Fakes;
 
 namespace Hider.Core.Tests
 {
@@ -124,7 +125,7 @@ namespace Hider.Core.Tests
                 @"\bActivator\s*\.\s*CreateInstanceFrom\b",
                 @"\bActivator\s*\.\s*CreateInstance\s*\(\s*\$?@?""",
                 @"\bType\s*\.\s*GetType\s*\(\s*\$?@?""[^""]*,")),
-            ["FR-65"] = ("FR-65: the old setting.txt is never read", @"setting\.txt"),
+            ["FR-65"] = ("FR-65: the old setting.txt is never read", @"setting\.txt|hider_setting"),
         };
 
         public static TheoryData<string> RuleIds() => new(Rules.Keys);
@@ -188,6 +189,7 @@ namespace Hider.Core.Tests
             { "D-12", "Type.GetType(\"System.Int32\")", false },
 
             { "FR-65", "Path.Combine(dir, \"setting.txt\")", true },
+            { "FR-65", "Path.Combine(local, \"hider_setting\")", true },
             { "FR-65", "Path.Combine(dir, \"areas.json\")", false },
             { "FR-65", "public const string AreasFileName = \"settings.json\";", false },
         };
@@ -463,13 +465,15 @@ namespace Hider.Core.Tests
             try
             {
                 string old = Path.Combine(dir, "setting.txt");
-                File.WriteAllText(old, "1\n10,20,300,200\n");
-                var before = File.GetLastWriteTimeUtc(old);
-                var state = AreasFile.Load(Path.Combine(dir, "areas.json"), out var status);
-                Assert.Equal(LoadStatus.Missing, status);
-                Assert.Empty(state.Areas);
-                Assert.Equal("1\n10,20,300,200\n", File.ReadAllText(old));
-                Assert.Equal(before, File.GetLastWriteTimeUtc(old));
+                V1SettingFile.Write(old);
+                using (V1SettingFile.Hold(old))
+                {
+                    var state = AreasFile.Load(Path.Combine(dir, "areas.json"), out var status);
+                    Assert.Equal(LoadStatus.Missing, status);
+                    Assert.Empty(state.Areas);
+                }
+                Assert.Equal(V1SettingFile.Content, File.ReadAllText(old));
+                Assert.Equal(V1SettingFile.OldTime, File.GetLastWriteTimeUtc(old));
                 Assert.Equal("setting.txt", Path.GetFileName(Assert.Single(Directory.GetFiles(dir))));
             }
             finally
@@ -485,13 +489,53 @@ namespace Hider.Core.Tests
             Directory.CreateDirectory(dir);
             try
             {
-                File.WriteAllText(Path.Combine(dir, "setting.txt"), "garbage that is no areas.json");
+                string old = Path.Combine(dir, "setting.txt");
+                File.WriteAllText(old, "garbage that is no areas.json");
+                File.SetLastWriteTimeUtc(old, V1SettingFile.OldTime);
                 string path = Path.Combine(dir, "areas.json");
-                AreasFile.Save(path, new AppState { Areas = { new AreaState { Id = "0f3b8d2e", X = 1, Y = 2, Width = 100, Height = 50 } } });
-                var state = AreasFile.Load(path, out var status);
-                Assert.Equal(LoadStatus.Loaded, status);
-                Assert.Equal("0f3b8d2e", Assert.Single(state.Areas).Id);
-                Assert.Equal("garbage that is no areas.json", File.ReadAllText(Path.Combine(dir, "setting.txt")));
+                using (V1SettingFile.Hold(old))
+                {
+                    AreasFile.Save(path, new AppState { Areas = { new AreaState { Id = "0f3b8d2e", X = 1, Y = 2, Width = 100, Height = 50 } } });
+                    var state = AreasFile.Load(path, out var status);
+                    Assert.Equal(LoadStatus.Loaded, status);
+                    Assert.Equal("0f3b8d2e", Assert.Single(state.Areas).Id);
+                }
+                Assert.Equal("garbage that is no areas.json", File.ReadAllText(old));
+                Assert.Equal(V1SettingFile.OldTime, File.GetLastWriteTimeUtc(old));
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+
+    /// <summary>FR-65 at v1's own place, &lt;LocalApplicationData&gt;/hider_setting/setting.txt (XDG_DATA_HOME is changed).</summary>
+    [Collection(ProcessWideState.Name)]
+    public class V1SettingPlaceTests
+    {
+        [Fact]
+        public void CT149_TheV1FileAtItsPlace_IsNeverRead_NorImported()
+        {
+            using var v1 = new V1SettingFile();
+            string dir = Path.Combine(Path.GetTempPath(), "hider-fr65-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "areas.json");
+                using (v1.Hold())
+                {
+                    // The lock works on this OS: a read of the v1 file while it is held throws.
+                    Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(v1.FilePath));
+                    var state = AreasFile.Load(path, out var status);
+                    Assert.Equal(LoadStatus.Missing, status);
+                    Assert.Empty(state.Areas);
+                    AreasFile.Save(path, state);
+                    Assert.Empty(AreasFile.Load(path, out status).Areas);
+                    Assert.Equal(LoadStatus.Loaded, status);
+                }
+                v1.AssertUntouched();
+                Assert.Equal("areas.json", Path.GetFileName(Assert.Single(Directory.GetFileSystemEntries(dir))));
             }
             finally
             {
