@@ -314,6 +314,43 @@ jobs:
       - if: ${{ startsWith(matrix.rid, 'win') }}
         shell: pwsh
         run: scripts/windows-stress.ps1 -Exe bin/publish/${{ matrix.rid }}/Hider.exe -Seconds 90
+      # The stress script's checks fail when they should: a program that exits at once (whoami.exe as Hider.exe), and
+      # the real Hider with no areas (alive, nothing captured). After each run, also the 90 s one above: no work folder
+      # and no Hider process left behind.
+      - if: ${{ startsWith(matrix.rid, 'win') }}
+        name: Stress script failure checks
+        shell: pwsh
+        env:
+          EXE: bin/publish/${{ matrix.rid }}/Hider.exe
+        run: |
+          function Invoke-Stress([string[]] $Arguments) {
+            $out = & pwsh -NoProfile -File scripts/windows-stress.ps1 @Arguments 2>&1 | Out-String
+            $code = $LASTEXITCODE
+            Write-Host $out
+            [pscustomobject]@{ Code = $code; Out = $out }
+          }
+          function Assert-Clean {
+            $left = @(Get-ChildItem ([IO.Path]::GetTempPath()) -Filter 'hider-stress-*')
+            if ($left.Count -ne 0) { throw "work folders left: $($left.Name -join ', ')" }
+            if (Get-Process -Name Hider -ErrorAction SilentlyContinue) { throw 'a Hider process was left running' }
+          }
+          Assert-Clean
+          $fake = Join-Path $env:RUNNER_TEMP 'exits-at-once'
+          New-Item -ItemType Directory -Path $fake | Out-Null
+          Copy-Item (Join-Path $env:SystemRoot 'System32\whoami.exe') (Join-Path $fake 'Hider.exe')
+          $r = Invoke-Stress @('-Exe', (Join-Path $fake 'Hider.exe'), '-Seconds', '10')
+          if ($r.Code -ne 1 -or $r.Out -notmatch 'Hider exited with code' -or $r.Out -notmatch 'alive after 10 s: False') {
+            throw "a program that exits at once: exit code $($r.Code)"
+          }
+          Assert-Clean
+          $empty = Join-Path $env:RUNNER_TEMP 'no-areas.json'
+          Set-Content -Path $empty -Value '{ "version": 1, "areas": [] }' -Encoding utf8NoBOM
+          $r = Invoke-Stress @('-Exe', $env:EXE, '-Seconds', '10', '-AreasJson', $empty)
+          if ($r.Code -ne 1 -or $r.Out -notmatch 'alive after 10 s: True, successful captures: 0 \(at least 5 needed\)') {
+            throw "no areas: exit code $($r.Code)"
+          }
+          if ($r.Out -match 'windows stress: passed') { throw 'passed without a capture' }
+          Assert-Clean
       - uses: actions/upload-artifact@v7
         with:
           name: Hider-${{ matrix.rid }}
