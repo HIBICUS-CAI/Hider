@@ -10,10 +10,23 @@ namespace Hider.Platform
     public sealed class AvaloniaScreenService : IScreenService
     {
         private readonly Func<Screens?> screens;
+        private readonly Func<PixelPoint?>? pointer;
 
+        /// <param name="_screens">Any top level's screens (null: none yet).</param>
         public AvaloniaScreenService(Func<Screens?> _screens)
+            : this(_screens, OperatingSystem.IsWindows() ? new Func<PixelPoint?>(Win32Cursor.Position) : null)
+        {
+        }
+
+        /// <param name="_screens">Any top level's screens (null: none yet).</param>
+        /// <param name="_pointer">
+        /// The pointer position in physical pixels where the OS can tell it (Windows), null for a position it cannot tell
+        /// now; null where the pointer is never asked.
+        /// </param>
+        internal AvaloniaScreenService(Func<Screens?> _screens, Func<PixelPoint?>? _pointer)
         {
             screens = _screens;
+            pointer = _pointer;
         }
 
         public IReadOnlyList<ScreenInfo> Screens => (screens()?.All ?? Array.Empty<Screen>()).Select(ToInfo).ToArray();
@@ -22,14 +35,14 @@ namespace Hider.Platform
         {
             get
             {
-                if (OperatingSystem.IsWindows() && Win32Cursor.TryGetPosition(out int x, out int y))
-                {
-                    var screen = screens()?.ScreenFromPoint(new PixelPoint(x, y));
-                    return screen is null ? null : ToRect(screen.Bounds);
-                }
                 // XWAYLAND-ASSUMPTION: XWayland only knows the pointer while it is over X11 windows, so the cursor monitor is
-                // not reliable on GNOME Wayland; new areas go to the primary screen there.
-                return null;
+                // not reliable on GNOME Wayland; Linux asks no pointer and new areas go to the primary screen there.
+                if (pointer?.Invoke() is not { } point)
+                {
+                    return null;
+                }
+                var screen = screens()?.ScreenFromPoint(point);
+                return screen is null ? null : ToRect(screen.Bounds);
             }
         }
 

@@ -79,6 +79,21 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
+        public void Handle_OfAClosedWindow_IsZero()
+        {
+            // A closed window has no platform window left (TryGetPlatformHandle is null): no HWND / window id to pass on.
+            var window = new Window();
+            using var host = new AvaloniaWindowHost(window);
+            window.Show();
+            Assert.NotNull(window.TryGetPlatformHandle());
+
+            window.Close();
+
+            Assert.Null(window.TryGetPlatformHandle());
+            Assert.Equal(0, host.Handle);
+        }
+
+        [AvaloniaFact]
         public void Scale_BeforePlace_IsTheScaleOfTheScreenAtTheWindowPosition()
         {
             var window = new Window { Position = new PixelPoint(10, 10) };

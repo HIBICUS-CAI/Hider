@@ -14,6 +14,7 @@ namespace Hider.App.Tests
         public const string Cursor = "needs Windows (GetCursorPos); always run on Windows CI";
         public const string TrayLeftClick = "needs Windows (the left-click popup at GetCursorPos); always run on Windows CI";
         public const string MessageBox = "needs Windows (the start-up error message box of a child process); always run on Windows CI";
+        public const string NotWindowsCursor = "not on Windows (there the pointer position comes from GetCursorPos); always run on Linux CI";
         public const string NotWindowsTrayLeftClick = "not on Windows (there a left click opens the popup); always run on Linux CI";
         public const string Sigterm = "needs Linux (SIGTERM; Windows registers none); always run on Linux CI";
         public const string ShippedHelper = "needs Linux (a libhidercap.so next to the app); always run on Linux CI";

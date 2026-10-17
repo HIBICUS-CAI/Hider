@@ -64,10 +64,87 @@ namespace Hider.App.Tests.Platform
             window.Close();
         }
 
-        [AvaloniaFact(Skip = "Windows 以外専用（Windows ではカーソル位置を OS から取る）", SkipWhen = nameof(IsWindows))]
-        public void CursorScreen_NotWindows_IsNull_EvenWithScreens()
+        [AvaloniaFact]
+        public void CursorScreen_PointerOnAScreen_IsThatScreensBounds()
         {
-            // XWayland only knows the pointer over X11 windows: new areas go to the primary screen instead.
+            var window = new Window();
+            var all = window.Screens.All;
+            PixelPoint? pointer = null;
+            var service = new AvaloniaScreenService(() => window.Screens, () => pointer);
+
+            foreach (var screen in all)
+            {
+                pointer = screen.Bounds.Center;
+                Assert.Equal(Physical(screen.Bounds), service.CursorScreen);
+                pointer = screen.Bounds.TopLeft; // the edges belong to the screen
+                Assert.Equal(Physical(screen.Bounds), service.CursorScreen);
+            }
+            window.Close();
+        }
+
+        [AvaloniaFact]
+        public void CursorScreen_PointerOffEveryScreen_IsNull()
+        {
+            var window = new Window();
+            var service = new AvaloniaScreenService(() => window.Screens, () => new PixelPoint(-100000, -100000));
+
+            Assert.Null(service.CursorScreen);
+            window.Close();
+        }
+
+        [AvaloniaFact]
+        public void CursorScreen_PointerNotKnownNow_IsNull_WithoutAskingTheScreens()
+        {
+            // GetCursorPos can fail (a locked session): then the primary screen is used, as without a pointer.
+            var window = new Window();
+            int calls = 0, asked = 0;
+            var service = new AvaloniaScreenService(() =>
+            {
+                calls++;
+                return window.Screens;
+            }, () =>
+            {
+                asked++;
+                return null;
+            });
+
+            Assert.Null(service.CursorScreen);
+            Assert.Equal(0, calls);
+            Assert.Equal(1, asked); // asked on every read: the pointer moves
+            Assert.Null(service.CursorScreen);
+            Assert.Equal(2, asked);
+            window.Close();
+        }
+
+        [AvaloniaFact]
+        public void CursorScreen_NoPointerSource_IsNull_WithoutAskingTheScreens()
+        {
+            // Linux: XWayland only knows the pointer over X11 windows, so none is asked and new areas go to the primary screen.
+            var window = new Window();
+            int calls = 0;
+            var service = new AvaloniaScreenService(() =>
+            {
+                calls++;
+                return window.Screens;
+            }, null);
+
+            Assert.Null(service.CursorScreen);
+            Assert.Equal(0, calls);
+            window.Close();
+        }
+
+        [Fact]
+        public void CursorScreen_PointerButNoTopLevel_IsNull()
+        {
+            var service = new AvaloniaScreenService(() => null, () => new PixelPoint(10, 10));
+
+            Assert.Null(service.CursorScreen);
+        }
+
+        [AvaloniaFact(Skip = OsOnly.NotWindowsCursor, SkipWhen = nameof(IsWindows))]
+        public void CursorScreen_NotWindows_AsksNoPointer()
+        {
+            // The public constructor gives no pointer source off Windows.
             var window = new Window();
             int calls = 0;
             var service = new AvaloniaScreenService(() =>
@@ -81,22 +158,23 @@ namespace Hider.App.Tests.Platform
             window.Close();
         }
 
-        [AvaloniaFact(Skip = "Windows 専用（GetCursorPos）", SkipUnless = nameof(IsWindows))]
+        [AvaloniaFact(Skip = OsOnly.Cursor, SkipUnless = nameof(IsWindows))]
         [SupportedOSPlatform("windows")]
-        public void CursorScreen_Windows_IsTheBoundsOfTheScreenAtTheCursor_OrNull()
+        public void CursorScreen_Windows_IsTheBoundsOfTheScreenAtTheCursor()
         {
+            // The public constructor asks GetCursorPos (a desktop session always has a cursor; it does not move here).
             var window = new Window();
             var service = new AvaloniaScreenService(() => window.Screens);
 
-            // The pointer position comes from the OS (a desktop session always has one).
             Assert.True(Hider.Platform.Windows.Win32Cursor.TryGetPosition(out int x, out int y));
+            Assert.Equal(new PixelPoint(x, y), Hider.Platform.Windows.Win32Cursor.Position());
             var expected = window.Screens.ScreenFromPoint(new PixelPoint(x, y));
 
             Assert.Equal(expected is null ? null : Physical(expected.Bounds), service.CursorScreen);
             window.Close();
         }
 
-        [Fact(Skip = "Windows 専用（GetCursorPos）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.Cursor, SkipUnless = nameof(IsWindows))]
         public void CursorScreen_Windows_WithoutATopLevel_IsNull()
         {
             var service = new AvaloniaScreenService(() => null);
