@@ -295,6 +295,58 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
+        public async Task DisposeDuringACapture_TheCaptureEndsWithItsOwnOutcome_AndRestores()
+        {
+            // At exit the app may dispose the coordinator while a capture waits for a frame. The capture in flight still
+            // ends the way it would have (here: cancelled), the strip is restored, and Dispose does not turn that into an
+            // ObjectDisposedException. A capture queued behind it and every later one fail with ObjectDisposedException
+            // before anything is made transparent.
+            var log = new List<string>();
+            var grabbing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100)) { Hang = true, OnGrab = () => grabbing.TrySetResult() };
+            var host = new FakeStripHost(log);
+            var area = new StripArea("a", new PhysicalRect(0, 0, 10, 16), PatternKind.Mosaic);
+            var coordinator = new StripCoordinator(grabber, host, () => new[] { area }, new FakeTimeProvider());
+            using var cancel = new CancellationTokenSource();
+            var first = coordinator.CaptureAsync(Request(area.Rect), cancel.Token);
+            await grabbing.Task.WaitAsync(TestContext.Current.CancellationToken);
+            var queued = coordinator.CaptureAsync(Request(area.Rect), TestContext.Current.CancellationToken);
+            Assert.Contains("a", host.Transparent);
+            coordinator.Dispose();
+            Assert.False(first.IsCompleted);
+            Assert.False(queued.IsCompleted);
+            cancel.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => queued);
+            Assert.Empty(host.Transparent);
+            Assert.Equal("prepare, set a 0-8, grab, restore a", string.Join(", ", log));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => coordinator.CaptureAsync(Request(area.Rect), TestContext.Current.CancellationToken));
+            Assert.Equal(1, grabber.Calls);
+            coordinator.Dispose(); // twice: harmless
+        }
+
+        [Fact]
+        public async Task DisposeDuringACapture_ThatCaptureMayStillSucceed()
+        {
+            // A grab that delivers after Dispose (the grabber is disposed under it, but answered anyway) keeps its result.
+            var log = new List<string>();
+            var frame = new TaskCompletionSource<ScreenFrame?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var grabber = new ScriptedGrabber { Grab = (_, _, _) => frame.Task };
+            var area = new StripArea("a", new PhysicalRect(0, 0, 10, 8), PatternKind.Mosaic);
+            var host = new FakeStripHost(log);
+            var coordinator = new StripCoordinator(grabber, host, () => new[] { area }, new FakeTimeProvider());
+            var capture = coordinator.CaptureAsync(Request(area.Rect), TestContext.Current.CancellationToken);
+            Assert.False(capture.IsCompleted);
+            coordinator.Dispose();
+            Assert.Equal(1, grabber.Disposed);
+            frame.SetResult(new ScreenFrame(CoordinateFrame.Create(20, 20), new PhysicalRect(0, 0, 20, 20)));
+            var result = await capture;
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((9, 7), CoordinateFrame.Decode(result.Frame!, 9, 7));
+            Assert.Empty(host.Transparent);
+        }
+
+        [Fact]
         public void CopyRows_EmptyBounds_TakenAsScaleOne()
         {
             var frame = CoordinateFrame.Create(50, 40);

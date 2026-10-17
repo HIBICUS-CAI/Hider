@@ -15,7 +15,10 @@ namespace Hider.Core.Capture
         private readonly Func<IReadOnlyList<StripArea>> areas;
         private readonly TimeProvider time;
         private readonly Func<PhysicalRect>? screen;
+        // Not disposed: a capture in flight at Dispose releases it afterwards (SemaphoreSlim holds nothing unmanaged unless
+        // its AvailableWaitHandle is read, which is never done here).
         private readonly SemaphoreSlim serial = new(1, 1);
+        private volatile bool disposed;
 
         /// <param name="_grabber">Takes the screen frames (owned: disposed with the coordinator).</param>
         /// <param name="_host">Makes the area windows' strips transparent and back.</param>
@@ -54,9 +57,12 @@ namespace Hider.Core.Capture
             {
                 return CaptureResult.Failed(CaptureFailure.Unavailable);
             }
+            ObjectDisposedException.ThrowIf(disposed, this);
             await serial.WaitAsync(_ct).ConfigureAwait(false);
             try
             {
+                // Queued behind a capture that was running when the coordinator was disposed: nothing is made transparent.
+                ObjectDisposedException.ThrowIf(disposed, this);
                 // Mosaic areas over the requested rectangle (the requester among them) hide what is below; fill and generated
                 // areas stay in the picture, as they would for a person looking at the screen (CT-83).
                 var cover = areas().Where(_a => _a.Kind == PatternKind.Mosaic && _a.Rect.Intersects(rect)).ToList();
@@ -203,10 +209,19 @@ namespace Hider.Core.Capture
             return result;
         }
 
+        /// <summary>
+        /// Disposes the grabber. A capture in flight (app exit) ends with its own outcome: its strip is restored as always,
+        /// and a cancellation or result is not replaced by an ObjectDisposedException. Captures queued behind it and later
+        /// ones throw ObjectDisposedException before anything is made transparent.
+        /// </summary>
         public void Dispose()
         {
+            if (disposed)
+            {
+                return;
+            }
+            disposed = true;
             grabber.Dispose();
-            serial.Dispose();
         }
     }
 }
