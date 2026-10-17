@@ -254,7 +254,7 @@ static void set_script(int _n, struct pw_buffer **_buffers)
 
 /* ---- usable / chunk_stride --------------------------------------------------------------------------------------- */
 
-static void test_usable(void)
+static void nt04_usable(void)
 {
     struct fake_buffer b;
 
@@ -337,7 +337,7 @@ static int64_t monotonic_ns(void)
     return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
-static void test_process_nothing_usable(void)
+static void nt05_process_nothing_usable(void)
 {
     struct fake_buffer bad;
 
@@ -357,7 +357,7 @@ static void test_process_nothing_usable(void)
     clear_state();
 }
 
-static void test_process_keeps_the_newest(void)
+static void nt05_process_keeps_the_newest(void)
 {
     struct fake_buffer a, bad, b, c;
     reset_state();
@@ -402,7 +402,7 @@ static void test_process_keeps_the_newest(void)
     clear_state();
 }
 
-static void test_process_frame_time(void)
+static void nt05_process_frame_time(void)
 {
     struct fake_buffer b;
     struct pw_buffer *s[] = { &b.pw };
@@ -439,7 +439,7 @@ static void test_process_frame_time(void)
 
 /* ---- on_remove_buffer -------------------------------------------------------------------------------------------- */
 
-static void test_remove_buffer(void)
+static void nt06_remove_buffer(void)
 {
     struct fake_buffer a, b;
     reset_state();
@@ -461,7 +461,7 @@ static void test_remove_buffer(void)
 
 /* ---- on_state_changed / release_held ----------------------------------------------------------------------------- */
 
-static void test_state_changed(void)
+static void nt06_state_changed(void)
 {
     /* Only an error and the end of the connection are errors (a waiting grab is woken); the other states are not. */
     static const enum pw_stream_state calm[] = { PW_STREAM_STATE_CONNECTING, PW_STREAM_STATE_PAUSED, PW_STREAM_STATE_STREAMING };
@@ -479,7 +479,7 @@ static void test_state_changed(void)
     clear_state();
 }
 
-static void test_release_held(void)
+static void nt06_release_held(void)
 {
     struct fake_buffer a;
     init_buffer(&a);
@@ -534,7 +534,7 @@ static int sentinel_unchanged(const struct fake_buffer *_held)
         && g.has_format == 1 && g.held == &_held->pw && g.held_data == _held->mem && queued_len == 0 && update.calls == 0;
 }
 
-static void test_param_changed_ignored(void)
+static void nt07_param_changed_ignored(void)
 {
     struct fake_buffer held;
     uint8_t mem[1024];
@@ -595,7 +595,7 @@ static void test_param_changed_ignored(void)
     clear_state();
 }
 
-static void test_param_changed_takes_the_format(void)
+static void nt07_param_changed_takes_the_format(void)
 {
     struct fake_buffer held;
     uint8_t mem[1024];
@@ -682,7 +682,7 @@ static void check_copy(uint32_t _format, int _swap, int32_t _row0, int32_t _row1
     clear_state();
 }
 
-static void test_copy_held(void)
+static void nt08_copy_held(void)
 {
     static const struct { uint32_t format; int swap; } formats[] = {
         { SPA_VIDEO_FORMAT_BGRx, 0 },
@@ -702,7 +702,7 @@ static void test_copy_held(void)
 
 /* A grab on a started stream (whose remote never answers) after a frame was put in place as on_process would: the rows
  * asked for, clamped to the frame, the frame description, the size check, and a frame that is too old. */
-static void test_grab_after_with_a_held_frame(void)
+static void nt08_grab_after_with_a_held_frame(void)
 {
     int sv[2];
     CHECK(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) == 0);
@@ -834,7 +834,7 @@ static void check_start_fails_at(enum start_step _step, int _fd_closed_by_start)
     close(sv[1]);
 }
 
-static void test_start_failures(void)
+static void nt09_start_failures(void)
 {
     check_start_fails_at(FAIL_LOOP_NEW, 1);
     check_start_fails_at(FAIL_CONTEXT_NEW, 1);
@@ -845,18 +845,18 @@ static void test_start_failures(void)
 
 int main(void)
 {
-    test_usable();
-    test_process_nothing_usable();
-    test_process_keeps_the_newest();
-    test_process_frame_time();
-    test_remove_buffer();
-    test_state_changed();
-    test_release_held();
-    test_param_changed_ignored();
-    test_param_changed_takes_the_format();
-    test_copy_held();
-    test_grab_after_with_a_held_frame();
-    test_start_failures();
+    nt04_usable();
+    nt05_process_nothing_usable();
+    nt05_process_keeps_the_newest();
+    nt05_process_frame_time();
+    nt06_remove_buffer();
+    nt06_state_changed();
+    nt06_release_held();
+    nt07_param_changed_ignored();
+    nt07_param_changed_takes_the_format();
+    nt08_copy_held();
+    nt08_grab_after_with_a_held_frame();
+    nt09_start_failures();
     if (failures == 0) {
         printf("test_hidercap_internal: all checks passed\n");
     }

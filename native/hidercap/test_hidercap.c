@@ -49,7 +49,7 @@ static int all_zero(const hidercap_frame *_f)
 }
 
 /* Not started: every call is safe and says so. */
-static void test_not_started(void)
+static void nt01_not_started(void)
 {
     uint8_t dst[16];
     hidercap_frame f = dirty();
@@ -64,7 +64,7 @@ static void test_not_started(void)
 }
 
 /* The remote hangs up: the stream goes unconnected and a grab reports a stream error at once (not after its timeout). */
-static void test_remote_hangs_up(void)
+static void nt02_remote_hangs_up(void)
 {
     int sv[2];
     CHECK(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) == 0);
@@ -96,7 +96,7 @@ static void test_remote_hangs_up(void)
 
 /* The remote never answers: no frame and no error, so a grab times out after about timeout_ms. A second start is refused
  * and closes the fd it was given (ownership passes also on failure). */
-static void test_silent_remote_times_out(void)
+static void nt02_silent_remote_times_out(void)
 {
     int sv[2];
     CHECK(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) == 0);
@@ -130,7 +130,7 @@ static void test_silent_remote_times_out(void)
 }
 
 /* A started helper can be started again after stop (pw_init / pw_deinit pair up). */
-static void test_restart(void)
+static void nt03_restart(void)
 {
     for (int i = 0; i < 3; i++) {
         int sv[2];
@@ -144,7 +144,7 @@ static void test_restart(void)
 }
 
 /* An invalid fd: the connection fails and the start reports a stream error (and cleans up: a new start works). */
-static void test_invalid_fd(void)
+static void nt01_invalid_fd(void)
 {
     CHECK(hidercap_start(-1, 42) == HIDERCAP_STREAM_ERROR);
     hidercap_frame f = dirty();
@@ -160,11 +160,11 @@ static void test_invalid_fd(void)
 
 int main(void)
 {
-    test_not_started();
-    test_remote_hangs_up();
-    test_silent_remote_times_out();
-    test_restart();
-    test_invalid_fd();
+    nt01_not_started();
+    nt02_remote_hangs_up();
+    nt02_silent_remote_times_out();
+    nt03_restart();
+    nt01_invalid_fd();
     if (failures == 0) {
         printf("test_hidercap: all checks passed\n");
     }
