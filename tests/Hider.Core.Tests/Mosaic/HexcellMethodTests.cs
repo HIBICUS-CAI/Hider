@@ -162,10 +162,11 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Theory]
-        [InlineData(2.0, 0.1)]    // 1.1: width 1.9, level 0
-        [InlineData(2.0, 0.15)]   // 1.15
+        [InlineData(2.0, 0.1)]    // 1.1: width 1.9, level 0; centres at y = 1.65 j are whole every 20th row of hexagons
+        [InlineData(2.0, 0.15)]   // 1.15: whole every 40th row
         [InlineData(10.0, 0.01)]  // 1.09
-        public void LevelZero_CpuPathIsTheSourceAtTheCentre_ShaderAgreesOffTexelEdges(double _radius, double _opacity)
+        [InlineData(2.0, 0.05)]   // 1.05: centres at y = 1.575 j, whole every 40th row
+        public void LevelZero_CpuPathIsTheShaderExactly_TexelEdgesIncluded(double _radius, double _opacity)
         {
             var p = Values(_radius, _opacity);
             using var source = SyntheticImage.CreateImage(211, 143);
@@ -199,42 +200,36 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         /// <summary>
-        /// Level 0: the CPU path shows the source pixel under each hexagon centre (clamped into the area), exactly. The shader
-        /// gives the same except where a centre lies on a texel edge (y = 1.5 r j is whole for many radii): nearest sampling
-        /// may pick either neighbour there, and Skia's raster picks the lower one while the C# path takes floor().
+        /// Level 0 (nearest sampling of the source): the CPU path equals the shader on every pixel. Hexagon centres often lie
+        /// exactly on a texel edge (y = 1.5 r j is whole for many radii); there Skia's raster takes the texel before the edge,
+        /// and so does <see cref="RasterSampler"/>. Each pixel is also one of the source's pixels, the one under a hexagon centre
+        /// near the pixel (independently of the float arithmetic: within one radius plus a texel).
         /// </summary>
         private static void AssertLevelZero(MosaicInputs _inputs, ParamValues _p)
         {
             int w = _inputs.AreaSize.Width, h = _inputs.AreaSize.Height;
             using var cpu = Render.Draw(w, h, _c => new MosaicPipeline().Draw(_c, SKRect.Create(w, h), _inputs, method, _p, 256));
             using var reference = DrawShader(method.CreateShader(_inputs, _p), w, h);
+            Assert.Equal(0, Golden.MaxDiff(reference, cpu));
             using var plain = Render.ToBitmap(_inputs.Source!);
-            float radius = (float)_p.Effective("radius");
-            static bool OnEdge(float _v) => MathF.Abs(_v - MathF.Round(_v)) < 1e-3f;
+            double radius = _p.Effective("radius");
+            int reach = (int)Math.Ceiling(radius) + 1;
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    // The arithmetic of HexcellMethod.TryRender / hexcell.sksl.
-                    float px = x + 0.5f, py = y + 0.5f;
-                    float cx = (0.57735027f * px - 0.33333333f * py) / radius, cz = (0.66666667f * py) / radius, cy = -cx - cz;
-                    float rx = MathF.Floor(cx + 0.5f), ry = MathF.Floor(cy + 0.5f), rz = MathF.Floor(cz + 0.5f);
-                    float dx = MathF.Abs(rx - cx), dy = MathF.Abs(ry - cy), dz = MathF.Abs(rz - cz);
-                    if (dx > dy && dx > dz)
+                    var (cx, cy) = HexcellMethod.CellCentre(x + 0.5, y + 0.5, radius);
+                    int tx = Math.Clamp((int)Math.Floor(cx), 0, w - 1), ty = Math.Clamp((int)Math.Floor(cy), 0, h - 1);
+                    bool found = false;
+                    for (int dy = -1; dy <= 1 && !found; dy++)
                     {
-                        rx = -ry - rz;
+                        for (int dx = -1; dx <= 1 && !found; dx++)
+                        {
+                            int sx = Math.Clamp(tx + dx, 0, w - 1), sy = Math.Clamp(ty + dy, 0, h - 1);
+                            found = Math.Abs(sx - x) <= reach && Math.Abs(sy - y) <= reach && plain.GetPixel(sx, sy) == cpu.GetPixel(x, y);
+                        }
                     }
-                    else if (dy <= dz)
-                    {
-                        rz = -rx - ry;
-                    }
-                    float sx = Math.Clamp(radius * (1.7320508f * (rx + rz * 0.5f)), 0.5f, w - 0.5f);
-                    float sy = Math.Clamp(radius * (1.5f * rz), 0.5f, h - 0.5f);
-                    Assert.Equal(plain.GetPixel((int)MathF.Floor(sx), (int)MathF.Floor(sy)), cpu.GetPixel(x, y));
-                    if (cpu.GetPixel(x, y) != reference.GetPixel(x, y))
-                    {
-                        Assert.True(OnEdge(sx) || OnEdge(sy), $"({x},{y}): centre ({sx}, {sy}) off the texel edges, cpu {cpu.GetPixel(x, y)} shader {reference.GetPixel(x, y)}");
-                    }
+                    Assert.True(found, $"({x},{y}): {cpu.GetPixel(x, y)} is not the source near the centre ({cx}, {cy})");
                 }
             }
         }
@@ -280,16 +275,33 @@ namespace Hider.Core.Tests.Mosaic
             }
         }
 
-        [Fact]
-        public void OneColorPerHexagon()
+        [Theory]
+        [InlineData(2.0, 0.1)]   // 1.1 (level 0)
+        [InlineData(2.0, 0.15)]  // 1.15 (level 0)
+        [InlineData(2.0, 1.0)]   // level 1
+        [InlineData(3.7, 1.0)]
+        [InlineData(10.0, 1.0)]
+        [InlineData(12.0, 1.0)]
+        [InlineData(37.0, 1.0)]
+        public void OneColorPerHexagon(double _radius, double _opacity)
         {
-            using var bitmap = Render.Mosaic("hexcell", _params: new() { ["radius"] = 12 });
+            // The hexagons come from CellCentre (double, nearest lattice point, checked on its own above), independent of the
+            // float arithmetic of the shader and the CPU path. Only pixels whose centre lies within 0.01 px of a hexagon's
+            // edge may fall to the neighbour through float rounding; those are left out.
+            using var bitmap = Render.Mosaic("hexcell", _opacity, _params: new() { ["radius"] = _radius });
+            double radius = 1 + (_radius - 1) * _opacity;
             var colorOfCell = new Dictionary<(double, double), SKColor>();
+            int checkedPixels = 0;
             for (int y = 0; y < bitmap.Height; y++)
             {
                 for (int x = 0; x < bitmap.Width; x++)
                 {
-                    var centre = HexcellMethod.CellCentre(x + 0.5, y + 0.5, 12);
+                    var centre = HexcellMethod.CellCentre(x + 0.5, y + 0.5, radius);
+                    if (NearAnEdge(x + 0.5, y + 0.5, radius, centre))
+                    {
+                        continue;
+                    }
+                    checkedPixels++;
                     var key = (Math.Round(centre.X, 3), Math.Round(centre.Y, 3));
                     var c = bitmap.GetPixel(x, y);
                     if (colorOfCell.TryGetValue(key, out var seen))
@@ -302,7 +314,26 @@ namespace Hider.Core.Tests.Mosaic
                     }
                 }
             }
-            Assert.True(colorOfCell.Count > 30);
+            Assert.True(checkedPixels > bitmap.Width * bitmap.Height * 0.9, $"{checkedPixels} pixels checked");
+            // About one hexagon per 2.6 r² px; the area is 320 x 180.
+            Assert.InRange(colorOfCell.Count, 320 * 180 / (2.6 * radius * radius) * 0.8, 320 * 180 / (2.6 * radius * radius) * 1.3 + 40);
+        }
+
+        /// <summary>True when a point's distance to its own centre and to another lattice point's differ by less than 0.01 px.</summary>
+        private static bool NearAnEdge(double _x, double _y, double _radius, (double X, double Y) _centre)
+        {
+            double own = Math.Sqrt((_x - _centre.X) * (_x - _centre.X) + (_y - _centre.Y) * (_y - _centre.Y));
+            double w = _radius * Math.Sqrt(3);
+            (double, double)[] neighbours = { (w, 0), (-w, 0), (w / 2, 1.5 * _radius), (-w / 2, 1.5 * _radius), (w / 2, -1.5 * _radius), (-w / 2, -1.5 * _radius) };
+            foreach (var (dx, dy) in neighbours)
+            {
+                double nx = _centre.X + dx, ny = _centre.Y + dy;
+                if (Math.Sqrt((_x - nx) * (_x - nx) + (_y - ny) * (_y - ny)) - own < 0.01)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [Fact]

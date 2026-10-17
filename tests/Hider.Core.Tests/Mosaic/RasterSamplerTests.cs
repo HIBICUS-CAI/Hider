@@ -81,8 +81,43 @@ namespace Hider.Core.Tests.Mosaic
                 for (int x = 0; x < 6; x++)
                 {
                     Assert.Equal(Bgra(x, y), sampler.Sample(x + 0.5f, y + 0.5f));
-                    Assert.Equal(Bgra(x, y), sampler.Sample(x, y));            // the texel's top-left corner
+                    Assert.Equal(Bgra(x, y), sampler.Sample(x + 0.001f, y + 0.001f));
+                    Assert.Equal(Bgra(x, y), sampler.Sample(x + 1, y + 1)); // the bottom-right corner belongs to the texel, as in Skia
                     Assert.Equal(Bgra(x, y), sampler.Sample(x + 0.999f, y + 0.999f));
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(4)]
+        public void Nearest_MatchesSkiasRasterAtTexelEdges(int _scale)
+        {
+            // On a texel edge (u a whole number) Skia's raster takes the texel before it: texel ceil(u) - 1. Compared with
+            // Skia itself, through a runtime shader that evaluates the image shader at exactly the given point.
+            using var image = Ramp(6, 5);
+            using var sampler = RasterSampler.Create(image, _scale, false)!;
+            using var effect = SKRuntimeEffect.CreateShader("uniform float2 c; uniform shader src; half4 main(float2 p) { return src.eval(c); }", out string? errors);
+            Assert.Null(errors);
+            using var child = image.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, new SKSamplingOptions(SKFilterMode.Nearest),
+                SKMatrix.CreateScale(_scale, _scale));
+            var points = new List<float> { -3f, -0.5f, 0f, 0.25f, 100f };
+            for (int i = 1; i <= 6; i++)
+            {
+                float edge = i * _scale;
+                points.AddRange(new[] { edge, MathF.BitDecrement(edge), MathF.BitIncrement(edge), edge - 0.5f });
+            }
+            foreach (float x in points)
+            {
+                foreach (float y in new[] { 0f, 1f, 2.5f, 3f * _scale, MathF.BitIncrement(3f * _scale), 5f * _scale })
+                {
+                    using var uniforms = new SKRuntimeEffectUniforms(effect) { ["c"] = new[] { x, y } };
+                    using var children = new SKRuntimeEffectChildren(effect) { ["src"] = child };
+                    using var shader = effect.ToShader(uniforms, children);
+                    using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.Src };
+                    using var drawn = Imaging.Render.Draw(1, 1, _c => _c.DrawRect(0, 0, 1, 1, paint));
+                    Assert.True((uint)drawn.GetPixel(0, 0) == sampler.Sample(x, y), $"scale {_scale} at ({x:R}, {y:R}): Skia {drawn.GetPixel(0, 0)}");
                 }
             }
         }
@@ -105,7 +140,8 @@ namespace Hider.Core.Tests.Mosaic
             using var image = Ramp(6, 5);
             using var sampler = RasterSampler.Create(image, 4, false)!;
             Assert.Equal(Bgra(0, 0), sampler.Sample(3.9f, 3.9f));
-            Assert.Equal(Bgra(1, 0), sampler.Sample(4f, 0f));
+            Assert.Equal(Bgra(0, 0), sampler.Sample(4f, 0f)); // texel 0 ends at area x = 4
+            Assert.Equal(Bgra(1, 0), sampler.Sample(4.01f, 0f));
             Assert.Equal(Bgra(2, 3), sampler.Sample(10f, 15f));
             Assert.Equal(Bgra(5, 4), sampler.Sample(100f, 100f));
         }
