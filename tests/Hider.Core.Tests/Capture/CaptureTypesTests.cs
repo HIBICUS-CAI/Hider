@@ -93,12 +93,27 @@ namespace Hider.Core.Tests.Capture
             Assert.Equal(20, frame.Stride);
         }
 
-        [Fact]
-        public void Resize_Overflow_ThrowsAndKeepsTheFrame()
+        [Theory]
+        [InlineData(50000, 50000)]      // the size overflows
+        [InlineData(int.MaxValue, 0)]   // no pixels, but the stride overflows (it would be -4)
+        [InlineData(int.MaxValue, 1)]
+        [InlineData(0x2000_0000, 0)]    // stride exactly 2^31
+        public void Resize_Overflow_ThrowsAndKeepsTheFrame(int _w, int _h)
         {
             var frame = FrameBuffer.Allocate(2, 2);
-            Assert.Throws<OverflowException>(() => frame.Resize(50000, 50000));
+            var before = frame.Bgra;
+            Assert.Throws<OverflowException>(() => frame.Resize(_w, _h));
             Assert.Equal((2, 2, 8, 16), (frame.Width, frame.Height, frame.Stride, frame.Bgra.Length));
+            Assert.True(before.Equals(frame.Bgra));
+        }
+
+        [Fact]
+        public void Resize_LargestStride_NoPixels()
+        {
+            // A stride just below 2^31 is representable: 0 rows need no memory.
+            var frame = FrameBuffer.Allocate(2, 2);
+            frame.Resize(0x1FFF_FFFF, 0);
+            Assert.Equal((0x1FFF_FFFF, 0, 0x7FFF_FFFC, 16), (frame.Width, frame.Height, frame.Stride, frame.Bgra.Length));
         }
 
         [Fact]

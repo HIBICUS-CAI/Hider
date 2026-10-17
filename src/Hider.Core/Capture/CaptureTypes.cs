@@ -43,14 +43,16 @@ namespace Hider.Core.Capture
         /// <summary>Makes sure the buffer can hold a frame of this size, reusing the memory when it is large enough.</summary>
         public void Resize(int _width, int _height)
         {
-            int needed = checked(_width * _height * 4); // overflow throws instead of allocating a negative size
+            // Overflow throws before anything changes, instead of a negative size or stride (an empty frame has a stride too).
+            int stride = checked(_width * 4);
+            int needed = checked(stride * _height);
             if (Bgra.Length < needed)
             {
                 Bgra = new byte[needed];
             }
             Width = _width;
             Height = _height;
-            Stride = _width * 4;
+            Stride = stride;
         }
     }
 
