@@ -279,9 +279,10 @@ class InstallBatTest(unittest.TestCase):
             stdout=subprocess.PIPE,
             text=True,
         )
+        assert holder.stdout is not None
+        self.addCleanup(holder.stdout.close)
         self.addCleanup(holder.wait, 30)
         self.addCleanup(holder.kill)
-        assert holder.stdout is not None
         self.assertEqual(holder.stdout.readline().strip(), 'locked')
         result = self.run_bat(str(self.dest))
         self.assertEqual(result.code, 1, result.err)
