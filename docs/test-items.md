@@ -10,7 +10,7 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。R-1 の改名時点（3b28c0a）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
 
 ## 新しい ID（CT / GT）
 
