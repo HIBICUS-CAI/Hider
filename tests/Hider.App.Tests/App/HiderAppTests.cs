@@ -191,15 +191,14 @@ namespace Hider.App.Tests.App
             }
         }
 
-        /// <summary>Runs the UI thread's jobs until the area's first capture has ended (a frame, or the fallback).</summary>
-        private static async Task FirstCaptureAsync(AreaController _area)
+        /// <summary>
+        /// Runs the UI thread's jobs, rendering frames, until the area's first capture has ended (a frame, or the fallback).
+        /// The rendered frames are what the strip host waits for before each strip is taken.
+        /// </summary>
+        private static void FirstCapture(AreaController _area)
         {
-            var ct = TestContext.Current.CancellationToken;
-            while (_area.Frames.Version == 0 && !_area.CaptureFailed)
-            {
-                await Task.Delay(20, ct);
-                Dispatcher.UIThread.RunJobs();
-            }
+            Assert.True(Hider.App.Tests.Areas.UiJobs.RunUntil(() => _area.Frames.Version > 0 || _area.CaptureFailed, _renderFrames: true),
+                "the first capture did not end");
         }
 
         [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),
@@ -219,6 +218,9 @@ namespace Hider.App.Tests.App
             using var app = StartWithThePlatformCapture(dir);
             var screen = app.Areas!.Services.Screens.Screens.Single(_s => _s.IsPrimary).Bounds;
             int shot = 0;
+            // One encoded screen, copied for each request: encoding a whole-screen PNG each time would be most of the run.
+            string template = Path.Combine(dir.Path, "screen.png");
+            Hider.App.Tests.Platform.PortalScreenshotGrabberTests.WritePng(template, screen.Width, screen.Height);
             env.Portal.OnRequest = _call =>
             {
                 if (_call.Member != "Screenshot")
@@ -226,14 +228,14 @@ namespace Hider.App.Tests.App
                     return Hider.App.Tests.Platform.FakeDesktopPortal.Answer.Ok();
                 }
                 string path = Path.Combine(shots, $"Screenshot-{Interlocked.Increment(ref shot)}.png");
-                Hider.App.Tests.Platform.PortalScreenshotGrabberTests.WritePng(path, screen.Width, screen.Height);
+                File.Copy(template, path);
                 return new Hider.App.Tests.Platform.FakeDesktopPortal.Answer.Respond(0,
                     (ref Tmds.DBus.Protocol.MessageWriter _w) => Hider.App.Tests.Platform.FakeDesktopPortal.Entry(ref _w, "uri", new Uri(path).AbsoluteUri));
             };
 
             var area = app.Areas.AddNew();
             Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
-            await FirstCaptureAsync(area);
+            FirstCapture(area);
 
             Assert.False(area.CaptureFailed);
             Assert.Equal(1, area.Frames.Version);
@@ -241,6 +243,7 @@ namespace Hider.App.Tests.App
             int strips = (area.Model.Rect.Height + area.Model.Mosaic.Common.StripPx - 1) / area.Model.Mosaic.Common.StripPx;
             Assert.Equal(1 + strips, shot); // one shot to prepare, one per strip
             Assert.Null(area.Window.TransparentRows); // every strip given back
+            Assert.Equal(0, area.Window.StripFrameTimeouts); // each strip taken once its transparent rows were rendered
             Assert.Empty(Directory.GetFiles(shots));
         }
 
@@ -257,10 +260,18 @@ namespace Hider.App.Tests.App
             using var app = StartWithThePlatformCapture(dir);
 
             var area = app.Areas!.AddNew();
-            await FirstCaptureAsync(area);
+            FirstCapture(area);
 
             Assert.True(area.CaptureFailed);
-            Assert.Contains(env.Portal.Calls, _c => _c.Member is "CreateSession" or "Screenshot");
+            // The last resort, the Screenshot portal, is always asked; with the helper ScreenCast (stage 2) is asked first.
+            var members = env.Portal.Calls.Select(_c => _c.Member).ToList();
+            Assert.Contains("Screenshot", members);
+            if (Hider.App.Tests.Platform.LinuxTestEnvironment.HasHidercap)
+            {
+                int session = members.IndexOf("CreateSession");
+                Assert.True(session >= 0, "ScreenCast was not asked: " + string.Join(", ", members));
+                Assert.True(session < members.IndexOf("Screenshot"), "Screenshot was asked before ScreenCast: " + string.Join(", ", members));
+            }
             Assert.Equal(PatternKind.Generated, area.Model.Pattern);
             Assert.Null(area.Window.TransparentRows);
         }
