@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
@@ -11,15 +12,22 @@ namespace Hider.App.Tests.Platform.Windows
         // The static control that holds a message box's text.
         private const int TextControlId = 0xFFFF;
 
-        /// <summary>The message box titled <paramref name="_caption"/> of process <paramref name="_processId"/>, once it is shown.</summary>
-        public static async Task<nint> WaitForAsync(int _processId, string _caption, CancellationToken _ct)
+        /// <summary>
+        /// The message box titled <paramref name="_caption"/> of <paramref name="_process"/>, once it is shown. Fails at once
+        /// when the process ends without showing one, instead of waiting for the time limit.
+        /// </summary>
+        public static async Task<nint> WaitForAsync(Process _process, string _caption, CancellationToken _ct)
         {
             while (true)
             {
-                nint box = Find(_processId, _caption);
+                nint box = Find(_process.Id, _caption);
                 if (box != 0)
                 {
                     return box;
+                }
+                if (_process.HasExited)
+                {
+                    throw new InvalidOperationException($"the process exited with {_process.ExitCode} without showing a message box titled {_caption}");
                 }
                 await Task.Delay(50, _ct);
             }

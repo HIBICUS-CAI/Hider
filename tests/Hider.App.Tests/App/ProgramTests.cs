@@ -200,7 +200,7 @@ namespace Hider.App.Tests.App
 
             var result = await HiderProcess.RunAsync(file, null, async (_process, _ct) =>
             {
-                nint box = await MessageBoxes.WaitForAsync(_process.Id, Strings.AppName, _ct);
+                nint box = await MessageBoxes.WaitForAsync(_process, Strings.AppName, _ct);
                 shown = MessageBoxes.Text(box);
                 Assert.False(_process.HasExited); // waiting for the user
                 MessageBoxes.Close(box);

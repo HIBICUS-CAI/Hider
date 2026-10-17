@@ -75,15 +75,35 @@ namespace Hider.App.Tests.App
                 }
                 await process.WaitForExitAsync(timeout.Token);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
             {
-                process.Kill(true);
-                // Let the killed child go (and release instance.lock) before the caller deletes its home directory, so the
-                // failure is this timeout and not an IOException from the deletion.
-                process.WaitForExit(5000);
+                Stop(process);
                 throw new TimeoutException($"Hider {string.Join(' ', _args)} did not exit within 2 minutes");
             }
+            catch
+            {
+                // The callback failed (an assertion, or no dialog): the child (and a modal box it shows) must not outlive the test.
+                Stop(process);
+                throw;
+            }
             return new Result(process.ExitCode, await output, await error);
+        }
+
+        /// <summary>
+        /// Kills the child and its descendants, then lets them go (and release instance.lock) before the caller deletes its
+        /// home directory, so the failure reported is the test's and not an IOException from the deletion.
+        /// </summary>
+        private static void Stop(Process _process)
+        {
+            try
+            {
+                _process.Kill(true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Exited in the meantime.
+            }
+            _process.WaitForExit(5000);
         }
 
         /// <summary>
