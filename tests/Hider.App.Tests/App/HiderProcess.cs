@@ -72,7 +72,9 @@ namespace Hider.App.Tests.App
 
         /// <summary>
         /// A copy of the app directory whose Hider.dll is a real file (so AppContext.BaseDirectory is the copy) and whose other
-        /// files are links to the test output: a place to put a libhidercap.so of the test's choosing. Linux only.
+        /// files are links to the test output: a place to put a libhidercap.so of the test's choosing (the real one next to
+        /// the tests is left out, so the copy ships none and writing one never goes through a link into the test output).
+        /// Linux only.
         /// </summary>
         public static string LinkedAppDirectory(string _parent)
         {
@@ -82,6 +84,10 @@ namespace Hider.App.Tests.App
             {
                 string name = Path.GetFileName(entry);
                 string target = Path.Combine(dir, name);
+                if (name == "libhidercap.so")
+                {
+                    continue;
+                }
                 if (name is "Hider.dll" or "Hider.deps.json" or "Hider.runtimeconfig.json")
                 {
                     File.Copy(entry, target);

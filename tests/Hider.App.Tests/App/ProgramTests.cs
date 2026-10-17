@@ -54,9 +54,11 @@ namespace Hider.App.Tests.App
         [Fact]
         public async Task Selftest_RunsCoreAndPlatformChecks_AndPasses()
         {
+            // Linux: from a copy that ships no libhidercap.so (the test output may have the real one, see below).
             using var home = new Home();
+            string? app = OperatingSystem.IsLinux() ? HiderProcess.LinkedAppDirectory(home.Path) : null;
 
-            var result = await HiderProcess.RunAsync(home.Path, null, "--selftest");
+            var result = await HiderProcess.RunAsync(home.Path, app, "--selftest");
 
             Assert.Equal(0, result.ExitCode);
             var lines = Lines(result.Output);
@@ -74,6 +76,23 @@ namespace Hider.App.Tests.App
             Assert.Equal("selftest passed", lines[^1]);
             Assert.Equal("", result.Error);
             Assert.False(Directory.Exists(home.DataDirectory));
+        }
+
+        [Hider.App.Tests.Platform.HidercapFact]
+        public async Task Selftest_ShippedRealHelper_LoadsAndPasses()
+        {
+            // The libhidercap.so built by make (copied next to the tests) loads and answers, as in the packaged build.
+            using var home = new Home();
+            string app = HiderProcess.LinkedAppDirectory(home.Path);
+            File.Copy(Hider.App.Tests.Platform.LinuxTestEnvironment.HidercapPath, Path.Combine(app, "libhidercap.so"));
+
+            var result = await HiderProcess.RunAsync(home.Path, app, "--selftest");
+
+            Assert.Equal(0, result.ExitCode);
+            var lines = Lines(result.Output);
+            Assert.Contains("core checks passed", lines);
+            Assert.Contains("[ok]   libhidercap: loaded, last sequence 0", lines);
+            Assert.Equal("selftest passed", lines[^1]);
         }
 
         [Fact(Skip = "Linux 専用（libhidercap.so）", SkipUnless = nameof(IsLinux))]

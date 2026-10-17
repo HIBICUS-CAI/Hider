@@ -1,25 +1,25 @@
 namespace Hider.App.Tests.App
 {
     /// <summary>
-    /// The platform part of --selftest, in this process (the test output directory ships no libhidercap.so: the native
-    /// helper is built for publishing only). The variants with a shipped library run in a child process (ProgramTests).
+    /// The platform part of --selftest, in this process. On Linux the test output has the real libhidercap.so (make before
+    /// the build); the variants without one or with a broken one run in a child process (ProgramTests). The real helper is
+    /// loaded here, so these run in the group of the other tests of the real library.
     /// </summary>
+    [Collection(nameof(Hider.App.Tests.Platform.HidercapGroup))]
     public class PlatformSelfTestTests
     {
         public static bool IsWindows => OperatingSystem.IsWindows();
 
-        public static bool IsLinux => OperatingSystem.IsLinux();
-
-        [Fact(Skip = "Linux 専用（libhidercap の確認）", SkipUnless = nameof(IsLinux))]
-        public void Linux_NoHelperShipped_SkipsAndPasses()
+        [Hider.App.Tests.Platform.HidercapFact]
+        public void Linux_ShippedHelper_LoadsAndPasses()
         {
-            Assert.False(File.Exists(Path.Combine(AppContext.BaseDirectory, "libhidercap.so")));
+            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "libhidercap.so")));
             var output = new StringWriter();
 
             int result = PlatformSelfTest.Run(output);
 
             Assert.Equal(0, result);
-            Assert.Equal("[skip] libhidercap.so not shipped: the Screenshot portal is used (D-6)" + Environment.NewLine, output.ToString());
+            Assert.Matches(@"^\[ok\]   libhidercap: loaded, last sequence \d+\r?\n$", output.ToString());
         }
 
         [Fact(Skip = "Windows 専用（Win32 のウィンドウ列挙と PrintWindow）", SkipUnless = nameof(IsWindows))]

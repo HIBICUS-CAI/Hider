@@ -16,8 +16,10 @@ namespace Hider.App.Tests.App
 {
     /// <summary>
     /// <see cref="HiderApp"/> start-up and shutdown on a fresh application object and a fake desktop lifetime, so the shared
-    /// headless application and its dispatcher are left alone.
+    /// headless application and its dispatcher are left alone. The real start changes the process-wide home directory and
+    /// session bus variables for a moment, so it runs alone with the other tests that change them.
     /// </summary>
+    [Collection(nameof(Hider.App.Tests.Platform.SessionBusAddressGroup))]
     public class HiderAppTests
     {
         public static bool IsLinux => OperatingSystem.IsLinux();
