@@ -319,25 +319,24 @@ jobs:
           echo "$v"
           if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
-      # Windows: the self test started from cmd in a console of its own, the way README says (start /wait), so that
-      # Hider attaches to that console (Win32Console: AttachConsole, CONOUT$) for the stream not redirected to a file:
-      # standard error first (output to a file), then standard output (errors to a file, which stays empty).
+      # Windows: the self test started from cmd in a console of its own, the way README says (start /wait). cmd's start
+      # hands a GUI program none of its redirections (seen on windows-latest: `> out.txt` stays empty), so Hider finds
+      # neither stream redirected and attaches to that console for both (Win32Console: AttachConsole, CONOUT$, SetOut,
+      # SetError). What reaches the console can not be read here (PT-34); the exit code is the self test's result.
       - if: ${{ startsWith(matrix.rid, 'win') }}
-        name: Self test from cmd with one stream on the console
+        name: Self test from cmd on the console
         shell: pwsh
         working-directory: bin/publish/${{ matrix.rid }}
         run: |
-          Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
-          $p = Start-Process cmd.exe -ArgumentList '/d /c start "" /wait /b Hider.exe --selftest > out.txt' -Wait -PassThru
-          $lines = @(Get-Content -LiteralPath out.txt | Where-Object { $_ -ne '' })
-          Write-Host ($lines -join "`n")
-          if ($p.ExitCode -ne 0 -or $lines.Count -eq 0 -or $lines[-1] -ne 'selftest passed') {
-            throw "output to a file: exit code $($p.ExitCode)"
+          foreach ($redirect in '> out.txt', '2> err.txt') {
+            Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
+            $p = Start-Process cmd.exe -ArgumentList "/d /c start `"`" /wait /b Hider.exe --selftest $redirect" -Wait -PassThru
+            $file = $redirect.Split(' ')[1]
+            $text = Get-Content -LiteralPath $file -Raw
+            Write-Host "start /wait /b Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text"
+            if ($p.ExitCode -ne 0 -or $text) { throw "start /wait /b Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text" }
           }
-          $p = Start-Process cmd.exe -ArgumentList '/d /c start "" /wait /b Hider.exe --selftest 2> err.txt' -Wait -PassThru
-          $err = Get-Content -LiteralPath err.txt -Raw
-          if ($p.ExitCode -ne 0 -or $err) { throw "errors to a file: exit code $($p.ExitCode), errors: $err" }
-          Remove-Item -LiteralPath out.txt, err.txt
+          Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
       # scripts/install.py on the build for real: the installed binary runs, and the Linux desktop entry / the Windows
       # shortcut (made through Windows PowerShell, next step) point at it.
       - name: Install with scripts/install.py
