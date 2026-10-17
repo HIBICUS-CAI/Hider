@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 import unittest
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
@@ -73,7 +74,7 @@ def shells() -> list[Shell]:
         found.append(Shell('busybox', busybox))
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         missing = {'sh', 'dash', 'bash_as_sh', 'bash', 'busybox'} - {shell.name for shell in found}
-        assert not missing, f'shells missing on the runner: {sorted(missing)} (python-lint installs busybox-static)'
+        assert not missing, f'shells missing on the runner: {sorted(missing)} (python-lint installs busybox)'
     # The same program started the same way once only (sh is a link to dash on Ubuntu).
     unique: dict[tuple[str, str], Shell] = {}
     for shell in found:
@@ -461,14 +462,17 @@ class DefaultFolderTest(InstallerTest):
     def test_st24_neither_xdg_data_home_nor_home(self) -> None:
         # e.g. env -i sh install.sh: a message of ours, not the shell's "HOME: parameter not set" (set -u).
         message = 'neither XDG_DATA_HOME nor HOME is set: the desktop entry goes under one of them'
-        envs: list[dict[str, str | None]] = [{'XDG_DATA_HOME': None, 'HOME': None}, {'XDG_DATA_HOME': '', 'HOME': None}]
-        # Empty: before, the entry (and the default folder) went under /.local/share. Not run as root, where a
-        # regression would really write there.
-        if os.geteuid() != 0:
-            envs.append({'XDG_DATA_HOME': '', 'HOME': ''})
+        envs: list[dict[str, str | None]] = [
+            {'XDG_DATA_HOME': None, 'HOME': None},
+            {'XDG_DATA_HOME': '', 'HOME': None},
+            # Empty: before, the entry (and the default folder) went under /.local/share.
+            {'XDG_DATA_HOME': '', 'HOME': ''},
+        ]
         for env in envs:
             for args in [(), ('-d', str(self.root / 'dest'))]:
                 with self.subTest(env=env, args=args):
+                    if env['HOME'] == '' and os.geteuid() == 0:
+                        self.skipTest('not as root: a regression would really write to /.local/share')
                     result = self.run_installer(*args, env=env)
                     self.assert_error(result, message)
                     self.assertEqual(self.calls(result, 'curl'), [])
@@ -923,10 +927,19 @@ def per_shell(case: type[InstallerTest], shell: Shell) -> type[InstallerTest]:
 
 def load_tests(loader: unittest.TestLoader, standard: unittest.TestSuite, pattern: str | None) -> unittest.TestSuite:
     """unittest's load_tests protocol (discover, or the module by name): every installer test once per shell, named
-    <Class>_<shell>."""
-    suite = unittest.TestSuite()
+    <Class>_<shell>, and every other test of the module as unittest found it (a TestCase added later runs too)."""
+    parametrised = {InstallerTest, *INSTALLER_CASES}
+    suite = unittest.TestSuite(test for test in flatten(standard) if type(test) not in parametrised)
     for case in INSTALLER_CASES:
         for shell in SHELLS:
             suite.addTests(loader.loadTestsFromTestCase(per_shell(case, shell)))
-    suite.addTests(loader.loadTestsFromTestCase(SyntaxTest))
     return suite
+
+
+def flatten(suite: unittest.TestSuite) -> Iterator[unittest.TestCase]:
+    for test in suite:
+        if isinstance(test, unittest.TestSuite):
+            yield from flatten(test)
+        else:
+            assert isinstance(test, unittest.TestCase)
+            yield test
