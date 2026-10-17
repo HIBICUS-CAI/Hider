@@ -25,6 +25,23 @@ namespace Hider.Core.Tests.Mosaic
             public SKShader Source(MosaicInputs _inputs, ParamValues _p) => SourceShader(_inputs, _p);
         }
 
+        /// <summary>pixelate.sksl whose child shader is kept, to see what happens to it.</summary>
+        private sealed class RecordingMosaic : SkslMethod
+        {
+            public override string Id => "pixelate";
+            public override string LabelKey => "method.pixelate";
+            public override MethodKind Kind => MethodKind.Mosaic;
+            public override IReadOnlyList<ParamSpec> Params { get; } = new PlainMosaic().Params;
+            public List<SKShader> Children { get; } = new();
+
+            protected override SKShader SourceShader(MosaicInputs _inputs, ParamValues _p)
+            {
+                var shader = base.SourceShader(_inputs, _p);
+                Children.Add(shader);
+                return shader;
+            }
+        }
+
         /// <summary>block.sksl with the base class defaults (no rounding of the uniforms).</summary>
         private sealed class PlainGenerated : SkslMethod
         {
@@ -67,6 +84,29 @@ namespace Hider.Core.Tests.Mosaic
             Assert.Same(effect, method.Effect);
             Assert.Contains("block", effect.Uniforms);
             Assert.NotSame(effect, new PlainMosaic().Effect); // per instance
+        }
+
+        [Fact]
+        public void CreateEffectShader_DisposesTheChildBeforeReturning_TheShaderStillDrawsTheCapture()
+        {
+            // A child left to the finalizer would free a GPU texture off the render thread (crashes seen on Windows): the
+            // runtime shader keeps its own native reference, so the managed child is disposed at once.
+            var method = new RecordingMosaic();
+            using var source = SyntheticImage.CreateImage(40, 30);
+            var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(40, 30) };
+            var p = MosaicValues(method, 4);
+            var shader = method.CreateEffectShader(inputs, p);
+            var child = Assert.Single(method.Children);
+            Assert.Equal(IntPtr.Zero, child.Handle);
+            Assert.NotEqual(IntPtr.Zero, shader.Handle);
+            using var drawn = DrawShader(shader, 40, 30);
+            var reference = new PlainMosaic();
+            using var expected = DrawShader(reference.CreateEffectShader(inputs, MosaicValues(reference, 4)), 40, 30);
+            Assert.Equal(0, Golden.MaxDiff(expected, drawn));
+            // Blocks of 4: the top-left block shows one source colour, which is not transparent.
+            Assert.Equal(255, drawn.GetPixel(0, 0).Alpha);
+            Assert.Equal(drawn.GetPixel(0, 0), drawn.GetPixel(3, 3));
+            Assert.NotEqual(drawn.GetPixel(0, 0), drawn.GetPixel(36, 26));
         }
 
         [Fact]
