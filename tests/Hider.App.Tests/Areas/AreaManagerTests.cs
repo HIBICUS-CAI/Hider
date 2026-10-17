@@ -183,7 +183,7 @@ namespace Hider.App.Tests.Areas
             }
             Assert.True(f.Manager.AnyEditing);
             Assert.Equal(1, f.Manager.SaveCount);
-            Assert.True(changed >= 1);
+            Assert.Equal(2, changed); // once entering edit mode, once for the new area
             Assert.Single(AreasFile.Load(f.AreasPath, out _).Areas);
         }
 
