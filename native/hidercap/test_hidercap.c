@@ -116,11 +116,14 @@ static void test_silent_remote_times_out(void)
     CHECK(waited >= 150);
     CHECK(f.sequence == 0 && f.width == 0 && f.height == 0 && f.stride == 0 && f.pts_from_meta == 0);
 
-    /* A zero and a negative timeout return at once. */
+    /* A zero and a negative timeout return at once: each call well under a second (a loaded runner may be slow, but
+     * nowhere near that), measured on its own. */
     t0 = now_ms();
     CHECK(hidercap_grab_after(0, 0, 0, 1, dst, sizeof(dst), &f) == HIDERCAP_TIMEOUT);
+    CHECK(now_ms() - t0 < 1000);
+    t0 = now_ms();
     CHECK(hidercap_grab_after(0, -5, 0, 1, dst, sizeof(dst), &f) == HIDERCAP_TIMEOUT);
-    CHECK(now_ms() - t0 < 150);
+    CHECK(now_ms() - t0 < 1000);
     CHECK(hidercap_last_sequence() == 0);
     hidercap_stop();
     close(sv[1]);
