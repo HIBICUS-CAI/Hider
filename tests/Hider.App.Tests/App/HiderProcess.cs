@@ -31,7 +31,16 @@ namespace Hider.App.Tests.App
         /// <param name="_home">The home directory (HOME / USERPROFILE) the child sees.</param>
         /// <param name="_appDirectory">Where Hider.dll is run from (default: the test output directory).</param>
         /// <param name="_args">The command line.</param>
-        public static async Task<Result> RunAsync(string _home, string? _appDirectory, params string[] _args)
+        public static Task<Result> RunAsync(string _home, string? _appDirectory, params string[] _args)
+        {
+            return RunAsync(_home, _appDirectory, null, _args);
+        }
+
+        /// <param name="_home">The home directory (HOME / USERPROFILE) the child sees.</param>
+        /// <param name="_appDirectory">Where Hider.dll is run from (default: the test output directory).</param>
+        /// <param name="_whileRunning">Runs once the child has started (e.g. answers a dialog it shows), within the time limit.</param>
+        /// <param name="_args">The command line.</param>
+        public static async Task<Result> RunAsync(string _home, string? _appDirectory, Func<Process, CancellationToken, Task>? _whileRunning, params string[] _args)
         {
             var start = new ProcessStartInfo(Dotnet)
             {
@@ -60,11 +69,18 @@ namespace Hider.App.Tests.App
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             try
             {
+                if (_whileRunning is not null)
+                {
+                    await _whileRunning(process, timeout.Token);
+                }
                 await process.WaitForExitAsync(timeout.Token);
             }
             catch (OperationCanceledException)
             {
                 process.Kill(true);
+                // Let the killed child go (and release instance.lock) before the caller deletes its home directory, so the
+                // failure is this timeout and not an IOException from the deletion.
+                process.WaitForExit(5000);
                 throw new TimeoutException($"Hider {string.Join(' ', _args)} did not exit within 2 minutes");
             }
             return new Result(process.ExitCode, await output, await error);

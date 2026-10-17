@@ -1,3 +1,9 @@
+using System.Reflection;
+using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
+using Avalonia;
+using Hider.App.Tests.Platform.Windows;
+using Hider.Core;
 using Hider.Core.Persistence;
 
 namespace Hider.App.Tests.App
@@ -95,7 +101,7 @@ namespace Hider.App.Tests.App
             Assert.Equal("selftest passed", lines[^1]);
         }
 
-        [Fact(Skip = "Linux 専用（libhidercap.so）", SkipUnless = nameof(IsLinux))]
+        [Fact(Skip = OsOnly.ShippedHelper, SkipUnless = nameof(IsLinux))]
         public async Task Selftest_ShippedHelperThatDoesNotLoad_Fails()
         {
             // A libhidercap.so that is not a library (or whose libpipewire is missing) fails the packaged build.
@@ -112,7 +118,7 @@ namespace Hider.App.Tests.App
             Assert.Equal("selftest failed", lines[^1]);
         }
 
-        [Fact(Skip = "Linux 専用（libhidercap.so）", SkipUnless = nameof(IsLinux))]
+        [Fact(Skip = OsOnly.ShippedHelper, SkipUnless = nameof(IsLinux))]
         public async Task Selftest_ShippedHelperWithoutTheApi_Fails()
         {
             // A library that loads but lacks hidercap_last_sequence (an old helper): the call fails, the self test reports it.
@@ -162,7 +168,7 @@ namespace Hider.App.Tests.App
             Assert.EndsWith(" another instance is running", Lines(result.Error).Single());
         }
 
-        [Fact(Skip = "Linux 専用（Windows ではメッセージボックスが閉じられるまで終了しない）", SkipUnless = nameof(IsLinux))]
+        [Fact(Skip = OsOnly.LockErrorExit, SkipUnless = nameof(IsLinux))]
         public async Task LockCannotBeOpened_ExitsTwo_WithTheReason()
         {
             // The home directory is a file: .hider cannot be created. Not "already running" (exit 0): the user must see why.
@@ -180,18 +186,50 @@ namespace Hider.App.Tests.App
             Assert.True(line.Length > $"hider: cannot open {lockPath}: ".Length); // the system's reason follows
         }
 
-        [Fact(Skip = "Linux 専用（表示なしの起動。Windows では常駐アプリが起動してしまう）", SkipUnless = nameof(IsLinux))]
+        [Fact(Skip = OsOnly.MessageBox, SkipUnless = nameof(IsWindows))]
+        [SupportedOSPlatform("windows")]
+        public async Task LockCannotBeOpened_Windows_ShowsTheReasonInAMessageBox_ThenExitsTwo()
+        {
+            // Started from Explorer there is no console: the reason reaches the user only through the message box
+            // (Win32Dialog.ShowError). The test closes it as the × button does; the process then ends with 2.
+            using var home = new Home();
+            string file = Path.Combine(home.Path, "home-is-a-file");
+            File.WriteAllText(file, "");
+            string lockPath = Path.Combine(file, ".hider", "instance.lock");
+            string? shown = null;
+
+            var result = await HiderProcess.RunAsync(file, null, async (_process, _ct) =>
+            {
+                nint box = await MessageBoxes.WaitForAsync(_process.Id, Strings.AppName, _ct);
+                shown = MessageBoxes.Text(box);
+                Assert.False(_process.HasExited); // waiting for the user
+                MessageBoxes.Close(box);
+            });
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Equal("", result.Output);
+            string prefix = $"hider: cannot open {lockPath}: ";
+            string line = Lines(result.Error).Single();
+            Assert.StartsWith(prefix, line);
+            string reason = line[prefix.Length..];
+            Assert.NotEqual("", reason);
+            Assert.Equal(Strings.StartupLockFailed(lockPath, reason), shown); // the same reason, in Japanese (FR-70)
+        }
+
+        [Fact(Skip = OsOnly.NoDisplay, SkipUnless = nameof(IsLinux))]
         public async Task NoDisplay_TheAppStartFails_NotWithASilentSuccess_AndReleasesTheLock()
         {
-            // Past the switches and the lock the resident app starts (X11): without a display that must fail visibly.
+            // Past the switches and the lock the resident app starts (X11): without a display that must fail visibly, at the
+            // X11 step. Avalonia throws from XOpenDisplay and nothing catches it: the runtime prints the unhandled exception
+            // and aborts (exit 134 = 128 + SIGABRT), which is neither 0 ("already running") nor 2 (the lock).
             using var home = new Home();
 
             var result = await HiderProcess.RunAsync(home.Path, null, "--verbose");
 
-            Assert.NotEqual(0, result.ExitCode);
-            Assert.NotEqual(2, result.ExitCode);
+            Assert.Equal(134, result.ExitCode);
             Assert.Equal("", result.Output);
-            Assert.NotEqual("", result.Error);
+            Assert.Contains("Unhandled exception. System.Exception: XOpenDisplay failed", result.Error);
+            Assert.Contains("at Hider.Program.Main", result.Error);
             Assert.True(File.Exists(home.LockPath));
             using var again = SingleInstance.TryAcquire(home.LockPath, out string? error);
             Assert.NotNull(again); // the guard went with the process
@@ -209,6 +247,31 @@ namespace Hider.App.Tests.App
             Assert.Equal("Skia", builder.RenderingSubsystemName);
             Assert.Equal("StandardRuntimePlatform", builder.RuntimePlatformServicesName);
             Assert.NotSame(builder, Program.BuildAvaloniaApp());
+        }
+
+        [Fact]
+        public void BuildAvaloniaApp_SetsTheX11WmClass_TheInstallersWriteAsStartupWMClass()
+        {
+            // The one Hider-specific option (D-1): the running window groups with the .desktop entry only while WM_CLASS and
+            // StartupWMClass agree. AppBuilder.With<T> keeps each option in a closure added to the private _optionsInitializers
+            // (checked on Avalonia 12.1.4) that binds it into the locator at setup; it is read from there instead of running
+            // the setup, which would change the locator of the headless application these tests share.
+            var builder = Program.BuildAvaloniaApp();
+            var initializers = (Action?)typeof(AppBuilder).GetField("_optionsInitializers", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(builder);
+            Assert.NotNull(initializers); // Avalonia renamed it: find where With<T> keeps its options now
+
+            var options = initializers!.GetInvocationList()
+                .Select(_d => _d.Target)
+                .SelectMany(_t => _t?.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Select(_f => _f.GetValue(_t)) ?? [])
+                .OfType<X11PlatformOptions>()
+                .ToArray();
+
+            string wmClass = Assert.Single(options).WmClass!;
+            Assert.Equal("Hider", wmClass);
+            string root = Hider.Core.Tests.Imaging.Golden.RepoRoot;
+            string Entry(string _path) => Assert.Single(Regex.Matches(File.ReadAllText(Path.Combine(root, _path)), @"StartupWMClass=(\w+)")).Groups[1].Value;
+            Assert.Equal(wmClass, Entry(Path.Combine("scripts", "install.py")));
+            Assert.Equal(wmClass, Entry(Path.Combine("scripts", "release", "install.sh.in")));
         }
     }
 }
