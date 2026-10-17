@@ -308,6 +308,46 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void Mosaic_AnotherMethod_IsDrawnAgain_AndBackAgain()
+        {
+            // The cache key holds the method id: a method with the same values (none set) is still another drawing.
+            var area = NewArea(PatternKind.Mosaic);
+            using var presenter = new MosaicPresenter { Model = area, Frames = WithFrame() };
+            using var pixelate = Draw(presenter);
+            Assert.Equal(1, presenter.MosaicRenderCount);
+            var other = Hider.Core.Mosaic.MethodRegistry.All.First(_m => _m.Kind == Hider.Core.Mosaic.MethodKind.Mosaic && _m.Id != area.Mosaic.Method);
+            area.Mosaic.Method = other.Id;
+            using var changed = Draw(presenter);
+            Assert.Equal(2, presenter.MosaicRenderCount);
+            Assert.NotEqual(0, Golden.MaxDiff(pixelate, changed));
+            Draw(presenter).Dispose();
+            Assert.Equal(2, presenter.MosaicRenderCount);
+            area.Mosaic.Method = AreaDefaults.MosaicMethod;
+            using var back = Draw(presenter);
+            Assert.Equal(3, presenter.MosaicRenderCount);
+            Assert.Equal(0, Golden.MaxDiff(pixelate, back));
+        }
+
+        [AvaloniaFact]
+        public void Generated_AnotherMethod_IsDrawnAgain_AndBackAgain()
+        {
+            var area = NewArea(PatternKind.Generated);
+            using var presenter = new MosaicPresenter { Model = area };
+            using var first = Draw(presenter);
+            Assert.Equal(1, presenter.GeneratedRenderCount);
+            string original = area.Generated.Method;
+            var other = Hider.Core.Mosaic.MethodRegistry.All.First(_m => _m.Kind == Hider.Core.Mosaic.MethodKind.Generated && _m.Id != original);
+            area.Generated.Method = other.Id;
+            using var changed = Draw(presenter);
+            Assert.Equal(2, presenter.GeneratedRenderCount);
+            Assert.NotEqual(0, Golden.MaxDiff(first, changed));
+            area.Generated.Method = original;
+            using var back = Draw(presenter);
+            Assert.Equal(3, presenter.GeneratedRenderCount);
+            Assert.Equal(0, Golden.MaxDiff(first, back));
+        }
+
+        [AvaloniaFact]
         public void Retire_Defaults_AreTheSharedListAndSkiasOwnTest()
         {
             using var presenter = new MosaicPresenter();
