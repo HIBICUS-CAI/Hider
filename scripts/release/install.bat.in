@@ -7,8 +7,9 @@ rem Downloads Hider-@HIDER_VERSION@-win-x64.zip from the release (or uses it whe
 rem SHA-256, copies it into the folder (default %LOCALAPPDATA%\Programs\Hider) overwriting existing files, and creates
 rem the desktop shortcut Hider.lnk (same result as scripts/install.py on a source checkout), then starts Hider unless
 rem HIDER_NO_LAUNCH is set. The PowerShell part below the marker line does the work; values go through environment
-rem variables to avoid quoting issues.
-setlocal
+rem variables to avoid quoting issues. Delayed expansion is off whatever the caller's setting (cmd /v:on, or the
+rem DelayedExpansion registry value): with it on, %~f0 and %~1 would lose every ! of the paths.
+setlocal EnableExtensions DisableDelayedExpansion
 set "HIDER_SCRIPT=%~f0"
 set "HIDER_DEST=%~1"
 powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$t = [IO.File]::ReadAllText($env:HIDER_SCRIPT); $m = '#' + '#POWERSHELL#' + '#'; Invoke-Expression $t.Substring($t.IndexOf($m) + $m.Length)"

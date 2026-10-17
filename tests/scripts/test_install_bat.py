@@ -9,7 +9,10 @@ installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. 
 
 cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
 more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
-`&`, `%` and `!` reach the script intact.
+`&`, `%`, `!`, `'`, `(1)` and `^` reach the script intact. The variants with delayed expansion on (`cmd.exe /v:on`, as
+the DelayedExpansion registry value also sets it) still pass the paths on intact, since cmd does not delay-expand the
+line of a plain batch file call; inside the script it would drop each `!` of %~f0 and %~1 unless the script turns it
+off.
 """
 
 from __future__ import annotations
@@ -43,10 +46,11 @@ VERSION = '9.8.7'
 NAME = f'Hider-{VERSION}-win-x64'
 ARCHIVE = f'{NAME}.zip'
 BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
-# Folder names as a Downloads folder or a user name may have them: spaces, cmd's `&` / `%` / `!` and non-ASCII letters.
-ODD_DOWNLOADS = 'Down loads & more % é!'
-ODD_DEST = 'a b & c % d ! ü'
-ODD_LOCAL_APP_DATA = 'Löcal & App % Data !'
+# Folder names as a Downloads folder or a user name may have them: spaces, cmd's `&` / `%` / `!` / `^`, a quote, the
+# `(1)` of a second download and non-ASCII letters.
+ODD_DOWNLOADS = "Down loads & more % é! (1) it's ^"
+ODD_DEST = "a b & c % d ! ü ' (1) ^"
+ODD_LOCAL_APP_DATA = "Löcal & App % Data ! (1) ^ '"
 # The end of cmd's pause prompt ("Press any key to continue . . . " on an English Windows; the same dots elsewhere).
 PAUSE_END = '. . . '
 
@@ -134,7 +138,12 @@ class InstallBatTest(unittest.TestCase):
         return path
 
     def run_bat(
-        self, *args: str, env: dict[str, str | None] | None = None, bat: Path | None = None, cwd: Path | None = None
+        self,
+        *args: str,
+        env: dict[str, str | None] | None = None,
+        bat: Path | None = None,
+        cwd: Path | None = None,
+        delayed_expansion: bool = False,
     ) -> Result:
         variables = dict(os.environ)
         variables.update(
@@ -153,8 +162,9 @@ class InstallBatTest(unittest.TestCase):
         # stdin from NUL: the pause after a failed double-click run returns at once. A string, not a list: cmd.exe's
         # quoting is not the C runtime's that subprocess would apply.
         command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
+        switches = '/v:on /s /c' if delayed_expansion else '/s /c'
         result = subprocess.run(
-            f'cmd.exe /s /c "{command}"',
+            f'cmd.exe {switches} "{command}"',
             env=variables,
             cwd=cwd or self.root,
             stdin=subprocess.DEVNULL,
@@ -342,6 +352,12 @@ class InstallBatTest(unittest.TestCase):
     # D4: the paths a user really double-clicks from
 
     def test_st21_odd_characters_in_the_paths(self) -> None:
+        self.check_odd_characters_in_the_paths(delayed_expansion=False)
+
+    def test_st21_odd_characters_in_the_paths_with_delayed_expansion(self) -> None:
+        self.check_odd_characters_in_the_paths(delayed_expansion=True)
+
+    def check_odd_characters_in_the_paths(self, delayed_expansion: bool) -> None:
         # The installer and the archive in such a folder, installed into another one: cmd passes both on (%~f0, %~1)
         # and PowerShell gets them through environment variables, unchanged.
         downloads = self.root / ODD_DOWNLOADS
@@ -349,7 +365,7 @@ class InstallBatTest(unittest.TestCase):
         shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
         bat = self.write_bat(downloads, self.digest)
         dest = self.root / ODD_DEST / 'Hider'
-        result = self.run_bat(str(dest), bat=bat)
+        result = self.run_bat(str(dest), bat=bat, delayed_expansion=delayed_expansion)
         self.assert_installed(dest, result)
         self.assert_lines(
             result.out,
@@ -363,9 +379,15 @@ class InstallBatTest(unittest.TestCase):
         self.assertTrue((downloads / ARCHIVE).is_file())
 
     def test_st21_odd_characters_in_the_default_folder(self) -> None:
+        self.check_odd_characters_in_the_default_folder(delayed_expansion=False)
+
+    def test_st21_odd_characters_in_the_default_folder_with_delayed_expansion(self) -> None:
+        self.check_odd_characters_in_the_default_folder(delayed_expansion=True)
+
+    def check_odd_characters_in_the_default_folder(self, delayed_expansion: bool) -> None:
         local_app_data = self.root / ODD_LOCAL_APP_DATA
         local_app_data.mkdir()
-        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)})
+        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)}, delayed_expansion=delayed_expansion)
         dest = local_app_data / 'Programs' / 'Hider'
         self.assert_installed(dest, result)
         self.assert_lines(
