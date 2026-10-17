@@ -144,10 +144,7 @@ namespace Hider.Areas
             {
                 chrome.Arrange(area, controller.ToolbarInside, AreaController.ToolbarGapDip);
             }
-            if (TransparentRows is not null)
-            {
-                ApplyClip();
-            }
+            ApplyClip();
             RefreshPattern();
         }
 
@@ -193,9 +190,10 @@ namespace Hider.Areas
         }
 
         /// <summary>
-        /// Clips <see cref="TransparentRows"/> away for the current layout. Also run by <see cref="ApplyLayout"/>: a mode change
-        /// during a strip moves the area inside the window and resizes it, and a clip made for the old layout would show part
-        /// of the area's surroundings or keep rows opaque (the controller retakes such a capture).
+        /// Clips <see cref="TransparentRows"/> away for the current layout, or removes the clip when there are none: the one
+        /// place that sets <see cref="Root"/>'s clip. Also run by <see cref="ApplyLayout"/>: a mode change during a strip moves
+        /// the area inside the window and resizes it, and a clip made for the old layout would show part of the area's
+        /// surroundings or keep rows opaque (the controller retakes such a capture).
         /// </summary>
         private void ApplyClip()
         {
@@ -225,7 +223,7 @@ namespace Hider.Areas
         public Task RestoreRowsAsync()
         {
             TransparentRows = null;
-            Root.Clip = null;
+            ApplyClip();
             return Task.CompletedTask;
         }
 
