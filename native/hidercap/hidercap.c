@@ -154,8 +154,10 @@ static void on_param_changed(void *_data, uint32_t _id, const struct spa_pod *_p
     }
     struct spa_video_info_raw format;
     spa_zero(format);
-    if (spa_format_video_raw_parse(_param, &format) < 0) {
-        return; /* keep the previous format whole rather than a half-parsed one */
+    /* Keep the previous format whole rather than a half-parsed one, or one without a frame size (every field of raw video
+     * is optional to the parser, so a size missing from the pod would read as 0 x 0). */
+    if (spa_format_video_raw_parse(_param, &format) < 0 || format.size.width == 0 || format.size.height == 0) {
+        return;
     }
     release_held(); /* its layout belongs to the old format */
     g.format = format;
