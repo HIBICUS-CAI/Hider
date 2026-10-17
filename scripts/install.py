@@ -109,8 +109,9 @@ def main() -> None:
     if not (src_dir / EXE_NAME).is_file():
         sys.exit(f'No build found in {src_dir}, run "python scripts/build.py {target}" first.')
 
+    # --dest '' is the default folder, as an empty argument is for install.bat and install.sh.
     if IS_WINDOWS:
-        if dest_arg is None:
+        if not dest_arg:
             local_app_data = os.environ.get('LOCALAPPDATA')
             if not local_app_data:
                 sys.exit('LOCALAPPDATA is not set: give the install folder with --dest.')

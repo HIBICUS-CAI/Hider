@@ -444,6 +444,20 @@ class MainTest(unittest.TestCase):
         _, _, windows = self.run_main('--dest', 'rel')
         windows.assert_called_once_with(src, Path.cwd() / 'rel')
 
+    def test_empty_dest_is_the_default(self) -> None:
+        # As install.bat "" and install.sh -d '' do (before, Windows took '' as the current directory).
+        src = self.build()
+        os.environ['XDG_DATA_HOME'] = str(self.root / 'xdg')
+        _, linux, _ = self.run_main('--dest', '')
+        linux.assert_called_once_with(src, self.root / 'xdg' / 'Hider', self.root / 'xdg')
+        self.windows()
+        src = self.build('win-x64', 'Hider.exe')
+        os.environ['LOCALAPPDATA'] = str(self.root / 'lad')
+        _, _, windows = self.run_main('-d', '')
+        windows.assert_called_once_with(src, self.root / 'lad' / 'Programs' / 'Hider')
+        del os.environ['LOCALAPPDATA']
+        self.assertEqual(self.exit_message('-d', ''), 'LOCALAPPDATA is not set: give the install folder with --dest.')
+
     def test_windows_needs_the_exe(self) -> None:
         self.windows()
         self.build('win-x64', 'Hider')
