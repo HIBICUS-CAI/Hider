@@ -249,6 +249,52 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
+        public async Task CoveringAreaEndingInsideAStrip_OnlyItsOwnRowsAreMadeTransparent()
+        {
+            // "b" ends at y = 40, inside the third strip [36, 44) of "a": its rows stop at its bottom (10), not at the
+            // strip's (14). The host is asked only for rows the area has (NFR-03: only the strip's rows of each area).
+            var log = new List<string>();
+            var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(200, 100));
+            var a = new StripArea("a", new PhysicalRect(10, 20, 100, 24), PatternKind.Mosaic);
+            var b = new StripArea("b", new PhysicalRect(10, 30, 50, 10), PatternKind.Mosaic);
+            using var coordinator = new StripCoordinator(grabber, new FakeStripHost(log), () => new[] { a, b }, new FakeTimeProvider());
+            var result = await coordinator.CaptureAsync(Request(a.Rect), TestContext.Current.CancellationToken);
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal(
+                "prepare, set a 0-8, grab, restore a, set a 8-16, set b 0-6, grab, restore a, restore b, set a 16-24, set b 6-10, grab, restore a, restore b",
+                string.Join(", ", log));
+            Assert.Equal((109, 43), CoordinateFrame.Decode(result.Frame!, 99, 23));
+        }
+
+        [Fact]
+        public async Task CoveringAreaStartingAboveTheRequest_RowsCountFromItsOwnTop()
+        {
+            // "c" starts 5 rows above "a" and ends inside its first strip: rows [5, 9) of c are the strip's [20, 24).
+            var log = new List<string>();
+            var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(200, 100));
+            var a = new StripArea("a", new PhysicalRect(10, 20, 100, 16), PatternKind.Mosaic);
+            var c = new StripArea("c", new PhysicalRect(50, 15, 80, 9), PatternKind.Mosaic);
+            using var coordinator = new StripCoordinator(grabber, new FakeStripHost(log), () => new[] { a, c }, new FakeTimeProvider());
+            var result = await coordinator.CaptureAsync(Request(a.Rect), TestContext.Current.CancellationToken);
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal("prepare, set a 0-8, set c 5-9, grab, restore a, restore c, set a 8-16, grab, restore a", string.Join(", ", log));
+        }
+
+        [Fact]
+        public async Task PrepareGetsTheVisibleRectAndTheCallersToken()
+        {
+            PhysicalRect seen = default;
+            CancellationToken seenToken = default;
+            using var cancel = new CancellationTokenSource();
+            var grabber = new ScriptedGrabber { Prepare = (_r, _c) => { (seen, seenToken) = (_r, _c); return Task.FromResult(false); } };
+            var area = new StripArea("a", new PhysicalRect(-20, 10, 60, 30), PatternKind.Mosaic);
+            using var coordinator = new StripCoordinator(grabber, new FakeStripHost(new List<string>()), () => new[] { area }, new FakeTimeProvider(),
+                () => new PhysicalRect(0, 0, 100, 100));
+            Assert.Equal(CaptureFailure.Unavailable, (await coordinator.CaptureAsync(Request(area.Rect), cancel.Token)).Failure);
+            Assert.Equal((new PhysicalRect(0, 10, 40, 30), cancel.Token), (seen, seenToken));
+        }
+
+        [Fact]
         public void CopyRows_EmptyBounds_TakenAsScaleOne()
         {
             var frame = CoordinateFrame.Create(50, 40);
