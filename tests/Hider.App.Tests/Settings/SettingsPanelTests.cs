@@ -250,13 +250,12 @@ namespace Hider.App.Tests.Settings
                 Type(Row(panel, "cellSize"), "30");
                 area.Model.Generated.ParamsFor("other")["x"] = 5; // values of any other method id stay
                 var methods = MethodRegistry.OfKind(MethodKind.Generated);
-                if (methods.Count > 1)
-                {
-                    panel.MethodBox!.SelectedIndex = 1;
-                    Assert.Equal(methods[1].Id, area.Model.Generated.Method);
-                    panel = area.Window.Settings!;
-                    panel.MethodBox!.SelectedIndex = 0;
-                }
+                Assert.True(methods.Count > 1, "the switch needs a second generated method"); // not passed by doing nothing
+                panel.MethodBox!.SelectedIndex = 1;
+                Assert.Equal(methods[1].Id, area.Model.Generated.Method);
+                panel = area.Window.Settings!;
+                panel.MethodBox!.SelectedIndex = 0;
+                Assert.Equal(methods[0].Id, area.Model.Generated.Method);
                 Assert.Equal(30, area.Model.Generated.Params["block"]["cellSize"]);
                 Assert.Equal(5, area.Model.Generated.Params["other"]["x"]);
                 Assert.Equal("30", Row(area.Window.Settings!, "cellSize").Input.Text);

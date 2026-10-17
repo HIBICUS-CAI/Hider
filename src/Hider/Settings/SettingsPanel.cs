@@ -336,7 +336,11 @@ namespace Hider.Settings
             return new TextBlock { Text = _text, FontSize = 12, FontWeight = FontWeight.Medium, Foreground = new SolidColorBrush(Color.Parse("#666666")), Height = 18 };
         }
 
-        private static double GetCommon(MosaicCommon _common, string _key)
+        /// <summary>
+        /// The value of a row of <see cref="CommonParams.Mosaic"/>. A key without a field throws, so a new common parameter
+        /// cannot quietly show 0 and drop its edits (the settings tests open every row).
+        /// </summary>
+        internal static double GetCommon(MosaicCommon _common, string _key)
         {
             return _key switch
             {
@@ -344,11 +348,12 @@ namespace Hider.Settings
                 CommonParams.Levels => _common.Levels,
                 CommonParams.IntervalMs => _common.IntervalMs,
                 CommonParams.StripPx => _common.StripPx,
-                _ => 0,
+                _ => throw new ArgumentOutOfRangeException(nameof(_key), _key, "not a common mosaic parameter"),
             };
         }
 
-        private static void SetCommon(MosaicCommon _common, string _key, double _value)
+        /// <summary>Stores a row's value of <see cref="CommonParams.Mosaic"/> (whole numbers rounded); an unknown key throws.</summary>
+        internal static void SetCommon(MosaicCommon _common, string _key, double _value)
         {
             switch (_key)
             {
@@ -356,6 +361,7 @@ namespace Hider.Settings
                 case CommonParams.Levels: _common.Levels = (int)Math.Round(_value); break;
                 case CommonParams.IntervalMs: _common.IntervalMs = (int)Math.Round(_value); break;
                 case CommonParams.StripPx: _common.StripPx = (int)Math.Round(_value); break;
+                default: throw new ArgumentOutOfRangeException(nameof(_key), _key, "not a common mosaic parameter");
             }
         }
     }
