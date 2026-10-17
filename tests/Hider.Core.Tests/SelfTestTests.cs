@@ -41,8 +41,8 @@ namespace Hider.Core.Tests
         [Fact]
         public void CT93_SelfTest_FailingCheck_ReportedWithItsError_ExitCodeOne()
         {
-            // A folder where the round trip's file goes: Save throws, the exception becomes the check's error and the
-            // remaining checks still run.
+            // A folder where the round trip's file goes: Save throws, its exception becomes the check's error (not one from
+            // cleaning up the file that was never written) and the remaining checks still run. The folder is left alone.
             Directory.CreateDirectory(TempPath);
             try
             {
@@ -52,6 +52,10 @@ namespace Hider.Core.Tests
                 Assert.Equal(1, code);
                 string[] lines = text.Split(Environment.NewLine);
                 Assert.StartsWith("[fail] json round trip: System.", lines[0], StringComparison.Ordinal);
+                // The error is the exception's full text: its stack starts in AreasFile.Save, called from the check.
+                Assert.Contains("Hider.Core.Persistence.AreasFile.Save(", text, StringComparison.Ordinal);
+                Assert.DoesNotContain("File.Delete", text, StringComparison.Ordinal);
+                Assert.True(Directory.Exists(TempPath));
                 Assert.Contains("[ok]   sksl compile", lines);
                 Assert.Equal("core checks failed (1)", text.TrimEnd().Split(Environment.NewLine)[^1]);
                 Assert.False(File.Exists(TempPath + ".tmp"));

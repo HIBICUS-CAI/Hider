@@ -64,7 +64,11 @@ namespace Hider.Core
             }
             finally
             {
-                File.Delete(path);
+                // Only the file Save wrote: deleting a folder in its place would throw and hide Save's own exception.
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
             }
         }
 
