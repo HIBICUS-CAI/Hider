@@ -90,6 +90,13 @@ jobs:
       - run: dotnet restore --locked-mode
       - run: dotnet build -c Release --no-restore -warnaserror
       - run: dotnet test tests/Hider.Core.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=core-${{ matrix.rid }}.trx" --results-directory TestResults
+      # The unit tests of scripts/ that check this machine's values (ST10, ST12) on arm64: python-lint runs all of them on
+      # x64, installer-windows these two on Windows. None may be skipped here.
+      - if: matrix.rid == 'linux-arm64'
+        shell: bash
+        run: |
+          python3 -m unittest -v tests.scripts.test_common.HostTargetTest.test_st10_this_machine_on_a_ci_runner tests.scripts.test_install.ModuleTest.test_st12_this_machine_on_a_ci_runner 2>&1 | tee "$RUNNER_TEMP/this-machine.log"
+          if grep -q skipped "$RUNNER_TEMP/this-machine.log"; then echo "::error::a test of this machine's values was skipped"; exit 1; fi
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -406,10 +413,10 @@ jobs:
         with:
           python-version: "3.12"
       # On Windows nothing of these may be skipped (proposal P-11).
-      - name: Windows-only unit tests of the installers
+      - name: Windows-only unit tests of the installers, and the tests of this machine's values (ST10, ST12)
         shell: bash
         run: |
-          python -m unittest -v tests.scripts.test_install_bat tests.scripts.test_install_windows 2>&1 | tee "$RUNNER_TEMP/windows-tests.log"
+          python -m unittest -v tests.scripts.test_install_bat tests.scripts.test_install_windows tests.scripts.test_common.HostTargetTest.test_st10_this_machine_on_a_ci_runner tests.scripts.test_install.ModuleTest.test_st12_this_machine_on_a_ci_runner 2>&1 | tee "$RUNNER_TEMP/windows-tests.log"
           if grep -q skipped "$RUNNER_TEMP/windows-tests.log"; then echo "::error::a Windows-only test was skipped"; exit 1; fi
       - name: Release packaging on dummy files
         shell: bash
