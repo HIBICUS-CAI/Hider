@@ -1,0 +1,122 @@
+"""scripts/common.py: paths, targets and the host target."""
+
+from __future__ import annotations
+
+import ast
+import os
+import sys
+import unittest
+from unittest import mock
+
+import common
+
+from . import SCRIPTS_DIR
+from .support import REPO_DIR
+
+
+class PathsTest(unittest.TestCase):
+    def test_root_dir_is_the_repository(self) -> None:
+        self.assertEqual(common.ROOT_DIR, REPO_DIR)
+        self.assertTrue((common.ROOT_DIR / 'Hider.slnx').is_file())
+        self.assertTrue(common.ROOT_DIR.is_absolute())
+
+    def test_project_file_is_the_app_project(self) -> None:
+        self.assertEqual(common.PROJECT_FILE, REPO_DIR / 'src' / 'Hider' / 'Hider.csproj')
+        self.assertTrue(common.PROJECT_FILE.is_file())
+
+    def test_native_helper_dir_has_the_makefile(self) -> None:
+        self.assertEqual(common.NATIVE_HELPER_DIR, REPO_DIR / 'native' / 'hidercap')
+        self.assertTrue((common.NATIVE_HELPER_DIR / 'Makefile').is_file())
+
+    def test_targets_are_the_three_supported_rids_in_order(self) -> None:
+        self.assertEqual(common.TARGETS, ['win-x64', 'linux-x64', 'linux-arm64'])
+
+    def test_publish_dir_is_under_bin_publish(self) -> None:
+        for target in common.TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(common.publish_dir(target), REPO_DIR / 'bin' / 'publish' / target)
+
+    def test_publish_dir_takes_any_name(self) -> None:
+        self.assertEqual(common.publish_dir('osx-arm64'), REPO_DIR / 'bin' / 'publish' / 'osx-arm64')
+
+
+HOST_CASES: tuple[tuple[str, str, str | None], ...] = (
+    ('Windows', 'AMD64', 'win-x64'),
+    ('Windows', 'amd64', 'win-x64'),
+    ('Windows', 'x86_64', 'win-x64'),
+    ('Linux', 'x86_64', 'linux-x64'),
+    ('Linux', 'X86_64', 'linux-x64'),
+    ('Linux', 'amd64', 'linux-x64'),
+    ('Linux', 'aarch64', 'linux-arm64'),
+    ('Linux', 'arm64', 'linux-arm64'),
+    ('Linux', 'ARM64', 'linux-arm64'),
+    # win-arm64 is a valid name but not a supported target.
+    ('Windows', 'ARM64', None),
+    ('Darwin', 'x86_64', None),
+    ('Darwin', 'arm64', None),
+    ('FreeBSD', 'amd64', None),
+    ('Linux', 'i686', None),
+    ('Linux', 'armv7l', None),
+    ('Linux', 'riscv64', None),
+    ('Windows', 'x86', None),
+    ('Linux', '', None),
+    ('', 'x86_64', None),
+)
+
+
+class HostTargetTest(unittest.TestCase):
+    def test_maps_system_and_machine(self) -> None:
+        for system, machine, expected in HOST_CASES:
+            with (
+                self.subTest(system=system, machine=machine),
+                mock.patch('platform.system', return_value=system),
+                mock.patch('platform.machine', return_value=machine),
+            ):
+                self.assertEqual(common.host_target(), expected)
+
+    def test_result_is_always_a_target_or_none(self) -> None:
+        for system, machine, _ in HOST_CASES:
+            with (
+                mock.patch('platform.system', return_value=system),
+                mock.patch('platform.machine', return_value=machine),
+            ):
+                target = common.host_target()
+            self.assertTrue(target is None or target in common.TARGETS)
+
+    def test_this_machine(self) -> None:
+        # The test runners are Linux x64 / arm64 or Windows x64.
+        self.assertIn(common.host_target(), common.TARGETS)
+
+
+class ScriptFilesTest(unittest.TestCase):
+    """The scripts run directly as well as with python (CLAUDE.md): shebang and executable bit."""
+
+    def test_entry_points_are_executable(self) -> None:
+        for name in ['build.py', 'install.py', 'make_icons.py', 'check_wayland_list.py', 'make_release.py']:
+            with self.subTest(name=name):
+                path = SCRIPTS_DIR / name
+                self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env python3\n'))
+                self.assertTrue(os.access(path, os.X_OK))
+
+    def test_common_is_a_module_only(self) -> None:
+        self.assertFalse((SCRIPTS_DIR / 'common.py').read_text(encoding='utf-8').startswith('#!'))
+
+    def test_standard_library_only(self) -> None:
+        allowed = set(sys.stdlib_module_names) | {'common', '__future__'}
+        for path in sorted(SCRIPTS_DIR.glob('*.py')):
+            with self.subTest(name=path.name):
+                tree = ast.parse(path.read_text(encoding='utf-8'))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        names = [alias.name for alias in node.names]
+                    elif isinstance(node, ast.ImportFrom) and node.module is not None:
+                        names = [node.module]
+                    else:
+                        continue
+                    for name in names:
+                        self.assertIn(name.split('.')[0], allowed, f'{path.name} imports {name}')
+
+    def test_parses_as_python_3_10(self) -> None:
+        for path in sorted(SCRIPTS_DIR.glob('*.py')):
+            with self.subTest(name=path.name):
+                ast.parse(path.read_text(encoding='utf-8'), feature_version=(3, 10))
