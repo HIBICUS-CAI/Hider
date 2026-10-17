@@ -37,13 +37,17 @@ namespace Hider.Core.Capture
 
         public static FrameBuffer Allocate(int _width, int _height)
         {
+            ArgumentOutOfRangeException.ThrowIfNegative(_width);
+            ArgumentOutOfRangeException.ThrowIfNegative(_height);
             return new FrameBuffer { Width = _width, Height = _height, Stride = checked(_width * 4), Bgra = new byte[checked(_width * _height * 4)] };
         }
 
         /// <summary>Makes sure the buffer can hold a frame of this size, reusing the memory when it is large enough.</summary>
         public void Resize(int _width, int _height)
         {
-            // Overflow throws before anything changes, instead of a negative size or stride (an empty frame has a stride too).
+            // A negative size or an overflow throws before anything changes (an empty frame has a stride too).
+            ArgumentOutOfRangeException.ThrowIfNegative(_width);
+            ArgumentOutOfRangeException.ThrowIfNegative(_height);
             int stride = checked(_width * 4);
             int needed = checked(stride * _height);
             if (Bgra.Length < needed)

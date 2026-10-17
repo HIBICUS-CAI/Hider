@@ -50,10 +50,21 @@ namespace Hider.Core.Tests.Capture
         [Theory]
         [InlineData(int.MaxValue, 1)]  // the stride overflows
         [InlineData(50000, 50000)]     // the size overflows
-        [InlineData(-1, 1)]            // a negative size
         public void CT100_Allocate_ImpossibleSize_Throws(int _w, int _h)
         {
             Assert.Throws<OverflowException>(() => FrameBuffer.Allocate(_w, _h));
+        }
+
+        [Theory]
+        [InlineData(-1, 1, "_width")]
+        [InlineData(1, -1, "_height")]
+        [InlineData(-1, -1, "_width")]
+        [InlineData(int.MinValue, 0, "_width")]
+        [InlineData(0, int.MinValue, "_height")]
+        public void CT100_Allocate_NegativeSize_Throws(int _w, int _h, string _param)
+        {
+            var e = Assert.Throws<ArgumentOutOfRangeException>(() => FrameBuffer.Allocate(_w, _h));
+            Assert.Equal(_param, e.ParamName);
         }
 
         [Fact]
@@ -105,6 +116,25 @@ namespace Hider.Core.Tests.Capture
             Assert.Throws<OverflowException>(() => frame.Resize(_w, _h));
             Assert.Equal((2, 2, 8, 16), (frame.Width, frame.Height, frame.Stride, frame.Bgra.Length));
             Assert.True(before.Equals(frame.Bgra));
+        }
+
+        [Theory]
+        [InlineData(-1, 1, "_width")]   // unchecked it would be a stride of -4 with "needed" below the length
+        [InlineData(1, -1, "_height")]
+        [InlineData(-1, -1, "_width")]  // the product is positive
+        [InlineData(-1, 0, "_width")]
+        [InlineData(0, -1, "_height")]
+        [InlineData(int.MinValue, 0, "_width")]
+        public void CT100_Resize_NegativeSize_ThrowsAndKeepsTheFrame(int _w, int _h, string _param)
+        {
+            var frame = FrameBuffer.Allocate(2, 2);
+            frame.Bgra.Span[5] = 9;
+            var before = frame.Bgra;
+            var e = Assert.Throws<ArgumentOutOfRangeException>(() => frame.Resize(_w, _h));
+            Assert.Equal(_param, e.ParamName);
+            Assert.Equal((2, 2, 8, 16), (frame.Width, frame.Height, frame.Stride, frame.Bgra.Length));
+            Assert.True(before.Equals(frame.Bgra));
+            Assert.Equal(9, frame.Bgra.Span[5]);
         }
 
         [Fact]
