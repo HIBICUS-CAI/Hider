@@ -87,6 +87,57 @@ namespace Hider.Core.Tests.Mosaic
             Assert.Same(otherSeed, cache.Get(noise, Values(noise, 1), new SKSizeI(31, 21)));
         }
 
+        private static ParamValues BlockValues(string _baseColor = "#68768A", double? _cellSize = null, double? _gap = null)
+        {
+            var settings = new MethodSettings<GeneratedCommon>();
+            settings.Common.Seed = 1234;
+            settings.Common.BaseColor = _baseColor;
+            if (_cellSize is { } cell)
+            {
+                settings.ParamsFor("block")["cellSize"] = cell;
+            }
+            if (_gap is { } gap)
+            {
+                settings.ParamsFor("block")["gap"] = gap;
+            }
+            return ParamValues.ForGenerated(block, settings);
+        }
+
+        [Fact]
+        public void Get_AnotherBaseColorOrMethodValue_DrawsAgain()
+        {
+            // Each of the values that change the picture is part of the key: the base color (common) and the method's own
+            // parameters. Equal values in a new ParamValues are a hit.
+            using var cache = new GeneratedCache();
+            var size = new SKSizeI(40, 30);
+            var first = cache.Get(block, BlockValues(), size);
+            Assert.Same(first, cache.Get(block, BlockValues(), size));
+            Assert.Equal(1, cache.RenderCount);
+
+            var red = cache.Get(block, BlockValues("#FF0000"), size);
+            Assert.Equal(2, cache.RenderCount);
+            Assert.True(IsDisposed(first));
+            using (var drawn = Render.ToBitmap(red))
+            using (var expected = Render.Generated("block", 40, 30, _baseColor: "#FF0000"))
+            {
+                Assert.Equal(0, Golden.MaxDiff(expected, drawn));
+            }
+
+            var cells = cache.Get(block, BlockValues("#FF0000", _cellSize: 7), size);
+            Assert.Equal(3, cache.RenderCount);
+            using (var drawn = Render.ToBitmap(cells))
+            using (var expected = Render.Generated("block", 40, 30, new() { ["cellSize"] = 7 }, _baseColor: "#FF0000"))
+            {
+                Assert.Equal(0, Golden.MaxDiff(expected, drawn));
+            }
+
+            cache.Get(block, BlockValues("#FF0000", _cellSize: 7, _gap: 3), size);
+            Assert.Equal(4, cache.RenderCount);
+            // Back to an earlier key: drawn again (one image is kept, not a history).
+            cache.Get(block, BlockValues(), size);
+            Assert.Equal(5, cache.RenderCount);
+        }
+
         [Theory]
         [InlineData(0, 0, 1, 1)]
         [InlineData(0, 7, 1, 7)]
