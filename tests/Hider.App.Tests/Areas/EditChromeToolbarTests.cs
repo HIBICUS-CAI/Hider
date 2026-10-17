@@ -42,9 +42,22 @@ namespace Hider.App.Tests.Areas
         public void Chrome_HandlesHaveTheirResizeCursors()
         {
             var chrome = new EditChrome();
-            foreach (var (control, _) in chrome.Handles)
+            var expected = new Dictionary<ResizeHandle, Avalonia.Input.StandardCursorType>
             {
-                Assert.NotNull(control.Cursor);
+                [ResizeHandle.TopLeft] = Avalonia.Input.StandardCursorType.TopLeftCorner,
+                [ResizeHandle.Top] = Avalonia.Input.StandardCursorType.TopSide,
+                [ResizeHandle.TopRight] = Avalonia.Input.StandardCursorType.TopRightCorner,
+                [ResizeHandle.Left] = Avalonia.Input.StandardCursorType.LeftSide,
+                [ResizeHandle.Right] = Avalonia.Input.StandardCursorType.RightSide,
+                [ResizeHandle.BottomLeft] = Avalonia.Input.StandardCursorType.BottomLeftCorner,
+                [ResizeHandle.Bottom] = Avalonia.Input.StandardCursorType.BottomSide,
+                [ResizeHandle.BottomRight] = Avalonia.Input.StandardCursorType.BottomRightCorner,
+            };
+            Assert.Equal(expected.Count, chrome.Handles.Count);
+            foreach (var (control, kind) in chrome.Handles)
+            {
+                // A standard cursor's name is its StandardCursorType (Avalonia 12.1.4 Cursor.ToString).
+                Assert.Equal(expected[kind].ToString(), Assert.IsType<Avalonia.Input.Cursor>(control.Cursor).ToString());
                 Assert.Contains("handle", control.Classes);
             }
         }
