@@ -169,7 +169,8 @@ namespace Hider.App.Tests.Platform.Windows
             var first = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 101 }, 0), CancellationToken.None);
             Assert.Equal(1, Count(capture, "outputs"));
             var second = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 202, 101 }, 0), CancellationToken.None);
-            Assert.Equal(1, Count(capture, "outputs")); // keyed by the requesting area's window (the first handle)
+            // Keyed by the requesting area's window (the first handle): 202 gets its own, and 101 is still listed as alive.
+            Assert.Equal(2, Count(capture, "outputs"));
             var third = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 101 }, 0), CancellationToken.None);
 
             Assert.Equal(1, Count(capture, "outputs")); // 202 (a deleted area) is forgotten
