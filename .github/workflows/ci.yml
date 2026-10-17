@@ -138,6 +138,29 @@ jobs:
       - run: python scripts/check_wayland_list.py
       - run: shellcheck -s sh scripts/release/install.sh.in
       - run: shellcheck scripts/xvfb-strip-smoke.sh
+      # PowerShell (pwsh comes with the runner image): windows-stress.ps1 and install.bat's PowerShell part (after its
+      # marker line) must parse, and PSScriptAnalyzer must find no error. They run only on Windows jobs otherwise.
+      - name: PowerShell syntax and analysis
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Scope CurrentUser -Force }
+          $bat = Get-Content -Raw scripts/release/install.bat.in
+          $marker = '##POWERSHELL##'
+          $part = Join-Path $env:RUNNER_TEMP 'install.bat.ps1'
+          Set-Content -Path $part -Value $bat.Substring($bat.IndexOf($marker) + $marker.Length).TrimStart("`r", "`n") -Encoding utf8NoBOM
+          $failed = $false
+          foreach ($file in @('scripts/windows-stress.ps1', $part)) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file).Path, [ref]$tokens, [ref]$errors) | Out-Null
+            foreach ($e in $errors) { Write-Host "::error::$file line $($e.Extent.StartLineNumber): $($e.Message)"; $failed = $true }
+            foreach ($d in @(Invoke-ScriptAnalyzer -Path $file -Severity Error)) {
+              Write-Host "::error::$file line $($d.Line): $($d.RuleName): $($d.Message)"
+              $failed = $true
+            }
+            Write-Host "$file checked"
+          }
+          if ($failed) { exit 1 }
       # Unit tests of scripts/ (tests/scripts, unittest; install.sh runs under dash, bash as sh and as bash, and busybox
       # sh with fake commands).
       - name: Unit tests of scripts (Python 3.12)

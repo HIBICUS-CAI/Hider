@@ -906,7 +906,7 @@ class SyntaxTest(unittest.TestCase):
         self.assertTrue(os.access(path, os.X_OK), 'xvfb-strip-smoke.sh is executable')
 
     def test_windows_stress_is_a_powershell_script(self) -> None:
-        # No PowerShell on the Linux runner: only its shape is checked here (CI's Windows job runs it).
+        # Only its shape here: CI's python-lint parses it (PowerShell's parser, PSScriptAnalyzer), publish runs it.
         text = (SCRIPTS_DIR / 'windows-stress.ps1').read_text(encoding='utf-8-sig')
         self.assertTrue(text.startswith('#Requires -Version 7\n'))
         self.assertEqual(text.count('{'), text.count('}'))
