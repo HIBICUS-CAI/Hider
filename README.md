@@ -28,6 +28,21 @@
 
 モザイクの中身は、Windows では一定間隔（既定 100 ms）で下の窓から取り直します。Linux では作成時・移動の確定時・↻ ボタン・更新間隔（既定 5 分）で撮り直します。下の内容を取得できない場合は自動で生成パターンに切り替わり、ツールバーに「取得できません」と出ます。
 
+## インストール
+
+インストーラを 1 つ実行するだけです。最新のリリースのビルド済みファイル（.NET ランタイム込み）をダウンロードし、SHA-256 を確かめてからインストールし、Hider を起動します。.NET SDK や Python、リポジトリのクローンは要りません。
+
+| OS | 操作 | インストール先 | 作るもの |
+|---|---|---|---|
+| Windows | [install.bat](https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.bat) をダウンロードしてダブルクリック | `%LOCALAPPDATA%\Programs\Hider` | デスクトップのショートカット |
+| Linux | 端末で `curl -fsSL https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.sh \| sh` | `~/.local/share/Hider` | `~/.local/share/applications/Hider.desktop`（アクティビティから検索・ドックに固定できる） |
+
+- 更新も同じ操作です（既存のファイルを上書きします）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください（起動中はインストーラが止まります）。
+- インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
+- インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
+- Windows では、ダウンロードや実行の時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「保存」「詳細情報」→「実行」で続けます。
+- アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除するだけです（設定は `~/.hider` に残ります）。
+
 ## ビルド
 
 必要なもの: .NET 10 SDK（global.json は 10.0.100 以上の 10.0 系を受け付けます。動作を確かめた版は 10.0.112 で、CI は 10.0 系の最新を使います。SDK が暗黙に加える Microsoft.NET.ILLink.Tasks の版は Directory.Build.targets で固定しているので、SDK を更新してもロックファイルは変わりません。アナライザーは AnalysisLevel=latest-recommended で SDK に合わせて規則を追い、新しい SDK で `dotnet format`、アナライザー、コードスタイルの結果が変わったときは、その時点でコードを直します）、Python 3.10 以上（標準ライブラリのみ。Windows は `python`、Linux は `python3` か `./scripts/build.py` のように直接実行）。Linux 版を Linux 上でビルドする場合は `build-essential` と `libpipewire-0.3-dev` も必要です（PipeWire ヘルパ libhidercap.so をビルドするため）。
@@ -44,19 +59,14 @@ Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに�
 
 アイコンを作り直す場合は `python scripts/make_icons.py`（生成物はリポジトリに含まれています）。
 
-## インストール
+### ビルドしたものをインストール
 
 ```sh
 python scripts/install.py            # 既定の場所へ
 python scripts/install.py -d <folder>
 ```
 
-| OS | 既定の場所 | 作るもの |
-|---|---|---|
-| Windows | `%LOCALAPPDATA%\Programs\Hider` | デスクトップのショートカット |
-| Linux | `~/.local/share/Hider` | `~/.local/share/applications/Hider.desktop`（アクティビティから検索・ドックに固定できる） |
-
-既存のファイルは上書きします。Hider を終了してから実行してください。アンインストールはこれらを削除するだけです（設定は `~/.hider` に残ります）。
+`bin/publish/<rid>/` を、リリースのインストーラと同じ場所に同じ形で入れます（上の「インストール」の表）。既存のファイルは上書きします。Hider を終了してから実行してください。
 
 ## 設定ファイル
 
@@ -89,7 +99,29 @@ dotnet test tests/Hider.App.Tests
 scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
 ```
 
-設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`（手動実行）を参照してください。
+設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`、リリースは `.github/workflows/release.yml` を参照してください。
+
+### CI と main の保護
+
+CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします（リポジトリの設定で、ワークフローからは設定できません）。
+
+- Settings → Rules → Rulesets で main（Default branch）に「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を追加する。main に入るコミットは `summary` が緑であることが必要になり、main への直接 push も、そのコミットが他のブランチで CI を通っていない限り拒否されます（直接 push を残したい場合は Bypass list に自分を入れる）。「Require a pull request before merging」は任意です（リリースは PR を作らないので、付けても付けなくても動きます）。
+
+### リリース
+
+オーナーの操作は、Actions タブの「Release」→「Run workflow」→「Run workflow」だけです（ブランチは main のまま。main 以外では失敗します）。あとは `.github/workflows/release.yml` が行います。リリースするのは main の HEAD で、main へは何も push しません。
+
+1. prepare: 版を決める。版の正はタグ（`v<MAJOR.MINOR.PATCH>`）です。
+   - タグがまだない（初回）: `Directory.Build.props` の `<Version>`（2.0.0）をそのまま使う。
+   - タグがある: 最新のタグを `bump` で上げる（既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）。このとき `Directory.Build.props` は見ません（`<Version>` はソースからビルドしたときの版で、更新は任意です）。
+   - main の HEAD に既にタグがある（リリース済み。誤って 2 回実行した場合など）は失敗します。
+2. ci: そのコミットで CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。publish は決めた版でビルドし（`build.py --version`）、`--version` の表示が一致することを確かめます。
+3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
+4. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
+5. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する（書き込み権限を持つのはこのジョブだけ）。
+6. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
+
+途中で失敗した場合は、その実行の「Re-run failed jobs」でやり直せます（タグは手順 5 まで付かないので、手順 1 からやり直しても同じ版になります）。
 
 ## ライセンス
 

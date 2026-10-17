@@ -16,7 +16,7 @@
 
 - ID は既存の最大番号 + 1（`git log --grep "pending: P-"` で一覧できる。P-1〜P-4 は archive/pr1-removed の docs/progress.md）。
 - ユーザーが承認・却下したら、その後のコミット本文に `resolved: <提案 ID>（承認 | 却下: 理由）` を書く（却下なら同じコミットで直す）。未決の提案 = pending にあって resolved にないもの（`git log --grep "resolved: P-"`）。
-- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）。
+- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）、P-9（リリースは release.yml。書き込み権限は release ジョブだけ）。
 
 ## 構成
 
@@ -25,7 +25,7 @@ src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mo
 src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
 native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
 tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
-scripts/           build.py / install.py / make_icons.py / check_wayland_list.py（標準ライブラリのみ、Python 3.10 以上）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
+scripts/           build.py / install.py / make_icons.py / check_wayland_list.py / make_release.py（標準ライブラリのみ、Python 3.10 以上）、release/（install.bat / install.sh / リリースノートの雛形）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
 tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
 ```
 
@@ -41,9 +41,10 @@ python scripts/build.py <rid>                 # bin/publish/<rid>/（Ubuntu で�
 bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
+python scripts/make_release.py version | bump <minor|patch|major> <版> | package <版> --repo <owner/repo> --out-dir <dir>   # リリース用（release.yml が呼ぶ。CI はダミーで通し確認）
 ```
 
-CI は `.github/workflows/ci.yml`（workflow_dispatch のみ）。`on: push` / `pull_request` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
+CI は `.github/workflows/ci.yml`（main への pull_request、workflow_dispatch、release.yml からの workflow_call。ジョブ `summary` が main の必須チェック）。リリースは `.github/workflows/release.yml`: 手動実行 1 回で main の HEAD を、最新のタグ `v<版>` を上げた版（タグがなければ Directory.Build.props の `<Version>`）でリリースする。CI（`build.py --version` で版を指定）・配布物・インストーラの確認・タグ・GitHub Release。main へは push しない（手順は README の「リリース」、提案 P-9 承認済み）。ci.yml への `on: push` / `schedule` の追加、`continue-on-error`、テストの skip / `--filter` による間引きは禁止。
 
 ## 作業ルール（指示書 §2 の要約）
 

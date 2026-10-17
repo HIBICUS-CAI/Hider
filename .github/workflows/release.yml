@@ -1,0 +1,214 @@
+name: Release
+
+# The owner's only step is Run workflow (Actions tab, on main); README "リリース", proposal P-9. Nothing is pushed to
+# main: the version comes from the tags, and the release is main's HEAD.
+# 1. prepare: the version. No tag v<MAJOR.MINOR.PATCH> yet (the first release): <Version> of Directory.Build.props as it
+#    is. Otherwise the latest such tag, increased by the input "bump" (minor by default: 2.x.0 -> 2.(x+1).0);
+#    Directory.Build.props is not read then. Fails when main's HEAD already has a tag (released already, e.g. Run
+#    workflow pressed twice: the runs queue in one concurrency group and the second would release the same commit).
+# 2. ci: CI on that commit (ci.yml), publishing with that version (build.py --version, a global property over
+#    Directory.Build.props).
+# 3. package: the release assets (scripts/make_release.py). 4. verify: the installers tried on each target.
+# 5. release: the tag v<version> on that commit and the GitHub Release (the only job with write access).
+# 6. smoke: the installers downloaded from the published release.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Part of the latest version to increase (minor: 2.x.0 -> 2.(x+1).0)"
+        type: choice
+        default: minor
+        options: [minor, patch, major]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.version.outputs.sha }}
+    steps:
+      - if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          echo "::error::Run the release workflow on main (the branch selector of Run workflow)."
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          # Credentials kept (the token is read-only here) so that git ls-remote below also works on a private repository.
+      - id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          sha="$(git rev-parse HEAD)"
+          tags="$(git ls-remote --tags origin 'refs/tags/v*')"
+          # Annotated tags are listed twice, the second time peeled (^{}) to their commit.
+          released="$(echo "$tags" | awk -v sha="$sha" '$1 == sha { sub("refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2 }' | head -n 1)"
+          [ -z "$released" ] || fail "main ($sha) is released already as $released"
+          latest="$(echo "$tags" | sed -n 's#.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+          if [ -z "$latest" ]; then
+            version="$(python3 scripts/make_release.py version)"
+            echo "No release yet: $version (Directory.Build.props)"
+          else
+            version="$(python3 scripts/make_release.py bump "$BUMP" "$latest")"
+            echo "v$latest -> v$version ($BUMP)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+      version: ${{ needs.prepare.outputs.version }}
+
+  package:
+    needs: [prepare, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # The publish outputs of the ci job (artifacts Hider-<rid>).
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Hider-*
+          path: artifacts
+      - env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: python scripts/make_release.py package "$VERSION" --repo "$GITHUB_REPOSITORY" --input-dir artifacts --out-dir release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Each target runs its installer with the archive next to it (no download: the release does not exist yet), then the
+  # installed binary.
+  verify:
+    needs: [prepare, package]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      # The installers start Hider after installing; not on the runner.
+      HIDER_NO_LAUNCH: 1
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmd.exe /c release\install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+      - if: runner.os == 'Linux'
+        run: |
+          sh release/install.sh -d installed
+          test -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/Hider.desktop"
+      - name: Installed binary
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          exe=installed/Hider
+          [[ "$RID" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest
+
+  # The tag v<version> on the released commit and the GitHub Release. A re-run after a failure here adds the assets to
+  # the release made already.
+  release:
+    needs: [prepare, package, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: v${{ needs.prepare.outputs.version }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release
+      - run: |
+          assets=(release/Hider-* release/install.bat release/install.sh release/SHA256SUMS.txt)
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "Hider $VERSION" \
+              --notes-file release/release-notes.md --generate-notes
+          fi
+
+  # The installers downloaded from the published release, downloading the archive as a user's would.
+  smoke:
+    needs: [prepare, release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}
+      HIDER_NO_LAUNCH: 1
+    steps:
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Assets of a release made a moment ago can take a few seconds to be served.
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat -MaximumRetryCount 5 -RetryIntervalSec 10
+          cmd.exe /c install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - if: runner.os == 'Linux'
+        run: |
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o install.sh "$URL/install.sh"
+          sh install.sh -d installed
+      - name: Installed binary
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          exe=installed/Hider
+          [[ "$RID" == win-* ]] && exe="$exe.exe"
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          [ "$v" = "Hider $VERSION" ]
+          "$exe" --selftest

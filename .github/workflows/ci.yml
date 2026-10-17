@@ -1,7 +1,21 @@
-name: CI (manual)
+name: CI
 
-# Manual only (GitHub Actions tab): never add push / pull_request / schedule triggers.
+# Pull requests to main (the required check before merging is the job "summary", which fails when any job failed), a
+# manual run from the Actions tab, and the release workflow (release.yml, on the merged commit). Never add push /
+# schedule triggers.
 on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit to check out (default: the commit of the event)"
+        type: string
+        default: ""
+      version:
+        description: "Version to publish (default: <Version> of Directory.Build.props)"
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       targets:
@@ -21,9 +35,11 @@ on:
 permissions:
   contents: read
 
+# github.workflow is the caller's name when release.yml calls this file, so a release does not wait for (or cancel) a pull
+# request's run. A new push to a pull request cancels its older run.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.workflow == 'CI' }}
 
 env:
   DOTNET_NOLOGO: 1
@@ -42,7 +58,8 @@ jobs:
       - id: set
         shell: bash
         env:
-          TARGETS: ${{ inputs.targets }}
+          # Empty on pull_request and workflow_call: every target.
+          TARGETS: ${{ inputs.targets || 'all' }}
         run: |
           all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
           t="$TARGETS"
@@ -63,6 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
@@ -87,6 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
@@ -103,16 +122,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install mypy pyright ruff
+      - run: python -m pip install mypy pyright ruff shellcheck-py
       - run: mypy
       - run: pyright
       - run: ruff check scripts
       - run: ruff format --check scripts
       - run: python scripts/check_wayland_list.py
+      - run: shellcheck -s sh scripts/release/install.sh.in
+      # The release packaging and the Linux installer on dummy publish outputs (release.yml does it on real ones).
+      - name: Release packaging on dummy files
+        run: |
+          d="$RUNNER_TEMP/dummy"
+          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid/Assets"; done
+          touch "$d/in/Hider-win-x64/Hider.exe"
+          for rid in linux-x64 linux-arm64; do printf '#!/bin/sh\necho "Hider 0.0.0"\n' > "$d/in/Hider-$rid/Hider"; done
+          python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
+          XDG_DATA_HOME="$d/data" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh"
+          [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
+          test -f "$d/data/applications/Hider.desktop"
+          (cd "$d/out" && sha256sum -c SHA256SUMS.txt)
       # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
       # building anything.
       - uses: actions/setup-python@v7
@@ -123,11 +156,15 @@ jobs:
           python --version
           python scripts/build.py --help > /dev/null
           python scripts/install.py --help > /dev/null
+          python scripts/make_release.py --help > /dev/null
+          [ "$(python scripts/make_release.py bump minor 2.0.0)" = 2.1.0 ]
+          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', '--version', '2.1.0']; import build; print(build.parse_args())"
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
           python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
 
   test-gui:
-    if: ${{ inputs.run_gui_tests }}
+    # Only a manual run can turn it off (the input is empty on pull_request and workflow_call).
+    if: ${{ format('{0}', inputs.run_gui_tests) != 'false' }}
     needs: plan
     strategy:
       fail-fast: false
@@ -138,6 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
@@ -176,6 +214,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
       # A compile check on each architecture (-Werror, hardening flags); publish builds the helper it ships itself.
@@ -192,7 +231,7 @@ jobs:
   publish:
     # After every check that ran (format and the scripts' lint included: publish runs build.py): a skipped GUI test or
     # native job (not chosen, no Linux target) does not hold it back.
-    if: ${{ inputs.publish && !cancelled() && !failure() }}
+    if: ${{ format('{0}', inputs.publish) != 'false' && !cancelled() && !failure() }}
     needs: [plan, test-core, test-gui, native, format, python-lint]
     strategy:
       fail-fast: false
@@ -203,6 +242,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
@@ -214,13 +254,21 @@ jobs:
           python-version: "3.12"
       - if: ${{ startsWith(matrix.rid, 'linux') }}
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
-      - run: python scripts/build.py ${{ matrix.rid }}
+      # release.yml passes the version it tags (taken from the tags, not from Directory.Build.props).
+      - shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python scripts/build.py ${{ matrix.rid }} ${VERSION:+--version "$VERSION"}
       - name: Self test on the trimmed binary
         shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           exe="bin/publish/${{ matrix.rid }}/Hider"
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
-          "$exe" --version
+          v="$("$exe" --version | tr -d '\r')"
+          echo "$v"
+          if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
       # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
       - if: ${{ startsWith(matrix.rid, 'win') }}
@@ -232,6 +280,8 @@ jobs:
           path: bin/publish/${{ matrix.rid }}/
           retention-days: 14
 
+  # The required status check of pull requests to main: red when any job failed or was cancelled (a job not chosen in a
+  # manual run is skipped, which passes).
   summary:
     if: always()
     needs: [plan, test-core, test-gui, native, publish, format, python-lint]
@@ -239,6 +289,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - shell: bash
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
           {
             echo "| job | result |"
@@ -250,3 +302,4 @@ jobs:
             echo "| format | ${{ needs.format.result }} |"
             echo "| python-lint | ${{ needs.python-lint.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAILED" = true ]; then echo "::error::a job failed or was cancelled"; exit 1; fi

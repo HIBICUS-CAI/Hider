@@ -297,7 +297,8 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | csproj | 既存（net10.0, self-contained, single-file, trimmed, InvariantGlobalization）を踏襲し、Hider.Core を ProjectReference |
 | バージョン固定 | Avalonia 12.1.4。SkiaSharp と Tmds.DBus.Protocol は Avalonia が参照する版に合わせる |
 | ネイティブヘルパ | native/hidercap: C、公開関数 4 つ（hidercap_start / grab_after / last_sequence / stop。提案 P-2）、-fvisibility=hidden。linux-x64 / linux-arm64 を scripts/build.py が make（gcc）で native/hidercap/out/<rid>/ に作り、Hider.csproj が実行ファイルと同じディレクトリに同梱（single-file の外。既定の探索で読み込まれる） |
-| CI | GitHub Actions（workflow_dispatch のみ）: windows-latest（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）は提案 P-8 で承認済み |
+| CI | GitHub Actions（main への pull_request で実行し、ジョブ summary を main の必須チェックにする。手動実行と release.yml からの呼び出しも可。ユーザー指示で作業指示書の「workflow_dispatch のみ」から変更）: windows-latest（win-x64）/ ubuntu-24.04（linux-x64）/ ubuntu-24.04-arm（linux-arm64。public リポジトリなら無料）。dotnet test は Core と App（headless）。ヘルパは Linux ランナーで libpipewire-0.3-dev を apt して実ビルド。作業指示書の GitHub Actions タブとの差（Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）は提案 P-8 で承認済み |
+| リリース | release.yml（提案 P-9、承認済み）: 手動実行 1 回で main の HEAD をリリースする。版の正はタグ: タグがなければ Directory.Build.props の `<Version>`、あれば最新のタグ v<版> を bump（既定は minor）した版。CI（ci.yml を workflow_call、`build.py --version` で版を指定）→ publish 出力を RID ごとのアーカイブ（win-x64 は zip、Linux は tar.gz）にし、そのリリースからアーカイブをダウンロードして SHA-256 を照合し install.py と同じ場所に入れて起動する install.bat / install.sh を生成（scripts/make_release.py）→ 各 RID のランナーでインストーラを試す → タグ v<版> と GitHub Release → 公開後のリリースからインストーラを試す。main へは push せず、書き込み権限は release ジョブだけ。build.py / install.py はソースからのビルド・インストール用に維持（FR-72） |
 | 24.04 ランナーで 26.04 向けに作る | glibc は後方互換なので可。PipeWire は 0.3 系 ABI（libpipewire-0.3.so.0）で互換 |
 | アイコン | Windows .ico（16/20/24/32/48/256）、Linux PNG + svg。生成スクリプトを scripts に追加 |
 
@@ -366,3 +367,6 @@ FR-35（手法を切り替えても他の設定値を保持）と手法追加を
 | 2026-10-12 | §5.3、§10 | v2.0 では実機を要するスパイクを実施しないことを注記した | 提案 P-3（承認） |
 | 2026-10-12 | §3.1、§6.4 | StripCoordinator の配置（Platform/Linux → Hider.Core の Capture）と、DIP ↔ 物理 px の変換箇所（AreaWindow → IAreaWindowHost の実装）を実装に合わせた | PR #1 の指摘 |
 | 2026-10-12 | §4.5 | 全画素評価の 1 画素あたりの時間を、実測（1080p 38〜215 ms）と合う「約 20〜100 ns」に直した（docs/spikes.md も同じ） | PR #1 の指摘 |
+| 2026-10-13 | §8 | リリース（release.yml、インストーラ install.bat / install.sh）を追加した | ユーザー指示、提案 P-9（承認） |
+| 2026-10-13 | §8 | CI を main への PR で実行し、summary を必須チェックにした | ユーザー指示 |
+| 2026-10-14 | §8 | リリースの版の正をタグにし、版を上げる PR を作らないようにした（workflow_dispatch で起動した CI は必須チェックとして評価されず、PR の自動マージができないため） | ユーザー指示（PR #2 のレビュー） |
