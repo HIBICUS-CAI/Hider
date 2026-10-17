@@ -56,12 +56,31 @@ namespace Hider.App.Tests.Platform
         /// Starts a solid-colour video source of <paramref name="_format"/> (BGRx, BGRA, RGBx, RGBA) and returns its node id.
         /// <paramref name="_argb"/> is videotestsrc's foreground-color (0xAARRGGBB).
         /// </summary>
-        public async Task<uint> AddSourceAsync(string _name, string _format, int _width, int _height, uint _argb, CancellationToken _ct)
+        public Task<uint> AddSourceAsync(string _name, string _format, int _width, int _height, uint _argb, CancellationToken _ct)
         {
-            var source = Run("gst-launch-1.0", "-q", "videotestsrc", "is-live=true", "pattern=solid-color",
-                "foreground-color=" + _argb.ToString(CultureInfo.InvariantCulture), "!",
-                $"video/x-raw,format={_format},width={_width},height={_height},framerate=30/1", "!",
-                "pipewiresink", "mode=provide", $"stream-properties=p,media.class=Video/Source,node.name={_name}");
+            return AddSourceAsync(_name, _format, _width, _height, _ct, "pattern=solid-color",
+                "foreground-color=" + _argb.ToString(CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>
+        /// Starts a source of videotestsrc's checkers-8 (8 x 8 px cells of two colours, cell (0, 0) at the top left) and
+        /// returns its node id.
+        /// </summary>
+        public Task<uint> AddCheckersSourceAsync(string _name, string _format, int _width, int _height, CancellationToken _ct)
+        {
+            return AddSourceAsync(_name, _format, _width, _height, _ct, "pattern=checkers-8");
+        }
+
+        private async Task<uint> AddSourceAsync(string _name, string _format, int _width, int _height, CancellationToken _ct, params string[] _pattern)
+        {
+            var args = new List<string> { "-q", "videotestsrc", "is-live=true" };
+            args.AddRange(_pattern);
+            args.AddRange(new[]
+            {
+                "!", $"video/x-raw,format={_format},width={_width},height={_height},framerate=30/1", "!",
+                "pipewiresink", "mode=provide", $"stream-properties=p,media.class=Video/Source,node.name={_name}",
+            });
+            var source = Run("gst-launch-1.0", args.ToArray());
             sources.Add(source);
             processes.Add(source);
             uint? node = null;

@@ -7,8 +7,8 @@ using Hider.Platform.Linux;
 
 namespace Hider.App.Tests.Platform
 {
-    // libhidercap.so against real frames: a private PipeWire and WirePlumber, a GStreamer solid-colour source as the
-    // monitor stream, the connection as OpenPipeWireRemote would hand it out. The last test runs stage 2 as the app does:
+    // libhidercap.so against real frames: a private PipeWire and WirePlumber, a GStreamer solid-colour (or checkerboard)
+    // source as the monitor stream, the connection as OpenPipeWireRemote would hand it out. The last test runs stage 2 as the app does:
     // PipeWireGrabber, ScreenCastPortal (a fake portal on a private bus) and the real helper.
     [Collection(nameof(HidercapGroup))]
     [SupportedOSPlatform("linux")]
@@ -117,6 +117,103 @@ namespace Hider.App.Tests.Platform
             // GStreamer's PTS is its running time, not CLOCK_MONOTONIC: the receive time is used.
             Assert.Equal(0, frame.PtsFromMeta);
             Assert.InRange(frame.PtsNs, NowNs() - 20_000_000_000L, NowNs());
+        }
+
+        // checkers-8 on a frame whose sides are not multiples of the cell (the last cells are cut): any row or column taken
+        // from the wrong place (a flip, a row offset, a wrong stride) breaks the cells or their alignment to (0, 0).
+        private const int CheckersWidth = 60;
+        private const int CheckersHeight = 44;
+        private const int Cell = 8;
+
+        /// <summary>The pixel at (x, y) of a whole-frame BGRA buffer of the checkers source, as 0xAARRGGBB.</summary>
+        private static uint CheckersPixel(byte[] _buffer, int _x, int _y)
+        {
+            return BitConverter.ToUInt32(_buffer, (_y * CheckersWidth + _x) * 4);
+        }
+
+        /// <summary>
+        /// Checks the checkerboard by its structure, whatever its two colours: rows [row0, row1) hold exactly two opaque
+        /// colours, a pixel has its left (upper) neighbour's colour inside a cell and the other colour across a cell border
+        /// (borders at multiples of 8 from the top left), and the rows outside [row0, row1) still hold the fill.
+        /// </summary>
+        private static void AssertCheckers(byte[] _buffer, int _row0, int _row1, byte _fill)
+        {
+            var colours = new HashSet<uint>();
+            uint fill = _fill * 0x01010101u;
+            for (int y = 0; y < CheckersHeight; y++)
+            {
+                for (int x = 0; x < CheckersWidth; x++)
+                {
+                    uint px = CheckersPixel(_buffer, x, y);
+                    if (y < _row0 || y >= _row1)
+                    {
+                        Assert.True(px == fill, $"pixel ({x}, {y}) outside rows [{_row0}, {_row1}) was written");
+                        continue;
+                    }
+                    colours.Add(px);
+                    Assert.True(px >> 24 == 0xFF, $"pixel ({x}, {y}) is {px:X8}, not opaque");
+                    if (x > 0)
+                    {
+                        uint left = CheckersPixel(_buffer, x - 1, y);
+                        Assert.True(x % Cell == 0 ? px != left : px == left, $"pixel ({x}, {y}) {px:X8} against its left neighbour {left:X8}");
+                    }
+                    if (y > _row0)
+                    {
+                        uint up = CheckersPixel(_buffer, x, y - 1);
+                        Assert.True(y % Cell == 0 ? px != up : px == up, $"pixel ({x}, {y}) {px:X8} against its upper neighbour {up:X8}");
+                    }
+                }
+            }
+            if (_row1 > _row0)
+            {
+                Assert.Equal(2, colours.Count);
+            }
+        }
+
+        private async Task StartCheckersAsync(string _format)
+        {
+            uint node = await pw!.AddCheckersSourceAsync("hider-test-checkers-" + _format, _format, CheckersWidth, CheckersHeight, Ct);
+            Connect(node);
+        }
+
+        /// <summary>A frame newer than now, once the stream runs, as <see cref="Fresh"/> for the checkers source.</summary>
+        private (int Code, HidercapFrame Frame) FreshCheckers(byte[] _buffer, int _row0, int _row1)
+        {
+            Assert.Equal(Hidercap.Ok, helper.GrabAfter(0, 20000, 0, int.MaxValue, new byte[_buffer.Length], out _));
+            int code = helper.GrabAfter(NowNs(), 20000, _row0, _row1, _buffer, out var frame);
+            return (code, frame);
+        }
+
+        [PipeWireTheory]
+        [InlineData("BGRx")]
+        [InlineData("BGRA")]
+        [InlineData("RGBx")]
+        [InlineData("RGBA")]
+        public async Task Grab_Checkers_EveryFormat_CopiesTheRowsInPlace(string _format)
+        {
+            // The solid-colour tests show the channel order; this shows that each row comes from its own place.
+            await StartCheckersAsync(_format);
+            var buffer = new byte[CheckersWidth * CheckersHeight * 4];
+            var (code, frame) = FreshCheckers(buffer, 0, int.MaxValue);
+            Assert.Equal(Hidercap.Ok, code);
+            Assert.Equal((CheckersWidth, CheckersHeight, CheckersWidth * 4), (frame.Width, frame.Height, frame.Stride));
+            AssertCheckers(buffer, 0, CheckersHeight, 0);
+        }
+
+        [PipeWireFact]
+        public async Task Grab_Checkers_PartOfTheRows_KeepsTheCellBorder()
+        {
+            // Rows [10, 20) cross the cell border at y = 16: rows 10-15 alike, 16 the other colour, 16-19 alike; the rest of
+            // the buffer untouched. The same rows of a whole frame match.
+            await StartCheckersAsync("BGRx");
+            var part = new byte[CheckersWidth * CheckersHeight * 4];
+            Array.Fill(part, (byte)0x11);
+            Assert.Equal(Hidercap.Ok, FreshCheckers(part, 10, 20).Code);
+            AssertCheckers(part, 10, 20, 0x11);
+            var whole = new byte[part.Length];
+            Assert.Equal(Hidercap.Ok, FreshCheckers(whole, 0, int.MaxValue).Code);
+            int from = 10 * CheckersWidth * 4, to = 20 * CheckersWidth * 4;
+            Assert.True(part.AsSpan(from, to - from).SequenceEqual(whole.AsSpan(from, to - from)), "rows 10-19 differ from the whole frame's");
         }
 
         [PipeWireFact]
