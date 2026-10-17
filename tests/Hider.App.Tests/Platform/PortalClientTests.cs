@@ -346,15 +346,15 @@ namespace Hider.App.Tests.Platform
         public async Task RequestAsync_MalformedResponse_FailsAtOnce_AndTheConnectionStays()
         {
             // A Response whose body is not ua{sv}: the request fails with the reader's error instead of waiting for the
-            // timeout (two minutes in the app, with a strip transparent meanwhile).
+            // timeout (two minutes in the app, with a strip transparent meanwhile). The wait here is short enough that a
+            // regression fails this test (TimeoutException) instead of stalling the run; the exception type tells "at once"
+            // from "timed out".
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Malformed();
-            using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromMinutes(5) };
+            using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromSeconds(5) };
             var bus = (await client.ConnectAsync(Ct))!;
             var e = await Record.ExceptionAsync(() => Request(client, bus));
-            Assert.NotNull(e);
-            Assert.IsNotType<TimeoutException>(e);
-            Assert.IsNotType<OperationCanceledException>(e, false);
+            Assert.IsType<DBusReadException>(e);
             Assert.Empty(env.Portal.Closed);
             // The connection was kept: the next request works on it.
             env.Portal.OnRequest = _ => FakeDesktopPortal.Answer.Ok();
@@ -370,15 +370,14 @@ namespace Hider.App.Tests.Platform
                 var replied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
                 env.Portal.Replied = _ => replied.TrySetResult();
-                using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromMinutes(5) };
+                using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromSeconds(5) };
                 var bus = (await client.ConnectAsync(Ct))!;
                 var request = Request(client, bus);
                 await replied.Task.WaitAsync(Ct);
                 env.Bus.Dispose(); // the session bus dies while the dialog is open
+                // The connection reports its end (not a timeout after the short wait above).
                 var e = await Record.ExceptionAsync(() => request);
-                Assert.NotNull(e);
-                Assert.IsNotType<TimeoutException>(e);
-                Assert.IsNotType<OperationCanceledException>(e, false);
+                Assert.IsType<DBusConnectionClosedException>(e);
             }
             finally
             {
@@ -394,14 +393,13 @@ namespace Hider.App.Tests.Platform
             var replied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
             env.Portal.Replied = _ => replied.TrySetResult();
-            using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromMinutes(5) };
+            using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromSeconds(5) };
             var bus = (await client.ConnectAsync(Ct))!;
             var request = Request(client, bus);
             await replied.Task.WaitAsync(Ct);
             client.Reset();
             var e = await Record.ExceptionAsync(() => request);
-            Assert.NotNull(e);
-            Assert.IsNotType<TimeoutException>(e);
+            Assert.IsType<DBusConnectionClosedException>(e);
         }
 
         [DbusFact]
