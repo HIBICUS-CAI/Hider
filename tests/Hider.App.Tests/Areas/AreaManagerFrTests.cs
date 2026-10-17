@@ -1,11 +1,16 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Hider.Areas;
 using Hider.Core.Model;
 using Hider.Core.Persistence;
 
 namespace Hider.App.Tests.Areas
 {
-    /// <summary>FR-10 (any number of areas) and FR-12 (the area worked on last is in front) on real area windows.</summary>
+    /// <summary>
+    /// FR-10 (any number of areas), FR-11 (areas stay topmost) and FR-12 (the area worked on last is in front) on real area
+    /// windows.
+    /// </summary>
     public class AreaManagerFrTests
     {
         [AvaloniaFact]
@@ -56,33 +61,84 @@ namespace Hider.App.Tests.Areas
             var b = f.Add(new PhysicalRect(200, 150, 300, 200));
             a.ExitEdit();
             b.ExitEdit();
+            // The activations of the two f.Add calls are delivered before anything is recorded.
+            Dispatcher.UIThread.RunJobs();
 
-            // Headless windows do not deactivate each other, so the order of activations is what is recorded.
             var order = new List<string>();
             a.Window.Activated += (_, _) => order.Add("a");
             b.Window.Activated += (_, _) => order.Add("b");
 
+            // Headless windows do not deactivate each other: both are deactivated the way the platform would before each
+            // step, so IsActive says which window the step activated.
+            Deactivate(a, b);
             a.EnterEdit();
             Dispatcher.UIThread.RunJobs();
             Assert.True(a.Window.IsActive);
+            Assert.False(b.Window.IsActive);
+            Deactivate(a, b);
             b.EnterEdit();
             Dispatcher.UIThread.RunJobs();
             Assert.True(b.Window.IsActive);
+            Assert.False(a.Window.IsActive);
             a.ExitEdit();
+            Deactivate(a, b);
             a.EnterEdit();
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal("a,b,a", string.Join(',', order.TakeLast(3)));
+            Assert.True(a.Window.IsActive);
+            Assert.False(b.Window.IsActive);
+            Assert.Equal("a,b,a", string.Join(',', order));
+        }
+
+        /// <summary>Runs the platform's deactivation for each active area window (WindowBase.HandleDeactivated, Avalonia 12.1.4).</summary>
+        private static void Deactivate(params AreaController[] _areas)
+        {
+            var deactivated = typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.True(deactivated is not null, "WindowBase.HandleDeactivated was renamed or removed (checked with Avalonia 12.1.4): find the platform's deactivation callback again");
+            foreach (var area in _areas)
+            {
+                if (area.Window.IsActive)
+                {
+                    deactivated.Invoke(area.Window, null);
+                }
+            }
+            Dispatcher.UIThread.RunJobs();
+            Assert.All(_areas, _a => Assert.False(_a.Window.IsActive));
         }
 
         [AvaloniaFact]
-        public void GT132_EveryAreaWindowIsTopmost()
+        public void GT14_EveryAreaWindowIsTopmost_InEveryMode()
         {
-            // FR-12 is among Hider's own windows: all of them stay above other applications' windows.
+            // FR-11: area windows stay above other applications' windows whatever the mode: editing, hidden, after a round
+            // trip through editing, and restored (hidden) at start.
+            string saved;
+            using (var first = new AreaHarness())
+            {
+                var a = first.Add(new PhysicalRect(100, 100, 300, 200));
+                var b = first.Add(new PhysicalRect(200, 150, 300, 200));
+                Assert.True(a.Window.Topmost);
+                Assert.True(b.Window.Topmost);
+                a.ExitEdit();
+                b.ExitEdit();
+                Assert.Equal(AreaMode.Hidden, a.Mode);
+                Assert.True(a.Window.Topmost);
+                Assert.True(b.Window.Topmost);
+                a.EnterEdit();
+                Assert.True(a.Window.Topmost);
+                a.ExitEdit();
+                Assert.True(a.Window.Topmost);
+                first.Manager.SaveNow();
+                saved = File.ReadAllText(first.AreasPath);
+            }
+
             using var f = new AreaHarness();
-            var a = f.Add(new PhysicalRect(100, 100, 300, 200));
-            var b = f.Add(new PhysicalRect(200, 150, 300, 200));
-            Assert.True(a.Window.Topmost);
-            Assert.True(b.Window.Topmost);
+            File.WriteAllText(f.AreasPath, saved);
+            Assert.Equal(LoadStatus.Loaded, f.Manager.Restore());
+            Assert.Equal(2, f.Manager.Areas.Count);
+            Assert.All(f.Manager.Areas, _a =>
+            {
+                Assert.Equal(AreaMode.Hidden, _a.Mode);
+                Assert.True(_a.Window.Topmost);
+            });
         }
     }
 }
