@@ -32,7 +32,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Identity()
+        public void CT114_Identity()
         {
             Assert.Equal("block", method.Id);
             Assert.Equal("method.block", method.LabelKey);
@@ -44,7 +44,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Params_CellSizeVarianceGap()
+        public void CT114_Params_CellSizeVarianceGap()
         {
             Assert.Equal(new[]
             {
@@ -56,7 +56,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void IsPassThrough_NeverForAGeneratedMethod()
+        public void CT115_IsPassThrough_NeverForAGeneratedMethod()
         {
             Assert.False(method.IsPassThrough(Values()));
         }
@@ -72,7 +72,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(-4.0, 2)]
         [InlineData(300.0, 256)] // clamped to Max
         [InlineData(double.NaN, 12)]
-        public void CellSize_WholePixelsInTheRange(double? _cell, int _expected)
+        public void CT116_CellSize_WholePixelsInTheRange(double? _cell, int _expected)
         {
             Assert.Equal(_expected, method.CellSize(Values(_cell)));
         }
@@ -81,7 +81,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(7.6, 8)]
         [InlineData(8.5, 8)]
         [InlineData(1.0, 2)]
-        public void Shader_UsesTheRoundedCellSize(double _cell, double _rounded)
+        public void CT116_Shader_UsesTheRoundedCellSize(double _cell, double _rounded)
         {
             using var fractional = Render.Generated("block", 50, 30, new() { ["cellSize"] = _cell, ["variance"] = 1.0 });
             using var whole = Render.Generated("block", 50, 30, new() { ["cellSize"] = _rounded, ["variance"] = 1.0 });
@@ -94,7 +94,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(3.5, 4)]
         [InlineData(100.0, 64)]
         [InlineData(-1.0, 0)]
-        public void Shader_UsesTheRoundedGap(double _gap, double _rounded)
+        public void CT116_Shader_UsesTheRoundedGap(double _gap, double _rounded)
         {
             using var fractional = Render.Generated("block", 50, 30, new() { ["gap"] = _gap, ["variance"] = 1.0 });
             using var whole = Render.Generated("block", 50, 30, new() { ["gap"] = _rounded, ["variance"] = 1.0 });
@@ -102,7 +102,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void DrawJoints_GapZero_DrawsNothing()
+        public void CT53_DrawJoints_GapZero_DrawsNothing()
         {
             using var bitmap = Render.Draw(30, 30, _c => method.DrawJoints(_c, new SKSizeI(30, 30), 6, Values(_gap: 0)));
             Assert.All(Pixels(bitmap), _p => Assert.Equal(0, _p.Alpha));
@@ -111,7 +111,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void DrawJoints_RightAndBottomOfEachCell_InTheBaseColor()
+        public void CT53_DrawJoints_RightAndBottomOfEachCell_InTheBaseColor()
         {
             // Cell 5, gap 2, area 13 x 11: joint columns 3-4 and 8-9 (cell 3 is cut off before its joint), rows 3-4 and 8-9.
             var color = new SKColor(0x20, 0x40, 0x60);
@@ -127,7 +127,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void DrawJoints_LastJointReachingIntoTheArea_IsDrawn()
+        public void CT53_DrawJoints_LastJointReachingIntoTheArea_IsDrawn()
         {
             // Cell 5, gap 2, width 12: the third column's joint starts at 13 (not drawn), the second at 8; width 9 cuts the
             // second joint after one column, which is still drawn.
@@ -138,7 +138,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void DrawJoints_GapLargerThanTheCell_FillsEverything()
+        public void CT53_DrawJoints_GapLargerThanTheCell_FillsEverything()
         {
             var color = SKColor.Parse("#68768A");
             using var bitmap = Render.Draw(20, 14, _c => method.DrawJoints(_c, new SKSizeI(20, 14), 4, Values(_gap: 9)));
@@ -148,7 +148,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData(1.4, 1)]
         [InlineData(1.6, 2)]
-        public void DrawJoints_FractionalGap_Rounded(double _gap, int _width)
+        public void CT116_DrawJoints_FractionalGap_Rounded(double _gap, int _width)
         {
             using var bitmap = Render.Draw(10, 1, _c => method.DrawJoints(_c, new SKSizeI(10, 1), 5, Values(_gap: _gap)));
             int joints = Enumerable.Range(0, 5).Count(_x => bitmap.GetPixel(_x, 0).Alpha == 255);
@@ -156,7 +156,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Cells_BaseColorShiftedByTheHash()
+        public void CT54_Cells_BaseColorShiftedByTheHash()
         {
             // Every cell is base + variance · (hash(cell) - 0.5) on all three channels (half precision: within 1).
             var p = Values(_cell: 6, _variance: 0.8, _gap: 0, _color: "#806040", _seed: 77);
@@ -182,7 +182,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData("#FFFFFF")]
         [InlineData("#000000")]
-        public void Cells_ClampedAtTheEndsOfTheRange(string _color)
+        public void CT54_Cells_ClampedAtTheEndsOfTheRange(string _color)
         {
             using var bitmap = Render.Generated("block", 60, 60, new() { ["cellSize"] = 4, ["variance"] = 1.0 }, 5, _color);
             var colors = Pixels(bitmap).Distinct().ToList();
@@ -194,7 +194,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void LargestCellAndGap_OneCellOrAllJoint()
+        public void CT53_LargestCellAndGap_OneCellOrAllJoint()
         {
             using var oneCell = Render.Generated("block", 100, 60, new() { ["cellSize"] = 256, ["variance"] = 1.0 });
             Assert.Single(Pixels(oneCell).Distinct());

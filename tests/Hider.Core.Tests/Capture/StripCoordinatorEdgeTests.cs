@@ -35,7 +35,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Traits_NeedStripCooperation()
+        public void CT81_Traits_NeedStripCooperation()
         {
             using var coordinator = new StripCoordinator(new FakeScreenGrabber(new List<string>(), null), new FakeStripHost(new List<string>()), Array.Empty<StripArea>);
             Assert.Equal(CaptureTraits.NeedsStripCooperation, coordinator.Traits);
@@ -45,7 +45,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(0, 10)]
         [InlineData(10, 0)]
         [InlineData(-5, 10)]
-        public async Task EmptyRect_UnavailableWithoutAskingAnything(int _w, int _h)
+        public async Task CT85_EmptyRect_UnavailableWithoutAskingAnything(int _w, int _h)
         {
             var log = new List<string>();
             int areaCalls = 0;
@@ -61,7 +61,7 @@ namespace Hider.Core.Tests.Capture
         [Theory]
         [InlineData(0, 8)]
         [InlineData(-3, 8)]
-        public void Strips_NoRows_NoStrips(int _height, int _strip)
+        public void CT79_Strips_NoRows_NoStrips(int _height, int _strip)
         {
             Assert.Empty(StripCoordinator.Strips(_height, _strip));
         }
@@ -73,13 +73,13 @@ namespace Hider.Core.Tests.Capture
         [InlineData(3, 1, new[] { 0, 1, 1, 2, 2, 3 })]
         [InlineData(20, -1, new[] { 0, 20 })]            // negative: the whole area, like 0
         [InlineData(1, 0, new[] { 0, 1 })]
-        public void Strips_Rows(int _height, int _strip, int[] _edges)
+        public void CT79_Strips_Rows(int _height, int _strip, int[] _edges)
         {
             Assert.Equal(_edges, StripCoordinator.Strips(_height, _strip).SelectMany(_s => new[] { _s.Y0, _s.Y1 }));
         }
 
         [Fact]
-        public async Task WithoutClock_TheSystemClockGivesTheTimestamps()
+        public async Task CT82_WithoutClock_TheSystemClockGivesTheTimestamps()
         {
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
@@ -93,7 +93,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task EmptyScreen_MeansUnknown_TheWholeRectIsCaptured()
+        public async Task CT88_EmptyScreen_MeansUnknown_TheWholeRectIsCaptured()
         {
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(200, 100));
@@ -106,7 +106,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task AreaPastTheTopLeftOfTheScreens_VisiblePartPlacedAtItsOffset()
+        public async Task CT88_AreaPastTheTopLeftOfTheScreens_VisiblePartPlacedAtItsOffset()
         {
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
@@ -127,7 +127,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task StripTallerThanTheArea_OneGrab()
+        public async Task CT79_StripTallerThanTheArea_OneGrab()
         {
             var log = new List<string>();
             var grabber = new FakeScreenGrabber(log, CoordinateFrame.Create(100, 100));
@@ -140,7 +140,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task NoAreaCoversTheRect_GrabsWithoutMakingAnythingTransparent()
+        public async Task CT83_NoAreaCoversTheRect_GrabsWithoutMakingAnythingTransparent()
         {
             // The requester is not a mosaic area any more (or not listed): nothing to make transparent, the screen is grabbed.
             var log = new List<string>();
@@ -154,7 +154,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task CancelledBeforeStarting_NothingHappens()
+        public async Task CT86_CancelledBeforeStarting_NothingHappens()
         {
             var log = new List<string>();
             using var coordinator = new StripCoordinator(new FakeScreenGrabber(log, CoordinateFrame.Create(10, 10)), new FakeStripHost(log),
@@ -166,7 +166,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task RestoreFailure_IsLogged_OtherAreasStillRestored_ResultKept()
+        public async Task CT85_RestoreFailure_IsLogged_OtherAreasStillRestored_ResultKept()
         {
             var host = new FailingHost { FailRestoreFor = "a" };
             var grabber = new FakeScreenGrabber(new List<string>(), CoordinateFrame.Create(100, 100));
@@ -188,7 +188,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task SetFailure_Propagates_EveryTouchedAreaRestored()
+        public async Task CT85_SetFailure_Propagates_EveryTouchedAreaRestored()
         {
             // The area whose set threw may be half transparent: it is restored too, and the grabber is never asked.
             var host = new FailingHost { FailSetFor = "b" };
@@ -209,7 +209,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task DeniedWhilePreparingOrGrabbing_IsLogged()
+        public async Task CT85_DeniedWhilePreparingOrGrabbing_IsLogged()
         {
             var log = new List<string>();
             var area = new StripArea("a", new PhysicalRect(0, 0, 10, 10), PatternKind.Mosaic);
@@ -227,7 +227,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task FrameMissingPartOfTheStrip_Unavailable()
+        public async Task CT85_FrameMissingPartOfTheStrip_Unavailable()
         {
             // Covers overlaps the strip but not all of it.
             var log = new List<string>();
@@ -239,7 +239,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task Dispose_DisposesTheGrabber_LaterCapturesThrow()
+        public async Task CT105_Dispose_DisposesTheGrabber_LaterCapturesThrow()
         {
             var grabber = new ScriptedGrabber();
             var coordinator = new StripCoordinator(grabber, new FakeStripHost(new List<string>()), Array.Empty<StripArea>);
@@ -249,7 +249,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task CoveringAreaEndingInsideAStrip_OnlyItsOwnRowsAreMadeTransparent()
+        public async Task CT83_CoveringAreaEndingInsideAStrip_OnlyItsOwnRowsAreMadeTransparent()
         {
             // "b" ends at y = 40, inside the third strip [36, 44) of "a": its rows stop at its bottom (10), not at the
             // strip's (14). The host is asked only for rows the area has (NFR-03: only the strip's rows of each area).
@@ -267,7 +267,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task CoveringAreaStartingAboveTheRequest_RowsCountFromItsOwnTop()
+        public async Task CT83_CoveringAreaStartingAboveTheRequest_RowsCountFromItsOwnTop()
         {
             // "c" starts 5 rows above "a" and ends inside its first strip: rows [5, 9) of c are the strip's [20, 24).
             var log = new List<string>();
@@ -281,7 +281,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task PrepareGetsTheVisibleRectAndTheCallersToken()
+        public async Task CT88_PrepareGetsTheVisibleRectAndTheCallersToken()
         {
             PhysicalRect seen = default;
             CancellationToken seenToken = default;
@@ -295,7 +295,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task DisposeDuringACapture_TheCaptureEndsWithItsOwnOutcome_AndRestores()
+        public async Task CT105_DisposeDuringACapture_TheCaptureEndsWithItsOwnOutcome_AndRestores()
         {
             // At exit the app may dispose the coordinator while a capture waits for a frame. The capture in flight still
             // ends the way it would have (here: cancelled), the strip is restored, and Dispose does not turn that into an
@@ -326,7 +326,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task DisposeDuringACapture_ThatCaptureMayStillSucceed()
+        public async Task CT105_DisposeDuringACapture_ThatCaptureMayStillSucceed()
         {
             // A grab that delivers after Dispose (the grabber is disposed under it, but answered anyway) keeps its result.
             var log = new List<string>();
@@ -347,7 +347,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_EmptyBounds_TakenAsScaleOne()
+        public void CT84_CopyRows_EmptyBounds_TakenAsScaleOne()
         {
             var frame = CoordinateFrame.Create(50, 40);
             var rect = new PhysicalRect(5, 6, 10, 4);
@@ -358,7 +358,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_OnlyTheRequestedRows()
+        public void CT84_CopyRows_OnlyTheRequestedRows()
         {
             var frame = CoordinateFrame.Create(50, 40);
             var rect = new PhysicalRect(0, 0, 10, 6);
@@ -373,7 +373,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_PastTheFrame_RepeatsTheEdge()
+        public void CT84_CopyRows_PastTheFrame_RepeatsTheEdge()
         {
             // A rectangle reaching past the frame on every side reads the nearest edge pixel (the slow per-pixel path).
             var frame = CoordinateFrame.Create(20, 10);
@@ -389,7 +389,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_RightEdgeOnly_SlowPathStillExact()
+        public void CT84_CopyRows_RightEdgeOnly_SlowPathStillExact()
         {
             var frame = CoordinateFrame.Create(20, 10);
             var rect = new PhysicalRect(15, 0, 10, 2);
@@ -402,7 +402,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_DownscaledFrame_NearestPixelCentres()
+        public void CT84_CopyRows_DownscaledFrame_NearestPixelCentres()
         {
             // The frame shows bounds at half the resolution: area pixel x maps to floor((x + 0.5) / 2).
             var frame = CoordinateFrame.Create(50, 25);
@@ -419,7 +419,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CopyRows_WiderDestinationStride_LeavesTheRestOfTheRow()
+        public void CT84_CopyRows_WiderDestinationStride_LeavesTheRestOfTheRow()
         {
             var frame = CoordinateFrame.Create(20, 10);
             var rect = new PhysicalRect(2, 3, 4, 2);

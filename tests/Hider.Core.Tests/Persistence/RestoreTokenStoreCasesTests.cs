@@ -16,20 +16,20 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_NoFolder_IsNull()
+        public void CT91_Load_NoFolder_IsNull()
         {
             Assert.Null(new RestoreTokenStore(FilePath).Load());
         }
 
         [Fact]
-        public void Load_PathIsAFolder_IsNull()
+        public void CT91_Load_PathIsAFolder_IsNull()
         {
             Directory.CreateDirectory(FilePath);
             Assert.Null(new RestoreTokenStore(FilePath).Load());
         }
 
         [Fact]
-        public void Load_TrimsSurroundingWhitespace()
+        public void CT91_Load_TrimsSurroundingWhitespace()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.WriteAllText(FilePath, "  abc-123 \r\n");
@@ -37,7 +37,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_WritesTheTokenExactly_CreatingTheFolder()
+        public void CT91_Save_WritesTheTokenExactly_CreatingTheFolder()
         {
             var store = new RestoreTokenStore(FilePath);
             store.Save("tok en");
@@ -46,7 +46,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_ShorterToken_LeavesNoRestOfTheLongerOne()
+        public void CT91_Save_ShorterToken_LeavesNoRestOfTheLongerOne()
         {
             var store = new RestoreTokenStore(FilePath);
             store.Save(new string('x', 1000));
@@ -59,7 +59,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("")]
         [InlineData(" ")]
         [InlineData("\r\n\t")]
-        public void Save_EmptyOrBlankToken_ForgetsTheOldOne_LikeNull(string _token)
+        public void CT91_Save_EmptyOrBlankToken_ForgetsTheOldOne_LikeNull(string _token)
         {
             // Load reads such a file as no token: writing one would only leave an empty file behind. The old token is single
             // use and gone either way (CT-91), so it is forgotten as for null.
@@ -72,7 +72,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_Null_WithoutAFile_DoesNothing()
+        public void CT91_Save_Null_WithoutAFile_DoesNothing()
         {
             var store = new RestoreTokenStore(FilePath);
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
@@ -82,7 +82,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_Null_WithoutTheFolder_DoesNotThrow()
+        public void CT145_Save_Null_WithoutTheFolder_DoesNotThrow()
         {
             // The folder does not exist: forgetting the token neither throws nor creates the folder.
             using var log = new StringWriter();
@@ -94,7 +94,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_Null_PathIsAFolder_IsLogged()
+        public void CT145_Save_Null_PathIsAFolder_IsLogged()
         {
             Directory.CreateDirectory(FilePath);
             using var log = new StringWriter();
@@ -107,7 +107,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_FolderCannotBeCreated_IsLogged_NothingLeft()
+        public void CT145_Save_FolderCannotBeCreated_IsLogged_NothingLeft()
         {
             // ~/.hider is a file: the token cannot be kept; the next start shows the dialog again.
             Directory.CreateDirectory(dir);
@@ -123,7 +123,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_TempIsAFolder_TokenNotSaved_LoggedTwice()
+        public void CT145_Save_TempIsAFolder_TokenNotSaved_LoggedTwice()
         {
             // A folder named restore_token.tmp: the temp file cannot be made, nor removed.
             Directory.CreateDirectory(Path.Combine(FilePath + ".tmp", "inside"));
@@ -139,7 +139,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void TwoStores_OnOneFile_SeeEachOthersToken()
+        public void CT91_TwoStores_OnOneFile_SeeEachOthersToken()
         {
             var a = new RestoreTokenStore(FilePath);
             var b = new RestoreTokenStore(FilePath);

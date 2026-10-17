@@ -15,7 +15,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task NoGrabbers_NothingReadyNoFrame()
+        public async Task CT92_NoGrabbers_NothingReadyNoFrame()
         {
             using var grabber = new FallbackGrabber();
             Assert.False(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
@@ -24,7 +24,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task WithoutPrepare_OnlyGrabbersReadyWithoutPrepareAreAsked()
+        public async Task CT92_WithoutPrepare_OnlyGrabbersReadyWithoutPrepareAreAsked()
         {
             var frame = Frame();
             int askedFirst = 0, askedSecond = 0;
@@ -36,7 +36,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task GrabArguments_PassedThrough()
+        public async Task CT92_GrabArguments_PassedThrough()
         {
             long seenTimestamp = 0;
             PhysicalRect seenRect = default;
@@ -57,7 +57,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task GrabRefusals_TheFirstOneIsThrown()
+        public async Task CT92_GrabRefusals_TheFirstOneIsThrown()
         {
             var firstRefusal = new CaptureDeniedException("first");
             var first = new ScriptedGrabber { Grab = (_, _, _) => Task.FromException<ScreenFrame?>(firstRefusal) };
@@ -70,7 +70,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task GrabRefusalThenFrame_TheFrameWins()
+        public async Task CT92_GrabRefusalThenFrame_TheFrameWins()
         {
             var frame = Frame();
             var first = new ScriptedGrabber { Grab = (_, _, _) => Task.FromException<ScreenFrame?>(new CaptureDeniedException("no")) };
@@ -81,7 +81,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task OtherExceptions_AreNotSwallowed()
+        public async Task CT92_OtherExceptions_AreNotSwallowed()
         {
             var first = new ScriptedGrabber { Grab = (_, _, _) => Task.FromException<ScreenFrame?>(new IOException("pipe")) };
             var second = new ScriptedGrabber { Ready = true, Grab = (_, _, _) => Task.FromResult<ScreenFrame?>(Frame()) };
@@ -96,7 +96,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task PrepareRefusals_FirstThrownOnlyWhenNoneIsReady()
+        public async Task CT102_PrepareRefusals_FirstThrownOnlyWhenNoneIsReady()
         {
             var firstRefusal = new CaptureDeniedException("first");
             var deniedFirst = new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(firstRefusal) };
@@ -118,7 +118,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task PrepareArguments_PassedThrough()
+        public async Task CT102_PrepareArguments_PassedThrough()
         {
             // The token reaches the grabber: a prepare may wait for the portal's dialog and must end on cancellation (NFR-05).
             PhysicalRect seen = default;
@@ -131,7 +131,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task PrepareArguments_PassedToEveryGrabberAskedInTurn()
+        public async Task CT102_PrepareArguments_PassedToEveryGrabberAskedInTurn()
         {
             var seen = new List<(string, PhysicalRect, CancellationToken)>();
             using var cancel = new CancellationTokenSource();
@@ -149,7 +149,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task Prepare_CancelledWhileWaiting_EndsWithTheCancellation()
+        public async Task CT102_Prepare_CancelledWhileWaiting_EndsWithTheCancellation()
         {
             // A prepare that only ends through its token (the portal's dialog left open) ends when the caller cancels.
             using var cancel = new CancellationTokenSource();
@@ -162,7 +162,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task ARefusedPrepare_ForgetsTheEarlierReadyGrabber()
+        public async Task CT102_ARefusedPrepare_ForgetsTheEarlierReadyGrabber()
         {
             // A prepare that ends in a refusal leaves nothing prepared: strips go to no grabber that needs a prepare.
             int asked = 0;
@@ -182,7 +182,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task GrabbersCompletingLater_SameOutcome()
+        public async Task CT92_GrabbersCompletingLater_SameOutcome()
         {
             // Real grabbers finish asynchronously (portal answers, PipeWire frames): the fallback resumes after each await.
             var frame = Frame();
@@ -210,7 +210,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Dispose_EveryGrabberInOrder()
+        public void CT102_Dispose_EveryGrabberInOrder()
         {
             var log = new List<string>();
             var grabbers = disposeOrder.Select(_n => new ScriptedGrabber { Name = _n, DisposeLog = log }).ToArray();

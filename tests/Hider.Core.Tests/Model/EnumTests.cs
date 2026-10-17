@@ -7,7 +7,7 @@ namespace Hider.Core.Tests.Model
     public class EnumTests
     {
         [Fact]
-        public void PatternKind_ThreeKindsInOrder()
+        public void CT112_PatternKind_ThreeKindsInOrder()
         {
             Assert.Equal(new[] { PatternKind.Fill, PatternKind.Mosaic, PatternKind.Generated }, Enum.GetValues<PatternKind>());
             Assert.Equal(0, (int)PatternKind.Fill);
@@ -19,7 +19,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(PatternKind.Fill, "fill")]
         [InlineData(PatternKind.Mosaic, "mosaic")]
         [InlineData(PatternKind.Generated, "pattern")]
-        public void PatternKind_JsonName_WrittenAndRead(PatternKind _pattern, string _name)
+        public void CT112_PatternKind_JsonName_WrittenAndRead(PatternKind _pattern, string _name)
         {
             var state = new AppState { Areas = { new AreaState { Id = "0f3b8d2e", Pattern = _pattern } } };
             string json = AreasFile.ToJson(state);
@@ -32,7 +32,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(0, PatternKind.Fill)]
         [InlineData(1, PatternKind.Mosaic)]
         [InlineData(2, PatternKind.Generated)]
-        public void PatternKind_IntegerIsReadAsTheValue(int _value, PatternKind _expected)
+        public void CT112_PatternKind_IntegerIsReadAsTheValue(int _value, PatternKind _expected)
         {
             var back = AreasFile.FromJson($$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""")!;
             Assert.Equal(_expected, back.Areas[0].Pattern);
@@ -41,7 +41,7 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData("\"generated\"")] // the C# name is not the JSON name
         [InlineData("\"bogus\"")]
-        public void PatternKind_UnknownName_IsMosaic(string _value)
+        public void CT112_PatternKind_UnknownName_IsMosaic(string _value)
         {
             // Proposal P-12: an unknown name is read as mosaic, like an unknown number, instead of failing the file.
             var back = AreasFile.FromJson($$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""")!;
@@ -51,14 +51,14 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData("null")]
         [InlineData("true")]
-        public void PatternKind_NotAStringOrInteger_IsAJsonError(string _value)
+        public void CT112_PatternKind_NotAStringOrInteger_IsAJsonError(string _value)
         {
             Assert.ThrowsAny<System.Text.Json.JsonException>(() =>
                 AreasFile.FromJson($$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }"""));
         }
 
         [Fact]
-        public void ResizeHandle_Values()
+        public void CT109_ResizeHandle_Values()
         {
             Assert.Equal(0, (int)ResizeHandle.None);
             Assert.Equal(1, (int)ResizeHandle.Left);
@@ -68,7 +68,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void ResizeHandle_CornersAreTheirTwoEdges()
+        public void CT109_ResizeHandle_CornersAreTheirTwoEdges()
         {
             Assert.Equal(ResizeHandle.Top | ResizeHandle.Left, ResizeHandle.TopLeft);
             Assert.Equal(ResizeHandle.Top | ResizeHandle.Right, ResizeHandle.TopRight);

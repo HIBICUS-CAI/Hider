@@ -49,7 +49,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void EveryMethodParam_CoversEveryRegisteredSpec()
+        public void CT120_EveryMethodParam_CoversEveryRegisteredSpec()
         {
             Assert.Equal(MethodRegistry.All.Sum(_m => _m.Params.Count), EveryMethodParam().Count);
             Assert.Equal(8, EveryMethodParam().Count); // block 3, noise 2, pixelate, hexcell, blur
@@ -57,7 +57,7 @@ namespace Hider.Core.Tests.Mosaic
 
         [Theory]
         [MemberData(nameof(EveryMethodParam))]
-        public void PastTheRange_DrawsAsTheBoundary_NaNAsTheDefault(string _id, string _key)
+        public void CT120_PastTheRange_DrawsAsTheBoundary_NaNAsTheDefault(string _id, string _key)
         {
             var spec = MethodRegistry.Find(_id)!.Params.Single(_s => _s.Key == _key);
             using var source = SyntheticImage.CreateImage(Width, Height);
@@ -79,7 +79,7 @@ namespace Hider.Core.Tests.Mosaic
 
         [Theory]
         [MemberData(nameof(EveryMethodParam))]
-        public void AtTheBoundaries_CpuPathsMatchTheShader(string _id, string _key)
+        public void CT119_AtTheBoundaries_CpuPathsMatchTheShader(string _id, string _key)
         {
             var method = MethodRegistry.Find(_id)!;
             var spec = method.Params.Single(_s => _s.Key == _key);
@@ -114,7 +114,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("pixelate")]
         [InlineData("hexcell")]
         [InlineData("blur")]
-        public void Opacity_OutsideZeroToOne_IsClamped(string _id)
+        public void CT03_Opacity_OutsideZeroToOne_IsClamped(string _id)
         {
             using var source = SyntheticImage.CreateImage(Width, Height);
             using var zero = Render.Mosaic(_id, _opacity: 0.0, _source: source);
@@ -129,7 +129,7 @@ namespace Hider.Core.Tests.Mosaic
 
         [Theory]
         [MemberData(nameof(EveryMosaicCommonParam))]
-        public void MosaicCommonValues_AtAndPastTheirBoundaries(string _id, string _key)
+        public void CT120_MosaicCommonValues_AtAndPastTheirBoundaries(string _id, string _key)
         {
             var spec = CommonParams.Mosaic.Single(_s => _s.Key == _key);
             using var source = SyntheticImage.CreateImage(Width, Height);
@@ -157,7 +157,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("pixelate")]
         [InlineData("hexcell")]
         [InlineData("blur")]
-        public void MosaicCommonBlur_NotFinite_NaNIsTheDefault_InfinitiesTheEnds(string _id)
+        public void CT120_MosaicCommonBlur_NotFinite_NaNIsTheDefault_InfinitiesTheEnds(string _id)
         {
             // MosaicCommon.Blur is a double: a value set in code or a future reader may be NaN or infinite.
             var spec = CommonParams.Mosaic.Single(_s => _s.Key == CommonParams.Blur);
@@ -177,7 +177,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("pixelate")]
         [InlineData("hexcell")]
         [InlineData("blur")]
-        public void MosaicCommonLevels_ExtremeIntegers_AreTheEnds(string _id)
+        public void CT120_MosaicCommonLevels_ExtremeIntegers_AreTheEnds(string _id)
         {
             // Levels is an int (a hand-edited 1e300 is read as int.MaxValue by LenientInt32Converter).
             using var source = SyntheticImage.CreateImage(Width, Height);

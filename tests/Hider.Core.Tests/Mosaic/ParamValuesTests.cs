@@ -16,7 +16,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void NullStoredValues_EverySpecTakesItsDefault()
+        public void CT08_NullStoredValues_EverySpecTakesItsDefault()
         {
             var p = Values(null);
             Assert.Equal(10, p.Raw("size"));
@@ -29,13 +29,13 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1.5, 1.0)]
         [InlineData(0.0, 0.0)]
         [InlineData(1.0, 1.0)]
-        public void Opacity_IsClampedTo0And1(double _opacity, double _expected)
+        public void CT03_Opacity_IsClampedTo0And1(double _opacity, double _expected)
         {
             Assert.Equal(_expected, Values(null, _opacity).Opacity);
         }
 
         [Fact]
-        public void LaterSpecWithTheSameKey_Wins()
+        public void CT08_LaterSpecWithTheSameKey_Wins()
         {
             var p = new ParamValues(new[] { plain, plain with { Default = 7 } }, null, 1.0);
             Assert.Equal(7, p.Raw("plain"));
@@ -48,14 +48,14 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("size", double.NaN, 10.0)] // stored NaN: the default
         [InlineData("extra", -5.0, -5.0)]     // stored, no spec: as stored, unclamped
         [InlineData("extra", 1e9, 1e9)]
-        public void Raw_StoredValues(string _key, double _stored, double _expected)
+        public void CT08_Raw_StoredValues(string _key, double _stored, double _expected)
         {
             var p = Values(new Dictionary<string, double> { [_key] = _stored });
             Assert.Equal(_expected, p.Raw(_key));
         }
 
         [Fact]
-        public void Raw_NotStored_DefaultOrZero()
+        public void CT08_Raw_NotStored_DefaultOrZero()
         {
             var p = Values(new Dictionary<string, double>());
             Assert.Equal(10, p.Raw("size"));
@@ -63,7 +63,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Effective_LerpsOnlySpecsThatAskForIt()
+        public void CT04_Effective_LerpsOnlySpecsThatAskForIt()
         {
             var p = Values(new Dictionary<string, double> { ["size"] = 21, ["plain"] = 5, ["extra"] = 9 }, 0.5);
             Assert.Equal(11, p.Effective("size"), 9);   // 1 + (21 - 1) * 0.5
@@ -74,7 +74,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Fingerprint_ResolvedValuesInOrdinalKeyOrder_ThenTheOpacity()
+        public void CT128_Fingerprint_ResolvedValuesInOrdinalKeyOrder_ThenTheOpacity()
         {
             // Specs and stored keys together, ordinal order ("Z" before "a"), the resolved (clamped) values, then a=opacity.
             var p = Values(new Dictionary<string, double> { ["size"] = 1000, ["Zeta"] = 0.1, ["alpha"] = -2.5 }, 0.25);
@@ -82,14 +82,14 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Fingerprint_IsBuiltOnce()
+        public void CT128_Fingerprint_IsBuiltOnce()
         {
             var p = Values(null);
             Assert.Same(p.Fingerprint(), p.Fingerprint());
         }
 
         [Fact]
-        public void Fingerprint_EqualForTheSameResolvedValues_DifferentOtherwise()
+        public void CT128_Fingerprint_EqualForTheSameResolvedValues_DifferentOtherwise()
         {
             // Clamping makes 1000 and 100 the same drawing, so the same cache key.
             Assert.Equal(Values(new() { ["size"] = 1000 }).Fingerprint(), Values(new() { ["size"] = 100 }).Fingerprint());
@@ -100,7 +100,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Fingerprint_RoundTripFormat_IndependentOfTheCulture()
+        public void CT128_Fingerprint_RoundTripFormat_IndependentOfTheCulture()
         {
             var previous = CultureInfo.CurrentCulture;
             try
@@ -121,7 +121,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForMosaic_MethodParamsCommonValuesAndOpacity()
+        public void CT129_ForMosaic_MethodParamsCommonValuesAndOpacity()
         {
             var method = MethodRegistry.Find("pixelate")!;
             var settings = new MethodSettings<MosaicCommon> { Method = "pixelate" };
@@ -146,7 +146,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForMosaic_CommonValuesWinOverAStoredParamOfTheSameKey()
+        public void CT129_ForMosaic_CommonValuesWinOverAStoredParamOfTheSameKey()
         {
             var method = MethodRegistry.Find("pixelate")!;
             var settings = new MethodSettings<MosaicCommon>();
@@ -156,7 +156,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForMosaic_NoStoredParams_DefaultsAndTheSettingsAreNotChanged()
+        public void CT129_ForMosaic_NoStoredParams_DefaultsAndTheSettingsAreNotChanged()
         {
             var method = MethodRegistry.Find("hexcell")!;
             var settings = new MethodSettings<MosaicCommon>();
@@ -166,7 +166,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForMosaic_CopiesTheStoredValues()
+        public void CT129_ForMosaic_CopiesTheStoredValues()
         {
             var method = MethodRegistry.Find("pixelate")!;
             var settings = new MethodSettings<MosaicCommon>();
@@ -178,7 +178,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForGenerated_SeedAndBaseColorAsFractions_OpacityOne()
+        public void CT129_ForGenerated_SeedAndBaseColorAsFractions_OpacityOne()
         {
             var method = MethodRegistry.Find("block")!;
             var settings = new MethodSettings<GeneratedCommon> { Method = "block" };
@@ -198,7 +198,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ForGenerated_CommonValuesHaveNoSpec_KeptAsStored()
+        public void CT129_ForGenerated_CommonValuesHaveNoSpec_KeptAsStored()
         {
             // The seed is not clamped here: LatticeHash.SeedDigits wraps it. An invalid color is the default fill color.
             var method = MethodRegistry.Find("noise")!;

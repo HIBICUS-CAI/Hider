@@ -12,7 +12,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(ResizeHandle.Right, 100, 200, 24, 300)]  // the dragged right edge moves out
         [InlineData(ResizeHandle.Top, 100, 200, 10, 300)]    // the narrow width is not touched by a vertical handle
         [InlineData(ResizeHandle.TopLeft, 86, 200, 24, 300)]
-        public void Resize_FromBelowTheMinimum_ZeroDragBringsTheDraggedSideToTheMinimum(ResizeHandle _handle, int _x, int _y, int _w, int _h)
+        public void CT02_Resize_FromBelowTheMinimum_ZeroDragBringsTheDraggedSideToTheMinimum(ResizeHandle _handle, int _x, int _y, int _w, int _h)
         {
             // An area narrower than the minimum (a window scale grew since it was made) grows to the minimum as soon as one
             // of its width handles is grabbed: the result always respects the minimum on the dragged sides, and the opposite
@@ -22,7 +22,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Resize_FromBelowTheMinimum_BothSides()
+        public void CT02_Resize_FromBelowTheMinimum_BothSides()
         {
             var tiny = new PhysicalRect(100, 200, 10, 5);
             Assert.Equal(new PhysicalRect(100, 200, 24, 24), AreaGeometry.Resize(tiny, ResizeHandle.BottomRight, 0, 0, 1.0));
@@ -35,7 +35,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(60, 1.0, 60.25)]
         [InlineData(60, 2.0, 30.125)]
         [InlineData(61, 1.75, 61.25 / 1.75)]
-        public void DipLength_AddsAQuarterPixelOfSlack(int _px, double _scale, double _expected)
+        public void CT110_DipLength_AddsAQuarterPixelOfSlack(int _px, double _scale, double _expected)
         {
             Assert.Equal(_expected, AreaGeometry.DipLength(_px, _scale), 12);
         }
@@ -43,7 +43,7 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData(1.0)]
         [InlineData(2.0)]
-        public void StableLength_IntegerScale_IsTheLengthItself(double _scale)
+        public void CT110_StableLength_IntegerScale_IsTheLengthItself(double _scale)
         {
             foreach (int px in new[] { 0, 1, 24, 1000, 16383 })
             {
@@ -54,7 +54,7 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData(double.NaN)]
         [InlineData(0.0)]
-        public void StableLength_MalformedScale_StopsAfterTheSearchLimit(double _scale)
+        public void CT110_StableLength_MalformedScale_StopsAfterTheSearchLimit(double _scale)
         {
             // No length survives (int)(p / scale × scale) == p: the search ends after 4096 candidates instead of looping.
             Assert.Equal(1 + 4096, AreaGeometry.StableLength(1, _scale));
@@ -69,13 +69,13 @@ namespace Hider.Core.Tests.Model
         [InlineData(1.75, 42)]
         [InlineData(2.0, 48)]
         [InlineData(0.5, 12)]
-        public void MinSizePx_24DipRoundedUp(double _scale, int _expected)
+        public void CT02_MinSizePx_24DipRoundedUp(double _scale, int _expected)
         {
             Assert.Equal(_expected, AreaGeometry.MinSizePx(_scale));
         }
 
         [Fact]
-        public void Resize_None_LeavesTheRectangle()
+        public void CT109_Resize_None_LeavesTheRectangle()
         {
             Assert.Equal(start, AreaGeometry.Resize(start, ResizeHandle.None, 50, -70, 1.0));
         }
@@ -93,7 +93,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(ResizeHandle.TopRight, 10, 20, 100, 220, 410, 280)]
         [InlineData(ResizeHandle.BottomLeft, 10, 20, 110, 200, 390, 320)]
         [InlineData(ResizeHandle.BottomRight, 10, 20, 100, 200, 410, 320)]
-        public void Resize_OnlyTheDraggedEdgesMove(ResizeHandle _handle, int _dx, int _dy, int _x, int _y, int _w, int _h)
+        public void CT109_Resize_OnlyTheDraggedEdgesMove(ResizeHandle _handle, int _dx, int _dy, int _x, int _y, int _w, int _h)
         {
             Assert.Equal(new PhysicalRect(_x, _y, _w, _h), AreaGeometry.Resize(start, _handle, _dx, _dy, 1.0));
         }
@@ -105,13 +105,13 @@ namespace Hider.Core.Tests.Model
         [InlineData(ResizeHandle.Bottom, 0, -1000, 100, 200, 400, 24)]
         [InlineData(ResizeHandle.TopLeft, 1000, 1000, 476, 476, 24, 24)]
         [InlineData(ResizeHandle.BottomRight, -1000, -1000, 100, 200, 24, 24)]
-        public void Resize_StopsAtTheMinimum_OppositeEdgeFixed(ResizeHandle _handle, int _dx, int _dy, int _x, int _y, int _w, int _h)
+        public void CT02_Resize_StopsAtTheMinimum_OppositeEdgeFixed(ResizeHandle _handle, int _dx, int _dy, int _x, int _y, int _w, int _h)
         {
             Assert.Equal(new PhysicalRect(_x, _y, _w, _h), AreaGeometry.Resize(start, _handle, _dx, _dy, 1.0));
         }
 
         [Fact]
-        public void Resize_MinimumFollowsTheScale()
+        public void CT02_Resize_MinimumFollowsTheScale()
         {
             // 24 DIP at 150% = 36 px.
             var r = AreaGeometry.Resize(start, ResizeHandle.Right, -1000, 0, 1.5);
@@ -121,7 +121,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Resize_UnrelatedDeltaIgnored()
+        public void CT109_Resize_UnrelatedDeltaIgnored()
         {
             // A horizontal handle ignores dy, a vertical one dx.
             Assert.Equal(new PhysicalRect(100, 200, 450, 300), AreaGeometry.Resize(start, ResizeHandle.Right, 50, 999, 1.0));
@@ -137,14 +137,14 @@ namespace Hider.Core.Tests.Model
         [InlineData(-1, 1, true, 0, 20)]
         [InlineData(5, -7, false, 11, 9)] // only the sign of the direction counts
         [InlineData(-100, 100, true, 0, 20)]
-        public void Nudge_SignOfTheDirection_TimesTheStep(int _dirX, int _dirY, bool _shift, int _x, int _y)
+        public void CT95_Nudge_SignOfTheDirection_TimesTheStep(int _dirX, int _dirY, bool _shift, int _x, int _y)
         {
             var r = new PhysicalRect(10, 10, 100, 50);
             Assert.Equal(new PhysicalRect(_x, _y, 100, 50), AreaGeometry.Nudge(r, _dirX, _dirY, _shift));
         }
 
         [Fact]
-        public void EnsureMinSize_GrowsOnlyWhatIsTooSmall_OriginKept()
+        public void CT02_EnsureMinSize_GrowsOnlyWhatIsTooSmall_OriginKept()
         {
             Assert.Equal(new PhysicalRect(5, 6, 24, 24), AreaGeometry.EnsureMinSize(new PhysicalRect(5, 6, 1, 0), 1.0));
             Assert.Equal(new PhysicalRect(5, 6, 300, 36), AreaGeometry.EnsureMinSize(new PhysicalRect(5, 6, 300, 10), 1.5));
@@ -155,7 +155,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void EnsureMinSize_NegativeSize_NormalizedFirst()
+        public void CT02_EnsureMinSize_NegativeSize_NormalizedFirst()
         {
             // (100, 100) with -50 x -10 covers 50..100 x 90..100: normalized, then the height grows to the minimum.
             Assert.Equal(new PhysicalRect(50, 90, 50, 24), AreaGeometry.EnsureMinSize(new PhysicalRect(100, 100, -50, -10), 1.0));

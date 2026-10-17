@@ -11,7 +11,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(10, 7, 52, 352)]   // padded: 6 · 52 + 40, the end of the last pixel
         [InlineData(1, 1, 64, 4)]
         [InlineData(3, 2, 16, 28)]
-        public void All_RunsFromTheFirstToTheLastPixel(int _w, int _h, int _rowBytes, int _length)
+        public void CT119_All_RunsFromTheFirstToTheLastPixel(int _w, int _h, int _rowBytes, int _length)
         {
             var info = new SKImageInfo(_w, _h, SKColorType.Bgra8888, SKAlphaType.Premul);
             var buffer = new byte[_rowBytes * _h];
@@ -34,14 +34,14 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void All_PixmapWithoutPixels_IsEmpty()
+        public void CT119_All_PixmapWithoutPixels_IsEmpty()
         {
             using var empty = new SKPixmap();
             Assert.Equal(0, PixmapRows.All(empty).Length);
         }
 
         [Fact]
-        public void All_BitmapPixmap_EndsAtTheLastPixel()
+        public void CT119_All_BitmapPixmap_EndsAtTheLastPixel()
         {
             using var bitmap = new SKBitmap(new SKImageInfo(5, 4, SKColorType.Bgra8888, SKAlphaType.Premul));
             using var pixmap = bitmap.PeekPixels();

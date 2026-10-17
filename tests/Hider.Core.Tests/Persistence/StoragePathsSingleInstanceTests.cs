@@ -9,7 +9,7 @@ namespace Hider.Core.Tests.Persistence
         private static string Profile => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd('/', '\\');
 
         [Fact]
-        public void StoragePaths_Names()
+        public void CT31_StoragePaths_Names()
         {
             Assert.Equal(".hider", StoragePaths.DirectoryName);
             Assert.Equal("areas.json", StoragePaths.AreasFileName);
@@ -18,7 +18,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void DataDirectory_Windows_UsesUserProfileOnly()
+        public void CT31_DataDirectory_Windows_UsesUserProfileOnly()
         {
             Assert.Equal(@"C:\Users\me\.hider", StoragePaths.DataDirectory(true, _k => _k == "USERPROFILE" ? @"C:\Users\me\" : "/home/other"));
             // HOME is not looked at on Windows: without USERPROFILE the system's profile folder is used.
@@ -26,14 +26,14 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void DataDirectory_Linux_UsesHomeOnly()
+        public void CT31_DataDirectory_Linux_UsesHomeOnly()
         {
             Assert.Equal("/home/me/.hider", StoragePaths.DataDirectory(false, _k => _k == "HOME" ? "/home/me//" : @"C:\Users\other"));
             Assert.Equal(Profile + "/.hider", StoragePaths.DataDirectory(false, _k => _k == "USERPROFILE" ? @"C:\Users\me" : null));
         }
 
         [Fact]
-        public void DataDirectory_AsksForExactlyOneVariable()
+        public void CT31_DataDirectory_AsksForExactlyOneVariable()
         {
             var asked = new List<string>();
             StoragePaths.DataDirectory(false, _k =>
@@ -50,14 +50,14 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void DataDirectory_RootHome_IsTheHiderFolderAtTheRoot()
+        public void CT31_DataDirectory_RootHome_IsTheHiderFolderAtTheRoot()
         {
             // A home of "/" (some service accounts) keeps one separator.
             Assert.Equal("/.hider", StoragePaths.DataDirectory(false, _ => "/"));
         }
 
         [Fact]
-        public void CurrentPaths_FollowThisProcess()
+        public void CT31_CurrentPaths_FollowThisProcess()
         {
             string expected = StoragePaths.DataDirectory(OperatingSystem.IsWindows(), Environment.GetEnvironmentVariable);
             Assert.Equal(expected, StoragePaths.CurrentDataDirectory);
@@ -68,7 +68,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void SingleInstance_CreatesMissingFolders_KeepsTheLockFile()
+        public void CT30_SingleInstance_CreatesMissingFolders_KeepsTheLockFile()
         {
             string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
             string path = Path.Combine(root, "a", "b", "instance.lock");
@@ -92,7 +92,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void SingleInstance_ExistingLockFile_IsReusedAndUnchanged()
+        public void CT30_SingleInstance_ExistingLockFile_IsReusedAndUnchanged()
         {
             string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
@@ -113,7 +113,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void SingleInstance_DisposeTwice_IsHarmless()
+        public void CT30_SingleInstance_DisposeTwice_IsHarmless()
         {
             string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
             string path = Path.Combine(root, "instance.lock");
@@ -132,7 +132,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void SingleInstance_NameTooLong_IsAnErrorNotAnotherInstance()
+        public void CT146_SingleInstance_NameTooLong_IsAnErrorNotAnotherInstance()
         {
             // An I/O error other than a held lock (here ENAMETOOLONG) must not read as "already running".
             string root = Path.Combine(Path.GetTempPath(), "hider-tests-" + Guid.NewGuid().ToString("N"));
@@ -166,13 +166,13 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(false, 36, false)] // ENAMETOOLONG
         [InlineData(false, 21, false)] // EISDIR
         [InlineData(false, 0, false)]
-        public void SingleInstance_IsHeldByAnother_PerOsCodes(bool _isWindows, int _hresult, bool _held)
+        public void CT146_SingleInstance_IsHeldByAnother_PerOsCodes(bool _isWindows, int _hresult, bool _held)
         {
             Assert.Equal(_held, SingleInstance.IsHeldByAnother(_isWindows, _hresult));
         }
 
         [Fact]
-        public void SingleInstance_RootPath_HasNoFolderToCreate_IsAnError()
+        public void CT146_SingleInstance_RootPath_HasNoFolderToCreate_IsAnError()
         {
             // The root has no parent folder (GetDirectoryName gives null) and cannot be opened as a file.
             Assert.Null(SingleInstance.TryAcquire(Path.GetPathRoot(Path.GetTempPath())!, out string? error));

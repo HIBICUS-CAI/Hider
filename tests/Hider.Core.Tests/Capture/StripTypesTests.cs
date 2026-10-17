@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Capture
     public class StripTypesTests
     {
         [Fact]
-        public async Task ScreenGrabber_DefaultPrepare_ExpectsToDeliver()
+        public async Task CT102_ScreenGrabber_DefaultPrepare_ExpectsToDeliver()
         {
             // Default interface members are reached through the interface only.
             var task = ((IScreenGrabber)new MinimalGrabber()).PrepareAsync(new PhysicalRect(0, 0, 10, 10), TestContext.Current.CancellationToken);
@@ -16,13 +16,13 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void ScreenGrabber_DefaultReadyWithoutPrepare_IsFalse()
+        public void CT102_ScreenGrabber_DefaultReadyWithoutPrepare_IsFalse()
         {
             Assert.False(((IScreenGrabber)new MinimalGrabber()).ReadyWithoutPrepare);
         }
 
         [Fact]
-        public async Task ScreenGrabber_DefaultMembers_AsUsedByTheFallback()
+        public async Task CT102_ScreenGrabber_DefaultMembers_AsUsedByTheFallback()
         {
             // A grabber without its own PrepareAsync is "ready" for the fallback, and is asked for frames after a prepare.
             using var fallback = new FallbackGrabber(new MinimalGrabber());
@@ -31,7 +31,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void ScreenFrame_Record()
+        public void CT99_ScreenFrame_Record()
         {
             var frame = FrameBuffer.Allocate(2, 2);
             var a = new ScreenFrame(frame, new PhysicalRect(-10, 0, 2, 2));
@@ -42,7 +42,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void StripArea_ValueRecord()
+        public void CT99_StripArea_ValueRecord()
         {
             var a = new StripArea("x", new PhysicalRect(1, 2, 3, 4), PatternKind.Mosaic);
             Assert.Equal("x", a.Id);
@@ -54,7 +54,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CaptureDeniedException_KeepsTheMessage()
+        public void CT99_CaptureDeniedException_KeepsTheMessage()
         {
             var e = new CaptureDeniedException("cancelled by the user");
             Assert.Equal("cancelled by the user", e.Message);

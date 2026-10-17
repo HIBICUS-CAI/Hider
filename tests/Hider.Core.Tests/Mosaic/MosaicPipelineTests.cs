@@ -80,14 +80,14 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Constants()
+        public void CT124_Constants()
         {
             Assert.Equal(0.5f, MosaicPipeline.SigmaPerRadius);
             Assert.Equal(9, MosaicPipeline.MaxPyramidLevels);
         }
 
         [Fact]
-        public void Prepare_NoBlur_TheCaptureItselfWithALazyPyramid()
+        public void CT124_Prepare_NoBlur_TheCaptureItselfWithALazyPyramid()
         {
             using var source = SyntheticImage.CreateImage(40, 30);
             var inputs = MosaicPipeline.Prepare(source, new SKPointI(-7, 9), MosaicValues(0));
@@ -103,7 +103,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_DefaultArguments_NoMethodMeansNoOwnRadius()
+        public void CT124_Prepare_DefaultArguments_NoMethodMeansNoOwnRadius()
         {
             using var source = SyntheticImage.CreateImage(16, 16);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(0));
@@ -113,7 +113,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_CommonBlur_ANewBlurredImage()
+        public void CT124_Prepare_CommonBlur_ANewBlurredImage()
         {
             using var source = SyntheticImage.CreateImage(40, 30);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(4));
@@ -133,7 +133,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_BlurFadesWithTheOpacity()
+        public void CT05_Prepare_BlurFadesWithTheOpacity()
         {
             // Effective blur lerp(a, 0, 8): at opacity 0 nothing is blurred; at 0.5 it is the blur of radius 4.
             using var source = SyntheticImage.CreateImage(40, 30);
@@ -158,7 +158,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData(0.01, false)] // radius must be above 0.01 px
         [InlineData(0.011, true)]
-        public void Prepare_RadiusThreshold(double _blur, bool _blurred)
+        public void CT124_Prepare_RadiusThreshold(double _blur, bool _blurred)
         {
             using var source = SyntheticImage.CreateImage(8, 8);
             var p = new ParamValues(Array.Empty<ParamSpec>(), new Dictionary<string, double> { [CommonParams.Blur] = _blur }, 1.0);
@@ -168,7 +168,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_OwnRadiusCombinesAsGaussians()
+        public void CT124_Prepare_OwnRadiusCombinesAsGaussians()
         {
             // sqrt(3² + 4²) = 5: common 3 with own 4 equals common 5 alone.
             using var source = SyntheticImage.CreateImage(40, 30);
@@ -192,7 +192,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_NegativeOwnRadius_CountsAsZero()
+        public void CT124_Prepare_NegativeOwnRadius_CountsAsZero()
         {
             using var source = SyntheticImage.CreateImage(16, 16);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(0), null, new Probe { Radius = -5 });
@@ -213,7 +213,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_BlurClampsAtTheEdges()
+        public void CT124_Prepare_BlurClampsAtTheEdges()
         {
             // A uniform image stays uniform when blurred: the edges repeat instead of fading to transparent.
             using var source = Solid(20, 10, new SKColor(10, 200, 30));
@@ -231,7 +231,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Release_FreesTheBlurredImageAndTheBuiltPyramid_NeverTheCapture()
+        public void CT125_Release_FreesTheBlurredImageAndTheBuiltPyramid_NeverTheCapture()
         {
             using var source = SyntheticImage.CreateImage(16, 16);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(4));
@@ -245,7 +245,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Release_UnbuiltPyramid_OnlyTheSourceIsFreed()
+        public void CT125_Release_UnbuiltPyramid_OnlyTheSourceIsFreed()
         {
             using var source = SyntheticImage.CreateImage(16, 16);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(4));
@@ -256,7 +256,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Release_PlainInputs_FreesEachImageOnce_NoSourceIsFine()
+        public void CT125_Release_PlainInputs_FreesEachImageOnce_NoSourceIsFine()
         {
             using var original = SyntheticImage.CreateImage(8, 8);
             var other = SyntheticImage.CreateImage(4, 4);
@@ -272,7 +272,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void LazyPyramid_ListMembers()
+        public void CT50_LazyPyramid_ListMembers()
         {
             using var source = SyntheticImage.CreateImage(8, 4);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(0));
@@ -302,7 +302,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Prepare_PyramidStopsAtMaxPyramidLevels()
+        public void CT50_Prepare_PyramidStopsAtMaxPyramidLevels()
         {
             using var source = SyntheticImage.CreateImage(1024, 2);
             var inputs = MosaicPipeline.Prepare(source, default, MosaicValues(0));
@@ -325,7 +325,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(16, 16, 1, new[] { 16, 16 })]
         [InlineData(16, 16, 0, new[] { 16, 16 })]
         [InlineData(16, 16, 3, new[] { 16, 16, 8, 8, 4, 4 })]
-        public void BuildPyramid_SizesRoundUp_StopsAt1x1OrTheLimit(int _w, int _h, int _max, int[] _sizes)
+        public void CT50_BuildPyramid_SizesRoundUp_StopsAt1x1OrTheLimit(int _w, int _h, int _max, int[] _sizes)
         {
             using var source = SyntheticImage.CreateImage(_w, _h);
             var pyramid = MosaicPipeline.BuildPyramid(source, _max);
@@ -344,7 +344,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void BuildPyramid_OddSize_RepeatsTheLastColumn()
+        public void CT50_BuildPyramid_OddSize_RepeatsTheLastColumn()
         {
             // 3x1 [0, 100, 200]: level 1 is [avg(0, 100), avg(200, 200)] = [50, 200].
             var bitmap = new SKBitmap(new SKImageInfo(3, 1, SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -363,7 +363,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void BuildPyramid_TwoArgumentOverload_SameAsWithoutContext()
+        public void CT50_BuildPyramid_TwoArgumentOverload_SameAsWithoutContext()
         {
             using var source = SyntheticImage.CreateImage(30, 20);
             var a = MosaicPipeline.BuildPyramid(source, 9);
@@ -391,13 +391,13 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(256)]
         [InlineData(257)]
         [InlineData(int.MaxValue)]
-        public void LevelFilter_256AndAbove_IsNoFilter(int _levels)
+        public void CT47_LevelFilter_256AndAbove_IsNoFilter(int _levels)
         {
             Assert.Null(new MosaicPipeline().LevelFilter(_levels));
         }
 
         [Fact]
-        public void LevelFilter_CachedPerLevelCount_BelowTwoIsTwo()
+        public void CT46_LevelFilter_CachedPerLevelCount_BelowTwoIsTwo()
         {
             var pipeline = new MosaicPipeline();
             var two = pipeline.LevelFilter(2);
@@ -416,7 +416,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(7)]
         [InlineData(16)]
         [InlineData(255)]
-        public void LevelFilter_FloorCTimesLOverLMinusOne_AlphaUnchanged(int _levels)
+        public void CT46_LevelFilter_FloorCTimesLOverLMinusOne_AlphaUnchanged(int _levels)
         {
             // Every channel value 0..255 through the filter: q = min(L - 1, floor(c · L / 256)), out = round(q · 255 / (L - 1)).
             var pipeline = new MosaicPipeline();
@@ -446,7 +446,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_IntoAnOffsetScaledRect_ClippedToIt()
+        public void CT126_Draw_IntoAnOffsetScaledRect_ClippedToIt()
         {
             // The area's pixels are scaled to the destination; nothing is drawn outside it.
             using var source = SyntheticImage.CreateImage(20, 10);
@@ -464,7 +464,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_CellPath_IntoAnOffsetRect_ClippedToIt()
+        public void CT126_Draw_CellPath_IntoAnOffsetRect_ClippedToIt()
         {
             // 20 x 10 in cells of 3: the upscaled cells cover 21 x 12 area pixels, one column and two rows more than the
             // area. Drawn at (10, 5) scaled by 2 they would reach x = 52 and y = 29; the clip keeps them inside (10, 5, 40, 20).
@@ -497,7 +497,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_CpuPath_IntoAnOffsetScaledRect_ClippedToIt()
+        public void CT126_Draw_CpuPath_IntoAnOffsetScaledRect_ClippedToIt()
         {
             var method = new CpuProbe();
             using var source = SyntheticImage.CreateImage(20, 10);
@@ -522,7 +522,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1, 1)]
         [InlineData(37, 3)]
         [InlineData(0, 0)] // counts as 1 x 1
-        public void Draw_CpuPath_HandsOverATightAreaSizedBgraPixmap(int _w, int _h)
+        public void CT119_Draw_CpuPath_HandsOverATightAreaSizedBgraPixmap(int _w, int _h)
         {
             // The pipeline's pixmap is tight (RowBytes == w * 4), area-sized, premultiplied BGRA.
             var method = new CpuProbe();
@@ -537,7 +537,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1)]
         [InlineData(0)]
         [InlineData(-3)]
-        public void Draw_CellSizeBelowTwo_EvaluatesEveryPixel(int _cell)
+        public void CT119_Draw_CellSizeBelowTwo_EvaluatesEveryPixel(int _cell)
         {
             using var source = SyntheticImage.CreateImage(20, 10);
             var p = MosaicValues(0);
@@ -553,7 +553,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(7)]
         [InlineData(20)]
         [InlineData(64)]
-        public void Draw_CellPath_EachCellIsItsTopLeftPixel(int _cell)
+        public void CT119_Draw_CellPath_EachCellIsItsTopLeftPixel(int _cell)
         {
             // The reduced surface evaluates the shader at the centre of each cell's top-left pixel; nearest upscaling
             // fills the cell (partial cells at the right and bottom included).
@@ -572,7 +572,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_CellPath_ScaledDestination()
+        public void CT119_Draw_CellPath_ScaledDestination()
         {
             using var source = SyntheticImage.CreateImage(12, 6);
             var p = MosaicValues(0);
@@ -589,7 +589,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_EmptyAreaSize_CountsAsOnePixel()
+        public void CT59_Draw_EmptyAreaSize_CountsAsOnePixel()
         {
             // A generated method with a 0 x 0 area still fills the destination (one area pixel scaled up).
             var method = MethodRegistry.Find("block")!;
@@ -601,7 +601,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_LevelsApplyToTheShaderPathAndTheCellPath()
+        public void CT46_Draw_LevelsApplyToTheShaderPathAndTheCellPath()
         {
             using var source = SyntheticImage.CreateImage(32, 16);
             var p = MosaicValues(0);
@@ -622,7 +622,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Draw_ReplacesWhatWasThere()
+        public void CT126_Draw_ReplacesWhatWasThere()
         {
             // BlendMode.Src: a translucent capture replaces the canvas instead of blending over it.
             var info = new SKImageInfo(8, 8, SKColorType.Bgra8888, SKAlphaType.Premul);
@@ -646,7 +646,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateSurface_RasterWithoutContext()
+        public void CT125_CreateSurface_RasterWithoutContext()
         {
             using var surface = MosaicPipeline.CreateSurface(null, new SKImageInfo(7, 5, SKColorType.Bgra8888, SKAlphaType.Premul));
             Assert.Null(surface.Context);
@@ -658,7 +658,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData(0, 0)]
         [InlineData(-1, 5)]
-        public void CreateSurface_ImpossibleSize_Throws(int _w, int _h)
+        public void CT125_CreateSurface_ImpossibleSize_Throws(int _w, int _h)
         {
             var e = Assert.Throws<InvalidOperationException>(() => MosaicPipeline.CreateSurface(null, new SKImageInfo(_w, _h, SKColorType.Bgra8888, SKAlphaType.Premul)));
             Assert.Equal($"Cannot create a {_w}x{_h} surface", e.Message);

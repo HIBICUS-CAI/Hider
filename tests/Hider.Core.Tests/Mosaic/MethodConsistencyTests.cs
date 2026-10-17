@@ -82,7 +82,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(300, 1)]
         [InlineData(2, 2)]
         [InlineData(3, 5)]
-        public void Mosaic_HexcellTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
+        public void CT119_Mosaic_HexcellTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
         {
             // Where the clamp of the hexagon centre (maxX = w - 0.5, 0.5 for one pixel) and a pyramid of a single level or
             // a few take effect.
@@ -111,7 +111,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(300, 1)]
         [InlineData(2, 2)]
         [InlineData(3, 5)]
-        public void Generated_NoiseTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
+        public void CT122_Generated_NoiseTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
         {
             // Smaller than one lattice step: cols = floor(w / step) + 2 and the Math.Min(.., cols - 2) of the CPU path.
             var method = MethodRegistry.Find("noise")!;

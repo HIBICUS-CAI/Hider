@@ -67,7 +67,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Timeouts_DefaultAndCustom()
+        public void CT69_Timeouts_DefaultAndCustom()
         {
             Assert.Equal(TimeSpan.FromMilliseconds(250), UnderlayComposer.DefaultTimeout);
             Assert.Equal(UnderlayComposer.DefaultTimeout, new UnderlayComposer(new FakeWindowSource()).Timeout);
@@ -75,7 +75,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Capture_GetsTheComposersTimeout()
+        public void CT69_Capture_GetsTheComposersTimeout()
         {
             var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, red), CaptureFailure.None) };
             source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
@@ -84,7 +84,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void LastCaptured_EmptyAtFirst_ThenTheWindowsOfTheLastCall()
+        public void CT106_LastCaptured_EmptyAtFirst_ThenTheWindowsOfTheLastCall()
         {
             var source = new FakeWindowSource()
                 .Add(Area, new PhysicalRect(0, 0, 10, 10), (9, 9, 9), "Hider")
@@ -102,7 +102,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(0, 10)]
         [InlineData(10, 0)]
         [InlineData(-1, -1)]
-        public void EmptyRect_UnavailableWithoutEnumerating(int _w, int _h)
+        public void CT62_EmptyRect_UnavailableWithoutEnumerating(int _w, int _h)
         {
             var source = new ScriptedSource();
             var composer = new UnderlayComposer(source);
@@ -114,7 +114,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void NoExcludedWindows_EveryWindowFromTheTopCounts()
+        public void CT63_NoExcludedWindows_EveryWindowFromTheTopCounts()
         {
             var source = new FakeWindowSource()
                 .Add(1, new PhysicalRect(0, 0, 50, 100), red)
@@ -126,7 +126,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void NoExcludedWindows_TimeoutSkipStillWorks()
+        public void CT69_NoExcludedWindows_TimeoutSkipStillWorks()
         {
             var source = new FakeWindowSource()
                 .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: CaptureFailure.Timeout)
@@ -138,7 +138,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void OwnWindowNotListed_StartsAtTheTop()
+        public void CT65_OwnWindowNotListed_StartsAtTheTop()
         {
             // The area's window is not (yet) in the Z order: nothing is known to be above it, so every window counts.
             var source = new FakeWindowSource()
@@ -150,7 +150,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void OwnWindowLast_NothingBelow_OpaqueBlack()
+        public void CT66_OwnWindowLast_NothingBelow_OpaqueBlack()
         {
             var source = new FakeWindowSource()
                 .Add(1, new PhysicalRect(0, 0, 100, 100), red)
@@ -165,7 +165,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(CaptureFailure.Denied)]
         [InlineData(CaptureFailure.Unavailable)]
         [InlineData(CaptureFailure.Black)]
-        public void OtherFailures_FailTheCapture_NotSkippedNextTime(CaptureFailure _failure)
+        public void CT69_OtherFailures_FailTheCapture_NotSkippedNextTime(CaptureFailure _failure)
         {
             var source = new FakeWindowSource()
                 .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: _failure)
@@ -181,7 +181,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void NoImageWithoutAFailure_IsBlack()
+        public void CT67_NoImageWithoutAFailure_IsBlack()
         {
             var source = new ScriptedSource();
             source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
@@ -189,7 +189,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TimeoutStopsTheWalk_TheTimedOutWindowIsInLastCaptured()
+        public void CT69_TimeoutStopsTheWalk_TheTimedOutWindowIsInLastCaptured()
         {
             var source = new FakeWindowSource()
                 .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: CaptureFailure.Timeout)
@@ -200,7 +200,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void SkippedWindow_ItsPartComesFromBelow()
+        public void CT69_SkippedWindow_ItsPartComesFromBelow()
         {
             // Window 1 timed out last time: this time it is skipped and the window below shows through.
             var source = new FakeWindowSource()
@@ -215,7 +215,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void WindowWhosePartIsAlreadyCovered_IsSkipped_LowerWindowsStillFillTheRest()
+        public void CT61_WindowWhosePartIsAlreadyCovered_IsSkipped_LowerWindowsStillFillTheRest()
         {
             // Window 2 lies inside window 1; window 3 fills the right half. Window 2 is never captured.
             var source = new FakeWindowSource()
@@ -231,7 +231,7 @@ namespace Hider.Core.Tests.Capture
         private static readonly nint[] oneAndThree = { 1, 3 };
 
         [Fact]
-        public void EmptyWindowRect_OrDisjointFrame_IsSkipped()
+        public void CT64_EmptyWindowRect_OrDisjointFrame_IsSkipped()
         {
             var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, _w.Handle == 3 ? green : red), CaptureFailure.None) };
             source.Windows.Add(new WindowInfo(1, default, new PhysicalRect(0, 0, 100, 100), true, false, "NoWindowRect"));
@@ -244,7 +244,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void ImageSmallerThanTheWindow_MissingPixelsComeFromBelow()
+        public void CT70_ImageSmallerThanTheWindow_MissingPixelsComeFromBelow()
         {
             // PrintWindow returned a 30 x 20 image for a 50 x 50 window: the rest of its part is left to lower windows.
             var source = new ScriptedSource
@@ -264,7 +264,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TranslucentPixels_StoredOpaque()
+        public void CT106_TranslucentPixels_StoredOpaque()
         {
             var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, red, 10), CaptureFailure.None) };
             source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
@@ -273,7 +273,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Target_IsReusedAndResized()
+        public void CT106_Target_IsReusedAndResized()
         {
             var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red);
             var target = FrameBuffer.Allocate(200, 200);
@@ -286,7 +286,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TargetTooSmall_GrowsAndIsStillReturned()
+        public void CT106_TargetTooSmall_GrowsAndIsStillReturned()
         {
             var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red);
             var target = new FrameBuffer();
@@ -296,7 +296,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Failure_LeavesTheTargetButReturnsNoFrame()
+        public void CT106_Failure_LeavesTheTargetButReturnsNoFrame()
         {
             var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red, _black: true);
             var target = FrameBuffer.Allocate(10, 10);
@@ -306,7 +306,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void IsBlack_RgbZeroWhateverTheAlpha()
+        public void CT67_IsBlack_RgbZeroWhateverTheAlpha()
         {
             Assert.True(UnderlayComposer.IsBlack(Solid(4, 3, (0, 0, 0), 255)));
             Assert.True(UnderlayComposer.IsBlack(Solid(4, 3, (0, 0, 0), 0)));
@@ -318,7 +318,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(0)] // blue
         [InlineData(1)] // green
         [InlineData(2)] // red
-        public void IsBlack_AnyColorChannel_NotBlack(int _channel)
+        public void CT67_IsBlack_AnyColorChannel_NotBlack(int _channel)
         {
             var image = Solid(4, 3, (0, 0, 0));
             image.Bgra.Span[(2 * 4 + 3) * 4 + _channel] = 1; // the last pixel
@@ -326,7 +326,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void IsBlack_IgnoresTheRowPadding()
+        public void CT67_IsBlack_IgnoresTheRowPadding()
         {
             // Stride 24 for 4 pixels: the 8 padding bytes per row are not pixels.
             var image = new FrameBuffer { Width = 4, Height = 2, Stride = 24, Bgra = new byte[48] };
@@ -354,7 +354,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TimeoutSkip_IsUsedUpByTheNextCapture_EvenWhenThatOneFails()
+        public void CT69_TimeoutSkip_IsUsedUpByTheNextCapture_EvenWhenThatOneFails()
         {
             // The skip is for the next capture of the area, whatever its outcome: when that one fails on another window
             // (black here), the window that timed out is asked again the time after.
@@ -374,7 +374,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TimeoutSkip_ANewTimeoutReplacesIt()
+        public void CT69_TimeoutSkip_ANewTimeoutReplacesIt()
         {
             // Window 1 times out; the next capture skips it and times out on window 2; the one after asks 1 again and skips 2.
             var source = TwoHalves(_first: CaptureFailure.Timeout);
@@ -395,7 +395,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void TimeoutSkip_KeptOverAnEmptyRequest()
+        public void CT69_TimeoutSkip_KeptOverAnEmptyRequest()
         {
             // A request with an empty rectangle fails before anything is captured: it does not use up the skip.
             var source = TwoHalves(_first: CaptureFailure.Timeout);

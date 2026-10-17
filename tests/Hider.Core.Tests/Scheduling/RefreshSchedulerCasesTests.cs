@@ -29,13 +29,13 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void RefreshReason_Values()
+        public void CT39_RefreshReason_Values()
         {
             Assert.Equal(new[] { RefreshReason.Created, RefreshReason.Committed, RefreshReason.Manual, RefreshReason.Timer }, Enum.GetValues<RefreshReason>());
         }
 
         [Fact]
-        public void IntervalMs_StartsAtZero_FollowsConfigure()
+        public void CT37_IntervalMs_StartsAtZero_FollowsConfigure()
         {
             var (scheduler, time, _) = Create(true);
             Assert.Equal(0, scheduler.IntervalMs);
@@ -54,7 +54,7 @@ namespace Hider.Core.Tests.Scheduling
         [Theory]
         [InlineData(-1)]
         [InlineData(int.MinValue)]
-        public void Configure_Negative_IsZero_StopsTheTimer(int _interval)
+        public void CT37_Configure_Negative_IsZero_StopsTheTimer(int _interval)
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
@@ -66,7 +66,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_NegativeWhileStopped_StaysStopped()
+        public void CT37_Configure_NegativeWhileStopped_StaysStopped()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(-5);
@@ -77,7 +77,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_SameInterval_DoesNotRestartTheTimer()
+        public void CT40_Configure_SameInterval_DoesNotRestartTheTimer()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
@@ -88,7 +88,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_FromZero_StartsOneIntervalFromNow()
+        public void CT40_Configure_FromZero_StartsOneIntervalFromNow()
         {
             var (scheduler, time, log) = Create(true);
             time.Advance(TimeSpan.FromMilliseconds(1000));
@@ -99,7 +99,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_Longer_KeepsTheScheduledTick_ThenTheNewInterval()
+        public void CT40_Configure_Longer_KeepsTheScheduledTick_ThenTheNewInterval()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
@@ -110,7 +110,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_ShorterButNotSooner_KeepsTheScheduledTick()
+        public void CT40_Configure_ShorterButNotSooner_KeepsTheScheduledTick()
         {
             // 100 ms left of 200; the new interval (100) is not sooner, so the tick stays at 200.
             var (scheduler, time, log) = Create(true);
@@ -126,7 +126,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Configure_AfterDispose_IsIgnored()
+        public void CT40_Configure_AfterDispose_IsIgnored()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Dispose();
@@ -138,7 +138,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Dispose_StopsTheTimer_AndIsIdempotent()
+        public void CT40_Dispose_StopsTheTimer_AndIsIdempotent()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
@@ -151,7 +151,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Dispose_DropsTheMergedRequest()
+        public void CT40_Dispose_DropsTheMergedRequest()
         {
             var (scheduler, _, log) = Create(false);
             scheduler.Request(RefreshReason.Created);
@@ -162,7 +162,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void TimerPaused_GetAndSet()
+        public void CT40_TimerPaused_GetAndSet()
         {
             var (scheduler, _, _) = Create(true);
             Assert.False(scheduler.TimerPaused);
@@ -173,7 +173,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void TimerPaused_TicksAreSkippedButTheTimerKeepsItsRhythm()
+        public void CT40_TimerPaused_TicksAreSkippedButTheTimerKeepsItsRhythm()
         {
             var (scheduler, time, log) = Create(true);
             scheduler.Configure(100);
@@ -187,7 +187,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void TimerPaused_TickMergedIntoARunningCapture_IsDroppedAtEndRun()
+        public void CT40_TimerPaused_TickMergedIntoARunningCapture_IsDroppedAtEndRun()
         {
             // A tick that arrived during a capture and is still waiting when a drag pauses the timer would otherwise start a
             // capture in the middle of the drag (FR-38: Linux captures when the drag is committed).
@@ -210,7 +210,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void TimerPaused_TickMergedThenPauseEndsBeforeEndRun_IsRaised()
+        public void CT40_TimerPaused_TickMergedThenPauseEndsBeforeEndRun_IsRaised()
         {
             var (scheduler, time, log) = Create(false);
             scheduler.Configure(100);
@@ -227,7 +227,7 @@ namespace Hider.Core.Tests.Scheduling
         [InlineData(RefreshReason.Manual)]
         [InlineData(RefreshReason.Committed)]
         [InlineData(RefreshReason.Created)]
-        public void TimerPaused_RequestMergedIntoARunningCapture_IsStillRaised(RefreshReason _reason)
+        public void CT40_TimerPaused_RequestMergedIntoARunningCapture_IsStillRaised(RefreshReason _reason)
         {
             // The pause is for ticks only: a request (also one that replaced a waiting tick) goes through.
             var (scheduler, time, log) = Create(false);
@@ -242,7 +242,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void TwoThreads_TicksAndRequests_NeverOverlapARun()
+        public void CT147_TwoThreads_TicksAndRequests_NeverOverlapARun()
         {
             // The timer fires on its own thread while requests come from another and runs end on a third. Between a Due and
             // its EndRun no other Due may be raised, and every run is ended exactly once.
@@ -309,7 +309,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Request_WithoutAHandler_StartsNoRun()
+        public void CT39_Request_WithoutAHandler_StartsNoRun()
         {
             // Nobody would call EndRun: the next request after a handler is attached must not be stuck behind it.
             var time = new FakeTimeProvider();
@@ -322,7 +322,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void EndRun_WithoutARun_RaisesNothing()
+        public void CT40_EndRun_WithoutARun_RaisesNothing()
         {
             var (scheduler, _, log) = Create(false);
             scheduler.EndRun();
@@ -333,7 +333,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Merge_ARequestReplacesATimerTick()
+        public void CT40_Merge_ARequestReplacesATimerTick()
         {
             var (scheduler, time, log) = Create(false);
             scheduler.Configure(100);
@@ -346,7 +346,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Merge_ATimerTickNeverReplacesARequest()
+        public void CT40_Merge_ATimerTickNeverReplacesARequest()
         {
             var (scheduler, time, log) = Create(false);
             scheduler.Configure(100);
@@ -359,7 +359,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Merge_TheFirstRequestIsKept()
+        public void CT40_Merge_TheFirstRequestIsKept()
         {
             var (scheduler, _, log) = Create(false);
             scheduler.Request(RefreshReason.Created);
@@ -372,7 +372,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Merge_RequestFromInsideTheHandler_RaisedAfterEndRun()
+        public void CT40_Merge_RequestFromInsideTheHandler_RaisedAfterEndRun()
         {
             var time = new FakeTimeProvider();
             using var scheduler = new RefreshScheduler(time);
@@ -393,7 +393,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void EndRun_HandlerRemovedMeanwhile_MergedRequestIsDropped()
+        public void CT40_EndRun_HandlerRemovedMeanwhile_MergedRequestIsDropped()
         {
             var time = new FakeTimeProvider();
             using var scheduler = new RefreshScheduler(time);
@@ -411,7 +411,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Due_EveryHandlerGetsTheReason_OneRun()
+        public void CT39_Due_EveryHandlerGetsTheReason_OneRun()
         {
             var time = new FakeTimeProvider();
             using var scheduler = new RefreshScheduler(time);
@@ -425,7 +425,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Tick_AfterDispose_IsIgnored()
+        public void CT40_Tick_AfterDispose_IsIgnored()
         {
             // A real timer's callback can already be on its way when Dispose runs.
             var time = new KeepingTimeProvider();
@@ -441,7 +441,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Tick_OfAStoppedTimer_IsIgnored()
+        public void CT37_Tick_OfAStoppedTimer_IsIgnored()
         {
             var time = new KeepingTimeProvider();
             using var scheduler = new RefreshScheduler(time);
@@ -463,7 +463,7 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
-        public void Arm_UsesTheTimestampFrequency()
+        public void CT38_Arm_UsesTheTimestampFrequency()
         {
             // 1000 ms from t = 5 s on a clock counting microseconds: the tick is due at 6 000 000.
             var time = new KeepingTimeProvider { Now = 5_000_000 };

@@ -31,7 +31,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Identity()
+        public void CT114_Identity()
         {
             Assert.Equal("pixelate", method.Id);
             Assert.Equal("method.pixelate", method.LabelKey);
@@ -43,7 +43,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Params_BlockFadingToOne()
+        public void CT04_Params_BlockFadingToOne()
         {
             var spec = Assert.Single(method.Params);
             Assert.Equal(new ParamSpec("block", "param.block", ParamUnit.Px, 2, 256, 2, 64, 12, LerpWithOpacity: true, LerpFloor: 1), spec);
@@ -61,7 +61,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(6.0000000001, 1.0, 6)]   // a rounding error above a whole number is not a larger block
         [InlineData(6.01, 1.0, 7)]
         [InlineData(double.NaN, 1.0, 12)]
-        public void EffectiveBlock_RoundedUp(double? _block, double _opacity, int _expected)
+        public void CT44_EffectiveBlock_RoundedUp(double? _block, double _opacity, int _expected)
         {
             var p = Values(_block, _opacity);
             Assert.Equal(_expected, PixelateMethod.EffectiveBlock(p));
@@ -73,7 +73,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(0.0)]
         [InlineData(-7.0)]
         [InlineData(0.4)]
-        public void EffectiveBlock_AtLeastOne_WithoutTheSpec(double _block)
+        public void CT44_EffectiveBlock_AtLeastOne_WithoutTheSpec(double _block)
         {
             var p = new ParamValues(Array.Empty<ParamSpec>(), new Dictionary<string, double> { ["block"] = _block }, 1.0);
             Assert.Equal(1, PixelateMethod.EffectiveBlock(p));
@@ -89,7 +89,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(31, 4)]
         [InlineData(64, 6)]
         [InlineData(256, 8)]
-        public void Cells_OneLinearSampleOfTheLargestLevelNotAboveTheBlock(int _block, int _level)
+        public void CT130_Cells_OneLinearSampleOfTheLargestLevelNotAboveTheBlock(int _block, int _level)
         {
             // Each cell shows pyramid level floor(log2 block) sampled linearly at the centre of the cell's visible part.
             const int w = 211, h = 143;
@@ -122,7 +122,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ShortPyramid_NearestOnTheSource()
+        public void CT130_ShortPyramid_NearestOnTheSource()
         {
             // Block 7 wants level 2; with only the source the cell centres are sampled nearest.
             using var source = SyntheticImage.CreateImage(45, 24);
@@ -148,7 +148,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(12.0, 0.5)]
         [InlineData(256.0, 1.0)]
         [InlineData(37.0, 0.3)]
-        public void CellPath_SameAsTheShaderOnEveryPixel(double _block, double _opacity)
+        public void CT119_CellPath_SameAsTheShaderOnEveryPixel(double _block, double _opacity)
         {
             // The pipeline evaluates the shader once per cell (P-1); the GPU evaluates it per pixel: the same pixels.
             var p = Values(_block, _opacity);
@@ -165,7 +165,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void PassThrough_SourceShaderIsTheCapture()
+        public void CT43_PassThrough_SourceShaderIsTheCapture()
         {
             using var source = SyntheticImage.CreateImage(30, 20);
             var p = Values(12, 0.0);
@@ -183,7 +183,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void BelowMinimumAndAboveMaximum_SameAsTheEnds()
+        public void CT120_BelowMinimumAndAboveMaximum_SameAsTheEnds()
         {
             using var min = Render.Mosaic("pixelate", _params: new() { ["block"] = 2 });
             using var below = Render.Mosaic("pixelate", _params: new() { ["block"] = -10 });

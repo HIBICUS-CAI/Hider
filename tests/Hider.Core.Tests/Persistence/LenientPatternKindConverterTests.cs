@@ -38,7 +38,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("", PatternKind.Mosaic)]
         [InlineData(" ", PatternKind.Mosaic)]
         [InlineData("ｆｉｌｌ", PatternKind.Mosaic)] // full-width letters are another name
-        public void FromName_SpecNamesInAnyCase_OthersAreMosaic(string _name, PatternKind _expected)
+        public void CT112_FromName_SpecNamesInAnyCase_OthersAreMosaic(string _name, PatternKind _expected)
         {
             Assert.Equal(_expected, LenientPatternKindConverter.FromName(_name));
         }
@@ -49,13 +49,13 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(PatternKind.Generated, "pattern")]
         [InlineData((PatternKind)7, "mosaic")]
         [InlineData((PatternKind)(-1), "mosaic")]
-        public void ToName_IsTheSpecsName_UndefinedIsMosaic(PatternKind _kind, string _expected)
+        public void CT112_ToName_IsTheSpecsName_UndefinedIsMosaic(PatternKind _kind, string _expected)
         {
             Assert.Equal(_expected, LenientPatternKindConverter.ToName(_kind));
         }
 
         [Fact]
-        public void Names_RoundTripForEveryPattern()
+        public void CT112_Names_RoundTripForEveryPattern()
         {
             foreach (var kind in Enum.GetValues<PatternKind>())
             {
@@ -72,7 +72,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("2", PatternKind.Generated)]
         [InlineData("7", (PatternKind)7)]      // Normalize turns it into mosaic
         [InlineData("-3", (PatternKind)(-3))]
-        public void Read_StringsAndIntegers(string _json, PatternKind _expected)
+        public void CT112_Read_StringsAndIntegers(string _json, PatternKind _expected)
         {
             Assert.Equal(_expected, Read(_json));
         }
@@ -86,7 +86,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("1.5")]
         [InlineData("1e3")]
         [InlineData("4294967296")]
-        public void Read_OtherTokens_Throw(string _json)
+        public void CT112_Read_OtherTokens_Throw(string _json)
         {
             Assert.Throws<JsonException>(() => Read(_json));
         }
@@ -96,13 +96,13 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(PatternKind.Mosaic, "\"mosaic\"")]
         [InlineData(PatternKind.Generated, "\"pattern\"")]
         [InlineData((PatternKind)9, "\"mosaic\"")]
-        public void Write_TheName(PatternKind _value, string _expected)
+        public void CT112_Write_TheName(PatternKind _value, string _expected)
         {
             Assert.Equal(_expected, Write(_value));
         }
 
         [Fact]
-        public void Context_UsesThisConverter_ForThePatternOfAnArea()
+        public void CT112_Context_UsesThisConverter_ForThePatternOfAnArea()
         {
             // The context's converter list wins over the enum's own [JsonConverter] attribute.
             var state = JsonSerializer.Deserialize("""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": "IMAGE" } ] }""", HiderJsonContext.Default.AppState)!;

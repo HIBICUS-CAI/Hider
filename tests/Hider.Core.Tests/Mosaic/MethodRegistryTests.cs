@@ -13,7 +13,7 @@ namespace Hider.Core.Tests.Mosaic
         private static readonly string[] bothOnly = { "both" };
 
         [Fact]
-        public void All_InTheOrderOfTheMethodList()
+        public void CT13_All_InTheOrderOfTheMethodList()
         {
             // The settings list the methods in this order (design canvas 4b).
             Assert.Equal(allInOrder, MethodRegistry.All.Select(_m => _m.Id));
@@ -25,7 +25,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Find_ReturnsTheRegisteredInstance()
+        public void CT18_Find_ReturnsTheRegisteredInstance()
         {
             foreach (var method in MethodRegistry.All)
             {
@@ -38,7 +38,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("pixelate ")]
         [InlineData("")]
         [InlineData("does-not-exist")]
-        public void Find_UnknownIsNull(string _id)
+        public void CT18_Find_UnknownIsNull(string _id)
         {
             Assert.Null(MethodRegistry.Find(_id));
             Assert.Null(MethodRegistry.Find(_id, MethodKind.Mosaic));
@@ -54,7 +54,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("block", MethodKind.Mosaic, false)]
         [InlineData("noise", MethodKind.Generated, true)]
         [InlineData("noise", MethodKind.Mosaic, false)]
-        public void Find_WithKind_OnlyAMethodOfThatKind(string _id, MethodKind _kind, bool _found)
+        public void CT18_Find_WithKind_OnlyAMethodOfThatKind(string _id, MethodKind _kind, bool _found)
         {
             var method = MethodRegistry.Find(_id, _kind);
             if (_found)
@@ -68,7 +68,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void OfKind_SplitsTheList()
+        public void CT13_OfKind_SplitsTheList()
         {
             Assert.Equal(mosaicIds, MethodRegistry.OfKind(MethodKind.Mosaic).Select(_m => _m.Id));
             Assert.Equal(generatedIds, MethodRegistry.OfKind(MethodKind.Generated).Select(_m => _m.Id));
@@ -81,14 +81,14 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(PlatformSupport.Windows)]
         [InlineData(PlatformSupport.Linux)]
         [InlineData(PlatformSupport.All)]
-        public void ForPlatform_EveryBuiltInMethodRunsEverywhere(PlatformSupport _platform)
+        public void CT16_ForPlatform_EveryBuiltInMethodRunsEverywhere(PlatformSupport _platform)
         {
             Assert.Equal(allInOrder, MethodRegistry.ForPlatform(_platform).Select(_m => _m.Id));
             Assert.All(MethodRegistry.All, _m => Assert.Equal(PlatformSupport.All, _m.Support));
         }
 
         [Fact]
-        public void Filter_NeedsEveryRequestedFlag_KeepsTheOrder()
+        public void CT16_Filter_NeedsEveryRequestedFlag_KeepsTheOrder()
         {
             var win = new DummyMethod("win", MethodKind.Mosaic, PlatformSupport.Windows);
             var linux = new DummyMethod("linux", MethodKind.Generated, PlatformSupport.Linux);
@@ -101,7 +101,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CurrentPlatform_IsTheRunningOs()
+        public void CT16_CurrentPlatform_IsTheRunningOs()
         {
             // Independent of the implementation's OperatingSystem check: the runtime's own OS identification.
             var expected = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
@@ -115,7 +115,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void BuiltInMethods_IdsLabelsAndKinds()
+        public void CT13_BuiltInMethods_IdsLabelsAndKinds()
         {
             var expected = new (string Id, string Label, MethodKind Kind)[]
             {

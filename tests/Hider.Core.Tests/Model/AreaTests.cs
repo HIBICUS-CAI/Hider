@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Model
     public class AreaTests
     {
         [Fact]
-        public void Area_Defaults()
+        public void CT10_Area_Defaults()
         {
             var area = new Area { Id = "0f3b8d2e" };
             Assert.Equal("0f3b8d2e", area.Id);
@@ -22,7 +22,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Area_EachInstanceHasItsOwnSettings()
+        public void CT111_Area_EachInstanceHasItsOwnSettings()
         {
             var a = new Area { Id = "00000001" };
             var b = new Area { Id = "00000002" };
@@ -34,7 +34,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Area_RectIsSettable()
+        public void CT111_Area_RectIsSettable()
         {
             var area = new Area { Id = "00000001", Rect = new PhysicalRect(1, 2, 3, 4) };
             Assert.Equal(new PhysicalRect(1, 2, 3, 4), area.Rect);
@@ -51,7 +51,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(double.NegativeInfinity, 0.0)]
         [InlineData(double.PositiveInfinity, 1.0)]
         [InlineData(double.NaN, 1.0)]
-        public void Area_Opacity_ClampedTo01_NaNIsOpaque(double _value, double _expected)
+        public void CT03_Area_Opacity_ClampedTo01_NaNIsOpaque(double _value, double _expected)
         {
             var area = new Area { Id = "00000001", Opacity = 0.3 };
             area.Opacity = _value;
@@ -66,7 +66,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(PatternKind.Generated, 1.0, 1.0)]
         [InlineData(PatternKind.Mosaic, 0.0, 0.0)]
         [InlineData(PatternKind.Mosaic, 0.05, 0.05)]
-        public void Area_EffectiveOpacity_FollowsThePattern(PatternKind _pattern, double _opacity, double _expected)
+        public void CT03_Area_EffectiveOpacity_FollowsThePattern(PatternKind _pattern, double _opacity, double _expected)
         {
             var area = new Area { Id = "00000001", Pattern = _pattern, Opacity = _opacity };
             Assert.Equal(_expected, area.EffectiveOpacity);
@@ -77,7 +77,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(PatternKind.Fill)]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void ClampOpacity_NaN_IsOpaque_ForEveryPattern(PatternKind _pattern)
+        public void CT03_ClampOpacity_NaN_IsOpaque_ForEveryPattern(PatternKind _pattern)
         {
             Assert.Equal(1.0, Area.ClampOpacity(_pattern, double.NaN));
             Assert.Equal(1.0, Area.ClampOpacity(_pattern, double.PositiveInfinity));
@@ -85,14 +85,14 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void ClampOpacity_UndefinedPattern_UsesTheAlphaRange()
+        public void CT03_ClampOpacity_UndefinedPattern_UsesTheAlphaRange()
         {
             // Only mosaic may go down to 0: any other value (also one not defined) keeps the area visible.
             Assert.Equal(Area.MinAlphaOpacity, Area.ClampOpacity((PatternKind)7, 0.0));
         }
 
         [Fact]
-        public void MinAlphaOpacity_IsTenPercent()
+        public void CT03_MinAlphaOpacity_IsTenPercent()
         {
             Assert.Equal(0.10, Area.MinAlphaOpacity);
         }
@@ -100,7 +100,7 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData(true, AreaDefaults.IntervalMsWindows)]
         [InlineData(false, AreaDefaults.IntervalMsLinux)]
-        public void CreateNew_IdRectAndOsInterval(bool _isWindows, int _interval)
+        public void CT10_CreateNew_IdRectAndOsInterval(bool _isWindows, int _interval)
         {
             var rect = new PhysicalRect(-10, 20, 300, 400);
             var area = Area.CreateNew("1a2b3c4d", rect, _isWindows);
@@ -120,7 +120,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void AreaDefaults_Values()
+        public void CT10_AreaDefaults_Values()
         {
             // Spec §4.5 / FR-14 / FR-51.
             Assert.Equal("#68768A", AreaDefaults.FillColor);
@@ -142,7 +142,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void AreaDefaults_IntervalMs_PerOs()
+        public void CT10_AreaDefaults_IntervalMs_PerOs()
         {
             Assert.Equal(100, AreaDefaults.IntervalMs(true));
             Assert.Equal(300000, AreaDefaults.IntervalMs(false));
@@ -150,7 +150,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void FillSettings_DefaultColor_Settable()
+        public void CT111_FillSettings_DefaultColor_Settable()
         {
             var fill = new FillSettings();
             Assert.Equal(AreaDefaults.FillColor, fill.Color);
@@ -159,7 +159,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void MethodSettings_Defaults()
+        public void CT111_MethodSettings_Defaults()
         {
             var settings = new MethodSettings<MosaicCommon>();
             Assert.Equal("", settings.Method);
@@ -171,7 +171,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void MethodSettings_ParamsFor_CreatesOnceAndReturnsTheSameValues()
+        public void CT111_MethodSettings_ParamsFor_CreatesOnceAndReturnsTheSameValues()
         {
             var settings = new MethodSettings<MosaicCommon>();
             var first = settings.ParamsFor("pixelate");
@@ -185,7 +185,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void MethodSettings_ParamsFor_ReturnsAnExistingEntry_OthersKept()
+        public void CT111_MethodSettings_ParamsFor_ReturnsAnExistingEntry_OthersKept()
         {
             var existing = new Dictionary<string, double> { ["k"] = 1.5 };
             var settings = new MethodSettings<GeneratedCommon>
@@ -200,7 +200,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void MethodSettings_CommonAndParamsAreReplaceable()
+        public void CT111_MethodSettings_CommonAndParamsAreReplaceable()
         {
             var common = new MosaicCommon { Levels = 4 };
             var values = new Dictionary<string, Dictionary<string, double>>();
@@ -211,7 +211,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void MosaicCommon_Defaults_AndSetters()
+        public void CT111_MosaicCommon_Defaults_AndSetters()
         {
             var common = new MosaicCommon();
             Assert.Equal(AreaDefaults.MosaicBlur, common.Blur);
@@ -226,7 +226,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void GeneratedCommon_Defaults_AndSetters()
+        public void CT111_GeneratedCommon_Defaults_AndSetters()
         {
             var common = new GeneratedCommon();
             Assert.Equal(AreaDefaults.FillColor, common.BaseColor);

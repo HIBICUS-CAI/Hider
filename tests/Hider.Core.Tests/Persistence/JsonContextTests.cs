@@ -27,7 +27,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Options_CamelCase_Indented_LenientIntegers()
+        public void CT143_Options_CamelCase_Indented_LenientIntegers()
         {
             var options = HiderJsonContext.Default.Options;
             Assert.Same(JsonNamingPolicy.CamelCase, options.PropertyNamingPolicy);
@@ -37,7 +37,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void EveryStoredType_HasGeneratedMetadata()
+        public void CT143_EveryStoredType_HasGeneratedMetadata()
         {
             foreach (var type in new[]
                      {
@@ -52,7 +52,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void AppState_RoundTrip_EveryField()
+        public void CT21_AppState_RoundTrip_EveryField()
         {
             var area = new AreaState
             {
@@ -91,7 +91,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void EachType_RoundTripsOnItsOwn()
+        public void CT21_EachType_RoundTripsOnItsOwn()
         {
             Assert.Equal("#ABCDEF", RoundTrip(new FillSettings { Color = "#ABCDEF" }).Color);
             var mosaic = RoundTrip(new MosaicCommon { Blur = 1.5, Levels = 3, IntervalMs = 7, StripPx = 9 });
@@ -108,7 +108,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void PropertyNames_AreCamelCase()
+        public void CT143_PropertyNames_AreCamelCase()
         {
             var area = new AreaState { Id = "0f3b8d2e" };
             using var doc = JsonDocument.Parse(JsonSerializer.Serialize(area, Info<AreaState>()));
@@ -120,7 +120,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void DictionaryKeys_AreWrittenAsGiven()
+        public void CT143_DictionaryKeys_AreWrittenAsGiven()
         {
             // The naming policy applies to properties, not to method ids or parameter keys.
             var settings = new MethodSettings<MosaicCommon>();
@@ -131,7 +131,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void IntegerFields_UseTheLenientConverter()
+        public void CT144_IntegerFields_UseTheLenientConverter()
         {
             var common = JsonSerializer.Deserialize("""{ "levels": 15.5, "intervalMs": -0.5, "stripPx": 1e3 }""", Info<MosaicCommon>())!;
             Assert.Equal((16, -1, 1000), (common.Levels, common.IntervalMs, common.StripPx));
@@ -161,7 +161,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("-2147483649", int.MinValue)]
         [InlineData("1e300", int.MaxValue)]
         [InlineData("-1e300", int.MinValue)]
-        public void LenientInt32_AnyFiniteNumber_RoundedAwayFromZeroAndClamped(string _json, int _expected)
+        public void CT144_LenientInt32_AnyFiniteNumber_RoundedAwayFromZeroAndClamped(string _json, int _expected)
         {
             Assert.Equal(_expected, ReadInt(_json));
         }
@@ -173,7 +173,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("null", "Null")]
         [InlineData("[1]", "StartArray")]
         [InlineData("{}", "StartObject")]
-        public void LenientInt32_NotANumber_Throws(string _json, string _tokenType)
+        public void CT144_LenientInt32_NotANumber_Throws(string _json, string _tokenType)
         {
             var e = Assert.Throws<JsonException>(() => ReadInt(_json));
             Assert.Equal($"expected a number, got {_tokenType}", e.Message);
@@ -182,7 +182,7 @@ namespace Hider.Core.Tests.Persistence
         [Theory]
         [InlineData("1e400")]
         [InlineData("-1e400")]
-        public void LenientInt32_BeyondDouble_Throws(string _json)
+        public void CT144_LenientInt32_BeyondDouble_Throws(string _json)
         {
             var e = Assert.Throws<JsonException>(() => ReadInt(_json));
             Assert.Equal("number out of range", e.Message);
@@ -193,7 +193,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(-42, "-42")]
         [InlineData(int.MaxValue, "2147483647")]
         [InlineData(int.MinValue, "-2147483648")]
-        public void LenientInt32_WritesAPlainInteger(int _value, string _expected)
+        public void CT144_LenientInt32_WritesAPlainInteger(int _value, string _expected)
         {
             var buffer = new ArrayBufferWriter<byte>();
             using (var writer = new Utf8JsonWriter(buffer))

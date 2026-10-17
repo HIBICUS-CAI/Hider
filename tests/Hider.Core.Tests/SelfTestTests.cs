@@ -72,7 +72,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void CompareRoundTrip_SameStateAndRect_Passes()
+        public void CT93_CompareRoundTrip_SameStateAndRect_Passes()
         {
             var rect = new PhysicalRect(-1200, 340, 1200, 675);
             Assert.Null(SelfTest.CompareRoundTrip(OneArea(rect, 1.5), OneArea(rect, 1.5), LoadStatus.Loaded, rect));
@@ -82,7 +82,7 @@ namespace Hider.Core.Tests
         [InlineData(LoadStatus.Missing)]
         [InlineData(LoadStatus.Broken)]
         [InlineData(LoadStatus.Unreadable)]
-        public void CompareRoundTrip_NotLoaded_Fails(LoadStatus _status)
+        public void CT93_CompareRoundTrip_NotLoaded_Fails(LoadStatus _status)
         {
             // The loaded state is empty then: the status is reported without looking at its areas.
             var rect = new PhysicalRect(0, 0, 300, 300);
@@ -92,7 +92,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void CompareRoundTrip_DifferentJson_Fails()
+        public void CT93_CompareRoundTrip_DifferentJson_Fails()
         {
             var rect = new PhysicalRect(0, 0, 300, 300);
             var loaded = OneArea(rect, 1.5);
@@ -104,7 +104,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void CompareRoundTrip_RectNotBackAtTheScale_Fails()
+        public void CT93_CompareRoundTrip_RectNotBackAtTheScale_Fails()
         {
             // The saved size (DIP) converted back at 150% is not the rectangle the check started from.
             var saved = OneArea(new PhysicalRect(0, 0, 300, 300), 1.5);
@@ -113,19 +113,19 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void CheckShaders_EveryEmbeddedShader_Compiles()
+        public void CT93_CheckShaders_EveryEmbeddedShader_Compiles()
         {
             Assert.Null(SelfTest.CheckShaders(ShaderSource.All()));
         }
 
         [Fact]
-        public void CheckShaders_NoShaders_Fails()
+        public void CT93_CheckShaders_NoShaders_Fails()
         {
             Assert.Equal("no embedded shaders", SelfTest.CheckShaders(Array.Empty<string>()));
         }
 
         [Fact]
-        public void CheckShaders_MissingShader_Throws()
+        public void CT93_CheckShaders_MissingShader_Throws()
         {
             // Run turns the exception into the check's error.
             var e = Assert.Throws<InvalidOperationException>(() => SelfTest.CheckShaders(missingShader));

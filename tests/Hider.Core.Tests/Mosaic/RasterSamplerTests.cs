@@ -39,7 +39,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Create_ImageWithoutCpuPixels_IsNull()
+        public void CT131_Create_ImageWithoutCpuPixels_IsNull()
         {
             // A picture-backed image (like a GPU texture) has no pixels to peek.
             using var recorder = new SKPictureRecorder();
@@ -60,7 +60,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(SKColorType.Gray8, SKAlphaType.Opaque, false)]
         [InlineData(SKColorType.Rgb565, SKAlphaType.Opaque, false)]
         [InlineData(SKColorType.RgbaF16, SKAlphaType.Premul, false)]
-        public void Create_OnlyPremultiplied8BitBgraOrRgba(SKColorType _type, SKAlphaType _alpha, bool _supported)
+        public void CT131_Create_OnlyPremultiplied8BitBgraOrRgba(SKColorType _type, SKAlphaType _alpha, bool _supported)
         {
             var info = new SKImageInfo(4, 4, _type, _alpha);
             using var image = SKImage.FromPixelCopy(info, new byte[info.BytesSize], info.RowBytes);
@@ -72,7 +72,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData(SKColorType.Bgra8888)]
         [InlineData(SKColorType.Rgba8888)] // red and blue swapped into BGRA order
-        public void Nearest_EveryTexel_AsLittleEndianBgra(SKColorType _type)
+        public void CT131_Nearest_EveryTexel_AsLittleEndianBgra(SKColorType _type)
         {
             using var image = Ramp(6, 5, _type);
             using var sampler = RasterSampler.Create(image, 1, false)!;
@@ -92,7 +92,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1)]
         [InlineData(2)]
         [InlineData(4)]
-        public void Nearest_MatchesSkiasRasterAtTexelEdges(int _scale)
+        public void CT131_Nearest_MatchesSkiasRasterAtTexelEdges(int _scale)
         {
             // On a texel edge (u a whole number) Skia's raster takes the texel before it: texel ceil(u) - 1. Compared with
             // Skia itself, through a runtime shader that evaluates the image shader at exactly the given point.
@@ -123,7 +123,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Nearest_OutsideTheImage_ClampsToTheEdge()
+        public void CT131_Nearest_OutsideTheImage_ClampsToTheEdge()
         {
             using var image = Ramp(6, 5);
             using var sampler = RasterSampler.Create(image, 1, false)!;
@@ -134,7 +134,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Nearest_Scale_DividesTheCoordinates()
+        public void CT131_Nearest_Scale_DividesTheCoordinates()
         {
             // A pyramid level 2^k: area point (x, y) reads texel (x / 2^k, y / 2^k).
             using var image = Ramp(6, 5);
@@ -147,7 +147,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_AtTexelCentres_TheTexelItself()
+        public void CT132_Linear_AtTexelCentres_TheTexelItself()
         {
             using var image = Ramp(6, 5);
             using var sampler = RasterSampler.Create(image, 1, true)!;
@@ -161,7 +161,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_BetweenTexels_InterpolatesAndRounds()
+        public void CT132_Linear_BetweenTexels_InterpolatesAndRounds()
         {
             // Texels: blue = x * 10 + y. Halfway between (1, 0) and (2, 0): blue 15, green 1.5 -> 2 (to even), red 0.
             using var image = Ramp(6, 5);
@@ -174,7 +174,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_OutsideTheImage_ClampsLikeSkia()
+        public void CT132_Linear_OutsideTheImage_ClampsLikeSkia()
         {
             using var image = Ramp(6, 5);
             using var sampler = RasterSampler.Create(image, 1, true)!;
@@ -185,7 +185,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_Scale_PyramidLevelCoordinates()
+        public void CT132_Linear_Scale_PyramidLevelCoordinates()
         {
             // Scale 2: area point (2, 1) is level point (1, 0.5), the centre between texels (0, 0) and (1, 0).
             using var image = Ramp(6, 5);
@@ -195,7 +195,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_RgbaSource_SwappedBeforeInterpolating()
+        public void CT132_Linear_RgbaSource_SwappedBeforeInterpolating()
         {
             using var image = Ramp(6, 5, SKColorType.Rgba8888);
             using var sampler = RasterSampler.Create(image, 1, true)!;
@@ -203,7 +203,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Linear_TranslucentPremultipliedValues_InterpolatedAsStored()
+        public void CT132_Linear_TranslucentPremultipliedValues_InterpolatedAsStored()
         {
             var info = new SKImageInfo(2, 1, SKColorType.Bgra8888, SKAlphaType.Premul);
             var px = new byte[] { 100, 0, 0, 100, 0, 0, 0, 0 }; // premultiplied blue at alpha 100, then transparent
@@ -213,7 +213,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void PaddedRows_UseTheRowStride()
+        public void CT131_PaddedRows_UseTheRowStride()
         {
             using var image = Ramp(5, 4, _padding: 12);
             using (var pixmap = image.PeekPixels())
@@ -231,7 +231,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void OnePixelImage_EveryPointIsThatPixel()
+        public void CT131_OnePixelImage_EveryPointIsThatPixel()
         {
             using var image = Ramp(1, 1);
             using var nearest = RasterSampler.Create(image, 1, false)!;
@@ -244,7 +244,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Dispose_Twice_IsHarmless()
+        public void CT131_Dispose_Twice_IsHarmless()
         {
             using var image = Ramp(2, 2);
             var sampler = RasterSampler.Create(image, 1, false)!;

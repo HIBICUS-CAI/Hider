@@ -41,13 +41,13 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void LoadStatus_Values()
+        public void CT28_LoadStatus_Values()
         {
             Assert.Equal(new[] { LoadStatus.Loaded, LoadStatus.Missing, LoadStatus.Broken, LoadStatus.Unreadable }, Enum.GetValues<LoadStatus>());
         }
 
         [Fact]
-        public void Load_EmptyAreas_IsLoaded()
+        public void CT24_Load_EmptyAreas_IsLoaded()
         {
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [] }""");
             var state = AreasFile.Load(FilePath, out var status);
@@ -58,7 +58,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_MissingAreasKey_IsLoadedEmpty()
+        public void CT24_Load_MissingAreasKey_IsLoadedEmpty()
         {
             File.WriteAllText(FilePath, """{ "version": 1 }""");
             var state = AreasFile.Load(FilePath, out var status);
@@ -67,7 +67,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_MissingVersion_IsVersionOne()
+        public void CT25_Load_MissingVersion_IsVersionOne()
         {
             // The default of a missing key is the current version.
             File.WriteAllText(FilePath, """{ "areas": [] }""");
@@ -76,14 +76,14 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_UnknownKeys_AreIgnored()
+        public void CT137_Load_UnknownKeys_AreIgnored()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "editMode": true, "future": { "x": 1 } }""");
             Assert.Equal("0f3b8d2e", a.Id);
         }
 
         [Fact]
-        public void Load_CaseOfKeys_MustMatch()
+        public void CT137_Load_CaseOfKeys_MustMatch()
         {
             // camelCase only: "ID" is an unknown key, so the area gets a fresh id instead of "0f3b8d2e".
             var a = LoadOne("""{ "ID": "0f3b8d2e" }""");
@@ -103,7 +103,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("{ \"version\": 1, \"areas\": [ { \"id\": \"0f3b8d2e\", \"x\": null } ] }")]
         [InlineData("{ \"version\": 1, \"areas\": [ { \"id\": \"0f3b8d2e\", \"opacity\": \"high\" } ] }")]
         [InlineData("{ \"version\": 1, \"areas\": [ 5 ] }")]
-        public void Load_NotAVersionOneState_IsBroken(string _text)
+        public void CT25_Load_NotAVersionOneState_IsBroken(string _text)
         {
             File.WriteAllText(FilePath, _text);
             var state = AreasFile.Load(FilePath, out var status);
@@ -114,7 +114,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_PathIsADirectory_IsMissing()
+        public void CT28_Load_PathIsADirectory_IsMissing()
         {
             Directory.CreateDirectory(FilePath);
             var state = AreasFile.Load(FilePath, out var status);
@@ -123,7 +123,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_BrokenFileThatCannotBeMovedAside_IsUnreadable_AndLeftAlone()
+        public void CT138_Load_BrokenFileThatCannotBeMovedAside_IsUnreadable_AndLeftAlone()
         {
             // A folder named areas.json.broken is in the way: the broken file must not be overwritten by a later save.
             File.WriteAllText(FilePath, "not json");
@@ -142,7 +142,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_LockedFile_LogsTheReason()
+        public void CT138_Load_LockedFile_LogsTheReason()
         {
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [] }""");
             using var log = new StringWriter();
@@ -156,7 +156,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_ThirdBrokenFile_KeepsBothOlderOnes()
+        public void CT26_Load_ThirdBrokenFile_KeepsBothOlderOnes()
         {
             for (int i = 0; i < 3; i++)
             {
@@ -170,7 +170,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_NullSettings_ReplacedWithDefaults()
+        public void CT24_Load_NullSettings_ReplacedWithDefaults()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "fill": null, "mosaic": null, "generated": null }""");
             Assert.Equal(AreaDefaults.FillColor, a.Fill.Color);
@@ -183,7 +183,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_NullCommonAndParams_ReplacedWithDefaults()
+        public void CT24_Load_NullCommonAndParams_ReplacedWithDefaults()
         {
             var a = LoadOne("""
                 { "id": "0f3b8d2e", "fill": { "color": null },
@@ -200,7 +200,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_NullParamsOfAMethod_FilledWithDefaults()
+        public void CT24_Load_NullParamsOfAMethod_FilledWithDefaults()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "mosaic": { "method": "pixelate", "params": { "pixelate": null, "hexcell": { "radius": 30 } } } }""");
             Assert.Equal(12, a.Mosaic.Params["pixelate"]["block"]);
@@ -208,7 +208,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_EmptyMethodIds_BecomeTheDefaults()
+        public void CT24_Load_EmptyMethodIds_BecomeTheDefaults()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "mosaic": { "method": "" }, "generated": { "method": "" } }""");
             Assert.Equal(AreaDefaults.MosaicMethod, a.Mosaic.Method);
@@ -216,7 +216,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_KnownMethodsOfTheRightKind_AreKept()
+        public void CT23_Load_KnownMethodsOfTheRightKind_AreKept()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "mosaic": { "method": "blur" }, "generated": { "method": "noise" } }""");
             Assert.Equal("blur", a.Mosaic.Method);
@@ -224,7 +224,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_UnknownMosaicMethod_IsKept()
+        public void CT23_Load_UnknownMosaicMethod_IsKept()
         {
             var a = LoadOne("""{ "id": "0f3b8d2e", "mosaic": { "method": "from-the-future" } }""");
             Assert.Equal("from-the-future", a.Mosaic.Method);
@@ -237,7 +237,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("2", PatternKind.Generated)]
         [InlineData("-1", PatternKind.Mosaic)]
         [InlineData("3", PatternKind.Mosaic)]
-        public void Load_Pattern_KnownKeptUnknownBecomesMosaic(string _value, PatternKind _expected)
+        public void CT139_Load_Pattern_KnownKeptUnknownBecomesMosaic(string _value, PatternKind _expected)
         {
             Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
         }
@@ -249,7 +249,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("\"Mosaic\"", PatternKind.Mosaic)]
         [InlineData("\"Pattern\"", PatternKind.Generated)]
         [InlineData("\"PATTERN\"", PatternKind.Generated)]
-        public void Load_Pattern_OtherCase_IsTheSameName(string _value, PatternKind _expected)
+        public void CT139_Load_Pattern_OtherCase_IsTheSameName(string _value, PatternKind _expected)
         {
             // Proposal P-12: a hand-edited name in another case is that pattern, not a broken file.
             Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
@@ -262,7 +262,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("\"   \"")]
         [InlineData("\"fil\"")]
         [InlineData("\"fill pattern\"")]
-        public void Load_Pattern_UnknownName_BecomesMosaic_AndTheOtherAreasStay(string _value)
+        public void CT139_Load_Pattern_UnknownName_BecomesMosaic_AndTheOtherAreasStay(string _value)
         {
             // Proposal P-12: like an unknown number, an unknown name is mosaic (the content stays covered); the file is loaded,
             // not moved to .broken with every area in it.
@@ -283,7 +283,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("1.5")]           // not an integer
         [InlineData("4294967296")]   // beyond int
         [InlineData("-2147483649")]
-        public void Load_Pattern_NotANameOrAnInteger_TheFileIsBroken(string _value)
+        public void CT139_Load_Pattern_NotANameOrAnInteger_TheFileIsBroken(string _value)
         {
             // Only strings and integers can be a pattern; anything else is not a valid state (FR-64).
             File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""");
@@ -296,7 +296,7 @@ namespace Hider.Core.Tests.Persistence
         [Theory]
         [InlineData("2147483647")]
         [InlineData("-2147483648")]
-        public void Load_Pattern_IntegerAtTheIntLimits_BecomesMosaic(string _value)
+        public void CT139_Load_Pattern_IntegerAtTheIntLimits_BecomesMosaic(string _value)
         {
             Assert.Equal(PatternKind.Mosaic, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
         }
@@ -305,7 +305,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(PatternKind.Fill, "fill")]
         [InlineData(PatternKind.Mosaic, "mosaic")]
         [InlineData(PatternKind.Generated, "pattern")]
-        public void Save_Pattern_IsTheSpecsLowerCaseName(PatternKind _pattern, string _name)
+        public void CT139_Save_Pattern_IsTheSpecsLowerCaseName(PatternKind _pattern, string _name)
         {
             var area = Area.CreateNew("0f3b8d2e", new PhysicalRect(0, 0, 100, 100), true);
             area.Pattern = _pattern;
@@ -319,7 +319,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("\" fill\"", PatternKind.Fill)]
         [InlineData("\"mosaic \"", PatternKind.Mosaic)]
         [InlineData("\" pattern \"", PatternKind.Generated)]
-        public void Load_Pattern_SurroundingSpaces_AreIgnored(string _value, PatternKind _expected)
+        public void CT139_Load_Pattern_SurroundingSpaces_AreIgnored(string _value, PatternKind _expected)
         {
             // The converter trims the name before matching it.
             Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
@@ -329,7 +329,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("1e999", 128.0)]   // beyond double: read as infinity, clamped to the maximum
         [InlineData("-1e999", 0.0)]
         [InlineData("1e300", 128.0)]
-        public void Load_MosaicBlur_HugeNumbers_ClampedToTheRange(string _value, double _expected)
+        public void CT140_Load_MosaicBlur_HugeNumbers_ClampedToTheRange(string _value, double _expected)
         {
             var a = LoadOne($$"""{ "id": "0f3b8d2e", "mosaic": { "common": { "blur": {{_value}} } } }""");
             Assert.Equal(_expected, a.Mosaic.Common.Blur);
@@ -339,7 +339,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("\"NaN\"")]
         [InlineData("\"Infinity\"")]
         [InlineData("NaN")]
-        public void Load_MosaicBlur_NamedFloatingPointLiterals_TheFileIsBroken(string _value)
+        public void CT26_Load_MosaicBlur_NamedFloatingPointLiterals_TheFileIsBroken(string _value)
         {
             // Neither the bare words (not JSON) nor the strings (named literals are not allowed) are numbers here.
             File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "mosaic": { "common": { "blur": {{_value}} } } } ] }""");
@@ -348,7 +348,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Load_Utf8WithByteOrderMark_IsLoaded()
+        public void CT137_Load_Utf8WithByteOrderMark_IsLoaded()
         {
             // Notepad and other editors may save with a BOM.
             File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "fill": { "color": "#123456" } } ] }""", new System.Text.UTF8Encoding(true));
@@ -359,7 +359,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_LeftOverLongerTempFile_IsReplacedWhole()
+        public void CT27_Save_LeftOverLongerTempFile_IsReplacedWhole()
         {
             // A crash may leave areas.json.tmp behind, longer than the next save: the save truncates it, so the renamed file
             // is exactly the new JSON with nothing of the old one after it.
@@ -374,7 +374,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_Ids_BadOrDuplicateReplaced_FirstOfADuplicateKept()
+        public void CT98_Normalize_Ids_BadOrDuplicateReplaced_FirstOfADuplicateKept()
         {
             var state = new AppState
             {
@@ -394,7 +394,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_ReplacementTakenByTheIdsBefore_IsDrawnAgain()
+        public void CT98_Normalize_ReplacementTakenByTheIdsBefore_IsDrawnAgain()
         {
             // The first draw for the third area is the second area's id: drawn again.
             var state = new AppState { Areas = { new AreaState { Id = "0f3b8d2e" }, new AreaState { Id = "1a2b3c4d" }, new AreaState { Id = "bad" } } };
@@ -405,7 +405,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_ReplacedIdAndALaterValidId_StayDistinct()
+        public void CT98_Normalize_ReplacedIdAndALaterValidId_StayDistinct()
         {
             // The replacement of "bad" is unique among the ids seen so far, and here equals the later valid id. That one is
             // checked when its turn comes and replaced as a duplicate; the third, distinct id stays.
@@ -420,7 +420,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_WithoutARandom_DrawsFromTheShared()
+        public void CT98_Normalize_WithoutARandom_DrawsFromTheShared()
         {
             var state = new AppState { Areas = { new AreaState { Id = "bad" }, new AreaState { Id = "bad" } } };
             AreasFile.Normalize(state, null);
@@ -451,7 +451,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(-AreasFile.MaxCoordinate - 1, -AreasFile.MaxCoordinate)]
         [InlineData(int.MaxValue, AreasFile.MaxCoordinate)]
         [InlineData(int.MinValue, -AreasFile.MaxCoordinate)]
-        public void Normalize_Position_ClampedToMaxCoordinate(int _value, int _expected)
+        public void CT141_Normalize_Position_ClampedToMaxCoordinate(int _value, int _expected)
         {
             var area = new AreaState { Id = "0f3b8d2e", X = _value, Y = _value };
             AreasFile.Normalize(StateWith(area));
@@ -459,7 +459,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void MaxCoordinate_IsTwoToTheTwentieth()
+        public void CT141_MaxCoordinate_IsTwoToTheTwentieth()
         {
             Assert.Equal(1_048_576, AreasFile.MaxCoordinate);
         }
@@ -473,7 +473,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(double.NaN, 1.0)]
         [InlineData(double.PositiveInfinity, 1.0)]
         [InlineData(double.NegativeInfinity, 0.0)]
-        public void Normalize_Opacity_Clamped_NaNIsOpaque(double _value, double _expected)
+        public void CT140_Normalize_Opacity_Clamped_NaNIsOpaque(double _value, double _expected)
         {
             var area = new AreaState { Id = "0f3b8d2e", Opacity = _value };
             AreasFile.Normalize(StateWith(area));
@@ -488,7 +488,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(-50.0, 24.0)]
         [InlineData(16384.0, 16384.0)]
         [InlineData(16384.5, 16384.0)]
-        public void Normalize_Size_ClampedToMinAndMax(double _value, double _expected)
+        public void CT141_Normalize_Size_ClampedToMinAndMax(double _value, double _expected)
         {
             var area = new AreaState { Id = "0f3b8d2e", Width = _value, Height = _value };
             AreasFile.Normalize(StateWith(area));
@@ -499,7 +499,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(double.NaN)]
         [InlineData(double.PositiveInfinity)]
         [InlineData(double.NegativeInfinity)]
-        public void Normalize_SizeThatIsNoNumber_IsTheNewAreaSize(double _value)
+        public void CT141_Normalize_SizeThatIsNoNumber_IsTheNewAreaSize(double _value)
         {
             var area = new AreaState { Id = "0f3b8d2e", Width = _value, Height = _value };
             AreasFile.Normalize(StateWith(area));
@@ -516,7 +516,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(-65536, 0)]
         [InlineData(int.MaxValue, 65535)]
         [InlineData(int.MinValue, 0)]
-        public void Normalize_Seed_IntoTheHashRange(int _seed, int _expected)
+        public void CT140_Normalize_Seed_IntoTheHashRange(int _seed, int _expected)
         {
             var area = new AreaState { Id = "0f3b8d2e" };
             area.Generated.Common.Seed = _seed;
@@ -528,7 +528,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("#abcdef", "#ABCDEF")]
         [InlineData("#ABCDEF", "#ABCDEF")]
         [InlineData("abcdef", AreaDefaults.FillColor)]
-        public void Normalize_Colors_UpperCaseOrDefault(string _color, string _expected)
+        public void CT29_Normalize_Colors_UpperCaseOrDefault(string _color, string _expected)
         {
             var area = new AreaState { Id = "0f3b8d2e" };
             area.Fill.Color = _color;
@@ -539,7 +539,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_MosaicCommon_EachValueClampedToItsRange()
+        public void CT140_Normalize_MosaicCommon_EachValueClampedToItsRange()
         {
             var low = new AreaState { Id = "0f3b8d2e" };
             low.Mosaic.Common.Blur = -1;
@@ -560,7 +560,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_MosaicCommon_InRangeValuesKept()
+        public void CT140_Normalize_MosaicCommon_InRangeValuesKept()
         {
             var area = new AreaState { Id = "0f3b8d2e" };
             area.Mosaic.Common.Blur = 2.5;
@@ -572,7 +572,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_EveryRegisteredMethodGetsItsParameters()
+        public void CT24_Normalize_EveryRegisteredMethodGetsItsParameters()
         {
             var area = new AreaState { Id = "0f3b8d2e" };
             AreasFile.Normalize(StateWith(area));
@@ -588,7 +588,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Normalize_EmptyState_DoesNothing()
+        public void CT141_Normalize_EmptyState_DoesNothing()
         {
             var state = new AppState();
             AreasFile.Normalize(state);
@@ -596,7 +596,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FillDefaults_MissingDefault_PresentClamped_NaNDefault_ExtraKeysKept()
+        public void CT24_FillDefaults_MissingDefault_PresentClamped_NaNDefault_ExtraKeysKept()
         {
             var values = new Dictionary<string, Dictionary<string, double>>
             {
@@ -613,7 +613,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FillDefaults_OnlyTheGivenKind()
+        public void CT24_FillDefaults_OnlyTheGivenKind()
         {
             var mosaic = new Dictionary<string, Dictionary<string, double>>();
             AreasFile.FillDefaults(mosaic, MethodKind.Mosaic);
@@ -626,7 +626,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FillDefaults_NullEntry_Replaced_ExistingEntryKeptAsTheSameInstance()
+        public void CT24_FillDefaults_NullEntry_Replaced_ExistingEntryKeptAsTheSameInstance()
         {
             var existing = new Dictionary<string, double> { ["block"] = 20 };
             var values = new Dictionary<string, Dictionary<string, double>> { ["pixelate"] = existing, ["hexcell"] = null! };
@@ -637,7 +637,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_CreatesTheFolder()
+        public void CT142_Save_CreatesTheFolder()
         {
             string path = Path.Combine(dir, "a", "b", "areas.json");
             AreasFile.Save(path, new AppState());
@@ -649,7 +649,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_ReplacesTheWholeFile()
+        public void CT27_Save_ReplacesTheWholeFile()
         {
             File.WriteAllText(FilePath, new string('x', 100_000));
             AreasFile.Save(FilePath, new AppState());
@@ -657,7 +657,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_WritesUtf8WithoutByteOrderMark()
+        public void CT142_Save_WritesUtf8WithoutByteOrderMark()
         {
             AreasFile.Save(FilePath, new AppState());
             byte[] bytes = File.ReadAllBytes(FilePath);
@@ -665,7 +665,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_TempPathIsAFolder_ThrowsAndLeavesTheFile()
+        public void CT27_Save_TempPathIsAFolder_ThrowsAndLeavesTheFile()
         {
             // The temp file cannot be created, nor deleted (a folder): the original error comes out, the file is untouched.
             File.WriteAllText(FilePath, "before");
@@ -676,7 +676,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_TempNameTooLong_ThrowsAndLeavesNothing()
+        public void CT27_Save_TempNameTooLong_ThrowsAndLeavesNothing()
         {
             // A file name that fits only without ".tmp": creating (and deleting) the temp file fails with an IOException.
             string path = Path.Combine(dir, new string('a', 253));
@@ -685,7 +685,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void Save_TargetIsAFolder_ThrowsAndRemovesTheTemp()
+        public void CT27_Save_TargetIsAFolder_ThrowsAndRemovesTheTemp()
         {
             Directory.CreateDirectory(Path.Combine(FilePath, "inside"));
             Assert.ThrowsAny<Exception>(() => AreasFile.Save(FilePath, new AppState()));
@@ -694,14 +694,14 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void ToJson_IndentedCamelCase()
+        public void CT22_ToJson_IndentedCamelCase()
         {
             string json = AreasFile.ToJson(new AppState());
             Assert.Equal("{\n  \"version\": 1,\n  \"areas\": []\n}".ReplaceLineEndings(Environment.NewLine), json.ReplaceLineEndings(Environment.NewLine));
         }
 
         [Fact]
-        public void FromJson_NullLiteral_IsNull()
+        public void CT142_FromJson_NullLiteral_IsNull()
         {
             Assert.Null(AreasFile.FromJson("null"));
         }
@@ -710,13 +710,13 @@ namespace Hider.Core.Tests.Persistence
         [InlineData("")]
         [InlineData("{")]
         [InlineData("{ \"version\": true }")]
-        public void FromJson_Invalid_Throws(string _json)
+        public void CT142_FromJson_Invalid_Throws(string _json)
         {
             Assert.ThrowsAny<JsonException>(() => AreasFile.FromJson(_json));
         }
 
         [Fact]
-        public void FromJson_DoesNotNormalize()
+        public void CT142_FromJson_DoesNotNormalize()
         {
             // Repairs are Load's (Normalize): FromJson gives the values as written.
             var state = AreasFile.FromJson("""{ "version": 2, "areas": [ { "id": "BAD", "opacity": 5, "width": 1 } ] }""")!;

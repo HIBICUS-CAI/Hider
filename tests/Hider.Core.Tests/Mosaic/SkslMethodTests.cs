@@ -70,14 +70,14 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Support_DefaultsToAll()
+        public void CT16_Support_DefaultsToAll()
         {
             Assert.Equal(PlatformSupport.All, new PlainMosaic().Support);
             Assert.Equal(PlatformSupport.All, new PlainGenerated().Support);
         }
 
         [Fact]
-        public void Effect_CompiledOnceFromTheShaderNamedAfterTheId()
+        public void CT14_Effect_CompiledOnceFromTheShaderNamedAfterTheId()
         {
             var method = new PlainMosaic();
             var effect = method.Effect;
@@ -87,7 +87,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateEffectShader_DisposesTheChildBeforeReturning_TheShaderStillDrawsTheCapture()
+        public void CT134_CreateEffectShader_DisposesTheChildBeforeReturning_TheShaderStillDrawsTheCapture()
         {
             // A child left to the finalizer would free a GPU texture off the render thread (crashes seen on Windows): the
             // runtime shader keeps its own native reference, so the managed child is disposed at once.
@@ -110,7 +110,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void IsPassThrough_DefaultIsFalse()
+        public void CT115_IsPassThrough_DefaultIsFalse()
         {
             var method = new PlainMosaic();
             Assert.False(method.IsPassThrough(MosaicValues(method, 12, 0.0)));
@@ -118,7 +118,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void UniformValue_DefaultIsTheEffectiveValue()
+        public void CT134_UniformValue_DefaultIsTheEffectiveValue()
         {
             var method = new PlainMosaic();
             Assert.Equal(6.5, method.Uniform("block", MosaicValues(method, 12, 0.5)), 9);
@@ -127,7 +127,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateShader_MosaicWithoutCapture_Throws()
+        public void CT17_CreateShader_MosaicWithoutCapture_Throws()
         {
             var method = new PlainMosaic();
             var e = Assert.Throws<ArgumentException>(() => method.CreateShader(new MosaicInputs { AreaSize = new SKSizeI(4, 4) }, MosaicValues(method, 12)));
@@ -136,7 +136,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateShader_GeneratedWithoutCapture_Works()
+        public void CT17_CreateShader_GeneratedWithoutCapture_Works()
         {
             var method = new PlainGenerated();
             var p = ParamValues.ForGenerated(method, new MethodSettings<GeneratedCommon>());
@@ -147,7 +147,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateShader_WithoutPassThrough_RunsTheEffect()
+        public void CT115_CreateShader_WithoutPassThrough_RunsTheEffect()
         {
             // Not a pass-through: the shader's cells appear, and the effect shader gives the same pixels. An odd block keeps
             // the sample points off texel edges (where nearest sampling may pick either neighbour).
@@ -167,7 +167,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateEffectShader_PassesTheAreaSize()
+        public void CT134_CreateEffectShader_PassesTheAreaSize()
         {
             // pixelate.sksl samples the centre of the visible part of a cell: with a 19 px wide area the last 7 px cell
             // [14, 19) is sampled at x = 16.5, with a 21 px wide one at 17.5, so the areaSize uniform reached the shader.
@@ -183,7 +183,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateEffectShader_UnroundedEffectiveValue()
+        public void CT134_CreateEffectShader_UnroundedEffectiveValue()
         {
             // The base class passes 6.5 at opacity 0.5 (PixelateMethod rounds it up to 7): cells start at 0, 6.5, 13, ...
             using var source = SyntheticImage.CreateImage(40, 8);
@@ -197,7 +197,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void CreateEffectShader_AreaOriginDoesNotMove_TheCells()
+        public void CT45_CreateEffectShader_AreaOriginDoesNotMove_TheCells()
         {
             using var source = SyntheticImage.CreateImage(30, 20);
             var method = new PlainMosaic();
@@ -208,7 +208,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void SourceShader_DefaultIsTheCaptureNearestAndClamped()
+        public void CT134_SourceShader_DefaultIsTheCaptureNearestAndClamped()
         {
             using var source = SyntheticImage.CreateImage(10, 6);
             var method = new PlainMosaic();
@@ -228,7 +228,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1234, 230f, 4f, 0f)]
         [InlineData(65535, 24f, 10f, 1f)]
         [InlineData(0, 0f, 0f, 0f)]
-        public void SeedUniformValue_IsTheSeedDigits(int _seed, float _low, float _middle, float _high)
+        public void CT134_SeedUniformValue_IsTheSeedDigits(int _seed, float _low, float _middle, float _high)
         {
             var settings = new MethodSettings<GeneratedCommon>();
             settings.Common.Seed = _seed;
@@ -238,7 +238,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Generated_BaseColorAndSeedReachTheShader()
+        public void CT134_Generated_BaseColorAndSeedReachTheShader()
         {
             // Variance 0: every pixel is the base color; another seed with variance changes the cells.
             var method = new PlainGenerated();

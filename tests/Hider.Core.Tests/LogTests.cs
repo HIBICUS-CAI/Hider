@@ -26,7 +26,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Enabled_IsOffByDefault_AndSettable()
+        public void CT107_Enabled_IsOffByDefault_AndSettable()
         {
             bool previous = Log.Enabled;
             try
@@ -44,13 +44,13 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Verbose_Disabled_WritesNothing()
+        public void CT107_Verbose_Disabled_WritesNothing()
         {
             Assert.Equal("", WithStandardError(false, () => Log.Verbose("hidden")));
         }
 
         [Fact]
-        public void Verbose_Enabled_WritesATimeStampedLineToStandardError()
+        public void CT107_Verbose_Enabled_WritesATimeStampedLineToStandardError()
         {
             string text = WithStandardError(true, () =>
             {
@@ -64,7 +64,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Verbose_Captured_GoesToTheCaptureOnly_WithoutTimeStamp()
+        public void CT108_Verbose_Captured_GoesToTheCaptureOnly_WithoutTimeStamp()
         {
             using var capture = new StringWriter();
             string text = WithStandardError(true, () =>
@@ -79,7 +79,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Verbose_Captured_EvenWhenDisabled()
+        public void CT108_Verbose_Captured_EvenWhenDisabled()
         {
             using var capture = new StringWriter();
             WithStandardError(false, () =>
@@ -93,7 +93,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void CaptureTo_Nested_RestoresTheOuterOne()
+        public void CT108_CaptureTo_Nested_RestoresTheOuterOne()
         {
             using var outer = new StringWriter();
             using var inner = new StringWriter();
@@ -116,7 +116,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public async Task CaptureTo_FlowsIntoWorkItStarts()
+        public async Task CT108_CaptureTo_FlowsIntoWorkItStarts()
         {
             using var capture = new StringWriter();
             using (Log.CaptureTo(capture))

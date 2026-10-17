@@ -11,7 +11,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void New_NoFrontFrame_VersionZero_EmptyBack()
+        public void CT103_New_NoFrontFrame_VersionZero_EmptyBack()
         {
             var exchange = new FrameExchange();
             Assert.Equal(0, exchange.Version);
@@ -21,7 +21,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Publish_BackBecomesTheFront_FirstTimeANewBack()
+        public void CT103_Publish_BackBecomesTheFront_FirstTimeANewBack()
         {
             var exchange = new FrameExchange();
             var first = exchange.Back;
@@ -34,7 +34,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Publish_SwapsTheTwoBuffers()
+        public void CT103_Publish_SwapsTheTwoBuffers()
         {
             // After the first publish the two buffers alternate: no allocation per frame.
             var exchange = new FrameExchange();
@@ -51,7 +51,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Clear_DropsTheFront_KeepsTheBack()
+        public void CT103_Clear_DropsTheFront_KeepsTheBack()
         {
             var exchange = new FrameExchange();
             exchange.Publish();
@@ -64,7 +64,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Clear_ThenPublish_AFreshBackAgain()
+        public void CT103_Clear_ThenPublish_AFreshBackAgain()
         {
             var exchange = new FrameExchange();
             exchange.Publish();
@@ -76,7 +76,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Release_LetsBothBuffersGo()
+        public void CT103_Release_LetsBothBuffersGo()
         {
             var exchange = new FrameExchange();
             var a = exchange.Back;
@@ -92,7 +92,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Read_PassesTheFrontAndTheVersion_ReturnsTheReadersResult()
+        public void CT104_Read_PassesTheFrontAndTheVersion_ReturnsTheReadersResult()
         {
             var exchange = new FrameExchange();
             exchange.Back.Resize(7, 3);
@@ -103,7 +103,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Read_ExceptionInTheReader_LeavesTheExchangeUsable()
+        public void CT104_Read_ExceptionInTheReader_LeavesTheExchangeUsable()
         {
             var exchange = new FrameExchange();
             Assert.Throws<InvalidOperationException>(() => exchange.Read<int>((_, _) => throw new InvalidOperationException()));
@@ -112,7 +112,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task Publish_WaitsForARead_TheFrameBeingReadIsNeverReplaced()
+        public async Task CT104_Publish_WaitsForARead_TheFrameBeingReadIsNeverReplaced()
         {
             var exchange = new FrameExchange();
             exchange.Publish();
@@ -133,7 +133,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task ConcurrentPublishAndRead_VersionCountsEveryPublish()
+        public async Task CT104_ConcurrentPublishAndRead_VersionCountsEveryPublish()
         {
             var exchange = new FrameExchange();
             var writer = Task.Run(() =>

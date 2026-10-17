@@ -58,7 +58,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Identity()
+        public void CT114_Identity()
         {
             Assert.Equal("noise", method.Id);
             Assert.Equal("method.noise", method.LabelKey);
@@ -71,7 +71,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Params_ScaleAndLevels()
+        public void CT114_Params_ScaleAndLevels()
         {
             Assert.Equal(new[]
             {
@@ -88,7 +88,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(2.6, 3)]
         [InlineData(1.0, 2)]   // clamped to Min
         [InlineData(7.0, 7)]
-        public void Levels_RoundedToWholeSteps(double _levels, int _steps)
+        public void CT77_Levels_RoundedToWholeSteps(double _levels, int _steps)
         {
             var p = Values(_levels: _levels, _scale: 1);
             using var bitmap = Cpu(p, 160, 160);
@@ -101,7 +101,7 @@ namespace Hider.Core.Tests.Mosaic
         [Theory]
         [InlineData(64.0)]
         [InlineData(500.0)]  // clamped to 64
-        public void Levels_Maximum(double _levels)
+        public void CT77_Levels_Maximum(double _levels)
         {
             var p = Values(_levels: _levels, _scale: 1);
             using var bitmap = Cpu(p, 200, 200);
@@ -113,7 +113,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("#FFFFFF")]
         [InlineData("#000000")]
         [InlineData("#FF0000")]
-        public void Colors_ClampedAtTheEndsOfTheRange(string _color)
+        public void CT77_Colors_ClampedAtTheEndsOfTheRange(string _color)
         {
             var p = Values(_levels: 6, _color: _color);
             using var bitmap = Cpu(p, 128, 128);
@@ -132,7 +132,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void TryRender_LatticeFollowsTheArea_LargerAreaExtendsIt()
+        public void CT122_TryRender_LatticeFollowsTheArea_LargerAreaExtendsIt()
         {
             var p = Values(_scale: 3);
             using var small = Cpu(p, 37, 23);
@@ -151,7 +151,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(1, 300)]
         [InlineData(300, 1)]
         [InlineData(5, 3)]
-        public void TryRender_TinyAndThinAreas(int _w, int _h)
+        public void CT122_TryRender_TinyAndThinAreas(int _w, int _h)
         {
             // Smaller than one lattice step (scale 64 = 256 px) or one pixel: two lattice nodes per axis are enough.
             using var big = Cpu(Values(_scale: 64), _w, _h);
@@ -166,14 +166,14 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(37, 23, 64, 3)]
         [InlineData(1, 1, 12, 1)]
         [InlineData(1, 9, 4, 1)]
-        public void TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _scale)
+        public void CT122_TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _scale)
         {
             // ICpuRenderer takes any pixmap: rows longer than w * 4 are written row by row, the padding is left alone.
             PaddedTarget.AssertSameAsTight(method, new MosaicInputs { AreaSize = new SKSizeI(_w, _h) }, Values(_scale: _scale), _w, _h, _padding);
         }
 
         [Fact]
-        public void TryRender_OverwritesEveryPixelOfTheTarget()
+        public void CT122_TryRender_OverwritesEveryPixelOfTheTarget()
         {
             // The pipeline hands over a fresh area-sized bitmap; every pixel is written, opaque, whatever was there.
             using var bitmap = new SKBitmap(new SKImageInfo(10, 7, SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -193,14 +193,14 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(0.5, 1, 7, "#68768A")]       // below the minimum: clamped
         [InlineData(100, 100, 9, "#68768A")]     // above the maximum: clamped
         [InlineData(2.5, 6.5, 11, "#808080")]    // fractional scale, levels rounded to even
-        public void CpuPath_MatchesTheShader_AtTheBoundaries(double _scale, double _levels, int _seed, string _color)
+        public void CT122_CpuPath_MatchesTheShader_AtTheBoundaries(double _scale, double _levels, int _seed, string _color)
         {
             var p = Values(_scale, _levels, _color, _seed);
             MethodConsistencyTests.AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(211, 143) }, p, 0.002);
         }
 
         [Fact]
-        public void BelowMinimumAndAboveMaximum_SameAsTheEnds()
+        public void CT120_BelowMinimumAndAboveMaximum_SameAsTheEnds()
         {
             using var minScale = Render.Generated("noise", 120, 80, new() { ["scale"] = 1 });
             using var belowScale = Render.Generated("noise", 120, 80, new() { ["scale"] = -3 });
@@ -214,7 +214,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void IndependentOfTheAreaOrigin()
+        public void CT56_IndependentOfTheAreaOrigin()
         {
             using var a = Render.Generated("noise", 90, 60);
             using var b = Render.Generated("noise", 90, 60, _origin: new SKPointI(333, -21));

@@ -10,7 +10,7 @@ namespace Hider.Core.Tests.Mosaic
         private static readonly string[] generatedUniforms = { "areaSize", "areaOrigin", "baseColor", "seed" };
 
         [Fact]
-        public void Keys_AreTheJsonAndUniformNames()
+        public void CT15_Keys_AreTheJsonAndUniformNames()
         {
             // Stored in areas.json and declared in the shaders: renaming one breaks files or shaders.
             Assert.Equal("blur", CommonParams.Blur);
@@ -28,13 +28,13 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Mosaic_RowsInTheOrderOfTheSettings()
+        public void CT117_Mosaic_RowsInTheOrderOfTheSettings()
         {
             Assert.Equal(mosaicKeys, CommonParams.Mosaic.Select(_s => _s.Key));
         }
 
         [Fact]
-        public void Mosaic_Blur()
+        public void CT117_Mosaic_Blur()
         {
             var s = CommonParams.Mosaic[0];
             Assert.Equal(new ParamSpec("blur", "param.blur", ParamUnit.Px, 0, 128, 0, 32, AreaDefaults.MosaicBlur, LerpWithOpacity: true, LerpFloor: 0), s);
@@ -43,7 +43,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Mosaic_Levels()
+        public void CT117_Mosaic_Levels()
         {
             var s = CommonParams.Mosaic[1];
             Assert.Equal(new ParamSpec("levels", "param.levels", ParamUnit.Colors, 2, 256, 2, 256, 256), s);
@@ -52,7 +52,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Mosaic_Interval_LogSliderReachingZero()
+        public void CT07_Mosaic_Interval_LogSliderReachingZero()
         {
             var s = CommonParams.Mosaic[2];
             Assert.Equal(new ParamSpec("intervalMs", "param.intervalMs", ParamUnit.Ms, 0, 3600000, 10, 3600000, AreaDefaults.IntervalMsForCurrentOs, LogScale: true), s);
@@ -60,14 +60,14 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Mosaic_StripHeight()
+        public void CT117_Mosaic_StripHeight()
         {
             var s = CommonParams.Mosaic[3];
             Assert.Equal(new ParamSpec("stripPx", "param.stripPx", ParamUnit.Px, 0, 4096, 0, 128, 8), s);
         }
 
         [Fact]
-        public void FixedUniforms_PerKind()
+        public void CT15_FixedUniforms_PerKind()
         {
             Assert.Equal(mosaicUniforms, CommonParams.FixedUniforms(MethodKind.Mosaic));
             Assert.Equal(generatedUniforms, CommonParams.FixedUniforms(MethodKind.Generated));
@@ -75,7 +75,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void FixedUniforms_EveryShaderDeclaresThem()
+        public void CT15_FixedUniforms_EveryShaderDeclaresThem()
         {
             foreach (var method in MethodRegistry.All)
             {

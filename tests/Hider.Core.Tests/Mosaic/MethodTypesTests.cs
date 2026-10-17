@@ -7,7 +7,7 @@ namespace Hider.Core.Tests.Mosaic
     public class MethodTypesTests
     {
         [Fact]
-        public void MethodKind_Values()
+        public void CT123_MethodKind_Values()
         {
             Assert.Equal(0, (int)MethodKind.Mosaic);
             Assert.Equal(1, (int)MethodKind.Generated);
@@ -15,7 +15,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void PlatformSupport_FlagsAndAll()
+        public void CT123_PlatformSupport_FlagsAndAll()
         {
             Assert.Equal(1, (int)PlatformSupport.Windows);
             Assert.Equal(2, (int)PlatformSupport.Linux);
@@ -26,7 +26,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void ParamUnit_ValuesAndTheirTexts()
+        public void CT123_ParamUnit_ValuesAndTheirTexts()
         {
             var units = Enum.GetValues<ParamUnit>();
             Assert.Equal(new[] { ParamUnit.None, ParamUnit.Px, ParamUnit.Colors, ParamUnit.Steps, ParamUnit.Percent, ParamUnit.Ms }, units);
@@ -37,7 +37,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void MosaicInputs_Defaults()
+        public void CT123_MosaicInputs_Defaults()
         {
             var inputs = new MosaicInputs();
             Assert.Null(inputs.Source);
@@ -48,7 +48,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void MosaicInputs_InitProperties()
+        public void CT123_MosaicInputs_InitProperties()
         {
             using var image = SyntheticImage.CreateImage(4, 3);
             var inputs = new MosaicInputs { Source = image, Pyramid = new[] { image }, AreaSize = new SKSizeI(4, 3), AreaOrigin = new SKPointI(-5, 7) };

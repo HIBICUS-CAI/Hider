@@ -23,7 +23,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Identity()
+        public void CT114_Identity()
         {
             Assert.Equal("blur", method.Id);
             Assert.Equal("method.blur", method.LabelKey);
@@ -35,7 +35,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Params_RadiusFadingToZero()
+        public void CT05_Params_RadiusFadingToZero()
         {
             var spec = Assert.Single(method.Params);
             Assert.Equal(new ParamSpec("radius", "param.radius", ParamUnit.Px, 0, 128, 0, 32, 8, LerpWithOpacity: true, LerpFloor: 0), spec);
@@ -50,7 +50,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(500.0, 1.0, 128)]
         [InlineData(-3.0, 1.0, 0)]
         [InlineData(double.NaN, 0.25, 2)]
-        public void PreBlurRadius_IsTheEffectiveRadius(double? _radius, double _opacity, double _expected)
+        public void CT75_PreBlurRadius_IsTheEffectiveRadius(double? _radius, double _opacity, double _expected)
         {
             Assert.Equal(_expected, method.PreBlurRadius(Values(_radius, _opacity)), 9);
         }
@@ -59,7 +59,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(0.0)]
         [InlineData(0.5)]
         [InlineData(1.0)]
-        public void IsPassThrough_Always(double _opacity)
+        public void CT75_IsPassThrough_Always(double _opacity)
         {
             Assert.True(method.IsPassThrough(Values(8, _opacity)));
             Assert.True(method.IsPassThrough(Values(0, _opacity)));
@@ -67,7 +67,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Shader_PassesTheBlurredInputThrough()
+        public void CT75_Shader_PassesTheBlurredInputThrough()
         {
             // The shader never changes the picture: the pipeline's output is the pre-blurred image.
             using var source = SyntheticImage.CreateImage(64, 40);
@@ -91,7 +91,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void RadiusZero_IsIdentity()
+        public void CT75_RadiusZero_IsIdentity()
         {
             using var source = SyntheticImage.CreateImage(64, 40);
             using var expected = Render.ToBitmap(source);
@@ -100,7 +100,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void LargestRadius_BlursEverythingAlmostFlat_AboveMaxClamped()
+        public void CT75_LargestRadius_BlursEverythingAlmostFlat_AboveMaxClamped()
         {
             using var source = SyntheticImage.CreateImage(64, 40);
             using var max = Render.Mosaic("blur", _params: new() { ["radius"] = 128 }, _source: source);
@@ -111,7 +111,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void HalfOpacity_HalfTheRadius()
+        public void CT05_HalfOpacity_HalfTheRadius()
         {
             using var source = SyntheticImage.CreateImage(64, 40);
             using var half = Render.Mosaic("blur", _opacity: 0.5, _params: new() { ["radius"] = 12 }, _source: source);

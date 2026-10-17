@@ -39,7 +39,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void NewCache_NothingRendered()
+        public void CT57_NewCache_NothingRendered()
         {
             using var cache = new GeneratedCache();
             Assert.Equal(0, cache.RenderCount);
@@ -47,7 +47,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_TheMethodDrawnAtTheSize()
+        public void CT57_Get_TheMethodDrawnAtTheSize()
         {
             using var cache = new GeneratedCache();
             var image = cache.Get(block, Values(block), new SKSizeI(60, 40));
@@ -58,7 +58,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_SameKey_SameImageWithoutDrawing()
+        public void CT57_Get_SameKey_SameImageWithoutDrawing()
         {
             using var cache = new GeneratedCache();
             var first = cache.Get(noise, Values(noise), new SKSizeI(30, 20));
@@ -70,7 +70,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_AnotherMethodSizeOrValue_DrawsAndFreesTheOldImage()
+        public void CT57_Get_AnotherMethodSizeOrValue_DrawsAndFreesTheOldImage()
         {
             using var cache = new GeneratedCache();
             var first = cache.Get(block, Values(block), new SKSizeI(30, 20));
@@ -104,7 +104,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_AnotherBaseColorOrMethodValue_DrawsAgain()
+        public void CT57_Get_AnotherBaseColorOrMethodValue_DrawsAgain()
         {
             // Each of the values that change the picture is part of the key: the base color (common) and the method's own
             // parameters. Equal values in a new ParamValues are a hit.
@@ -142,7 +142,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(0, 0, 1, 1)]
         [InlineData(0, 7, 1, 7)]
         [InlineData(9, -3, 9, 1)]
-        public void Get_EmptySize_AtLeastOnePixel(int _w, int _h, int _ew, int _eh)
+        public void CT59_Get_EmptySize_AtLeastOnePixel(int _w, int _h, int _ew, int _eh)
         {
             using var cache = new GeneratedCache();
             var image = cache.Get(block, Values(block), new SKSizeI(_w, _h));
@@ -151,7 +151,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_TheKeyIsTheRequestedSize_NotTheImageSize()
+        public void CT57_Get_TheKeyIsTheRequestedSize_NotTheImageSize()
         {
             // 0 x 0 and 1 x 1 give the same 1 x 1 image but are separate keys: switching draws again.
             using var cache = new GeneratedCache();
@@ -161,7 +161,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_ThrowingDraw_LeavesNoFreedImageBehind()
+        public void CT118_Get_ThrowingDraw_LeavesNoFreedImageBehind()
         {
             using var cache = new GeneratedCache();
             var first = cache.Get(block, Values(block), new SKSizeI(10, 10));
@@ -175,7 +175,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Detach_TheCallerOwnsTheImage()
+        public void CT118_Detach_TheCallerOwnsTheImage()
         {
             var cache = new GeneratedCache();
             var image = cache.Get(block, Values(block), new SKSizeI(10, 10));
@@ -186,7 +186,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Detach_ForgetsTheKey()
+        public void CT118_Detach_ForgetsTheKey()
         {
             using var cache = new GeneratedCache();
             var first = cache.Get(block, Values(block), new SKSizeI(10, 10));
@@ -197,7 +197,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Dispose_FreesTheImage_RepeatableAndOnAnEmptyCache()
+        public void CT118_Dispose_FreesTheImage_RepeatableAndOnAnEmptyCache()
         {
             new GeneratedCache().Dispose();
             var cache = new GeneratedCache();
@@ -209,7 +209,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_AfterDispose_DrawsAgain()
+        public void CT118_Get_AfterDispose_DrawsAgain()
         {
             var cache = new GeneratedCache();
             var first = cache.Get(block, Values(block), new SKSizeI(10, 10));
@@ -222,7 +222,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Get_IsOpaqueBgraPremul()
+        public void CT55_Get_IsOpaqueBgraPremul()
         {
             using var cache = new GeneratedCache();
             var image = cache.Get(noise, Values(noise), new SKSizeI(16, 16));

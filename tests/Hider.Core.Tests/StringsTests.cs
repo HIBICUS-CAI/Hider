@@ -158,7 +158,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Get_UnknownKey_IsTheKeyItself()
+        public void CT12_Get_UnknownKey_IsTheKeyItself()
         {
             Assert.Equal("no.such.key", Strings.Get("no.such.key"));
             Assert.Equal("", Strings.Get(""));
@@ -168,7 +168,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void LabelKeys_OfEveryMethodAndParameter_Exist()
+        public void CT20_LabelKeys_OfEveryMethodAndParameter_Exist()
         {
             // The settings popup looks labels up by key: a missing one would show the key instead of Japanese.
             foreach (var method in MethodRegistry.All)
@@ -186,19 +186,19 @@ namespace Hider.Core.Tests
         [InlineData(ParamUnit.Steps, "段")]
         [InlineData(ParamUnit.Percent, "%")]
         [InlineData(ParamUnit.Ms, "ms")]
-        public void Unit_EachText(ParamUnit _unit, string _expected)
+        public void CT12_Unit_EachText(ParamUnit _unit, string _expected)
         {
             Assert.Equal(_expected, Strings.Unit(_unit));
         }
 
         [Fact]
-        public void Unit_Undefined_Throws()
+        public void CT12_Unit_Undefined_Throws()
         {
             Assert.Throws<KeyNotFoundException>(() => Strings.Unit((ParamUnit)99));
         }
 
         [Fact]
-        public void ProperNouns()
+        public void CT12_ProperNouns()
         {
             Assert.Equal("Linux", Strings.LinuxBadge);
             Assert.Equal("Hider", Strings.AppName);
@@ -208,7 +208,7 @@ namespace Hider.Core.Tests
         [InlineData(0, "Hider — エリア 0 個")]
         [InlineData(1, "Hider — エリア 1 個")]
         [InlineData(1234567, "Hider — エリア 1234567 個")]
-        public void TrayTooltip_Count(int _count, string _expected)
+        public void CT97_TrayTooltip_Count(int _count, string _expected)
         {
             Assert.Equal(_expected, Strings.TrayTooltip(_count));
         }
@@ -217,7 +217,7 @@ namespace Hider.Core.Tests
         [InlineData(0, "0 個のエリアをすべて削除します。")]
         [InlineData(1, "1 個のエリアをすべて削除します。")]
         [InlineData(10000, "10000 個のエリアをすべて削除します。")]
-        public void ConfirmDeleteAll_Count(int _count, string _expected)
+        public void CT97_ConfirmDeleteAll_Count(int _count, string _expected)
         {
             Assert.Equal(_expected, Strings.ConfirmDeleteAll(_count));
         }
@@ -227,13 +227,13 @@ namespace Hider.Core.Tests
         [InlineData(0, 0, "0 × 0 px")]
         [InlineData(16384, 1, "16384 × 1 px")]
         [InlineData(-5, 3, "-5 × 3 px")]
-        public void ToolbarSize_WidthTimesHeight(int _w, int _h, string _expected)
+        public void CT97_ToolbarSize_WidthTimesHeight(int _w, int _h, string _expected)
         {
             Assert.Equal(_expected, Strings.ToolbarSize(_w, _h));
         }
 
         [Fact]
-        public void TrayVersion_TextAsGiven()
+        public void CT97_TrayVersion_TextAsGiven()
         {
             Assert.Equal("バージョン 2.0.0-rc.1+abc", Strings.TrayVersion("2.0.0-rc.1+abc"));
             Assert.Equal("バージョン ", Strings.TrayVersion(""));
@@ -241,21 +241,21 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void StartupLockFailed_PathAndDetailAsGiven()
+        public void CT97_StartupLockFailed_PathAndDetailAsGiven()
         {
             Assert.Equal("Hider を起動できません。データフォルダのロックファイル（C:\\Users\\me\\.hider\\instance.lock）を開けませんでした。\n\n",
                 Strings.StartupLockFailed(@"C:\Users\me\.hider\instance.lock", ""));
         }
 
         [Fact]
-        public void SettingsPickColorWithValue_AnyText()
+        public void CT97_SettingsPickColorWithValue_AnyText()
         {
             Assert.Equal("色を選ぶ: #000000", Strings.SettingsPickColorWithValue("#000000"));
             Assert.Equal("色を選ぶ: ", Strings.SettingsPickColorWithValue(""));
         }
 
         [Fact]
-        public void Formats_IgnoreTheCurrentCulture()
+        public void CT97_Formats_IgnoreTheCurrentCulture()
         {
             // Numbers are formatted with the invariant culture whatever the thread's culture says.
             var previous = CultureInfo.CurrentCulture;

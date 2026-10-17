@@ -26,7 +26,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Modulus_Is251()
+        public void CT121_Modulus_Is251()
         {
             Assert.Equal(251f, LatticeHash.Modulus);
         }
@@ -42,7 +42,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(63000, 250)]
         [InlineData(63001, 0)]
         [InlineData(65535, 24)]
-        public void Mod_ExactAtTheBoundaries(float _x, float _expected)
+        public void CT121_Mod_ExactAtTheBoundaries(float _x, float _expected)
         {
             Assert.Equal(_expected, LatticeHash.Mod(_x));
         }
@@ -53,7 +53,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(2, 8)]
         [InlineData(7, 92)]      // 343 - 251
         [InlineData(250, 250)]   // (-1)³ = -1
-        public void Permute_Cubes(float _x, float _expected)
+        public void CT121_Permute_Cubes(float _x, float _expected)
         {
             Assert.Equal(_expected, LatticeHash.Permute(_x));
         }
@@ -70,13 +70,13 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(-65537, 24, 10, 1)]
         [InlineData(1234.9, 230, 4, 0)]    // fractions are cut off (1234 = 4 · 251 + 230)
         [InlineData(-0.5, 0, 0, 0)]
-        public void SeedDigits_ThreeDigitsBase251(double _seed, float _low, float _middle, float _high)
+        public void CT121_SeedDigits_ThreeDigitsBase251(double _seed, float _low, float _middle, float _high)
         {
             Assert.Equal((_low, _middle, _high), LatticeHash.SeedDigits(_seed));
         }
 
         [Fact]
-        public void SeedDigits_AlwaysWholeDigitsBelow251()
+        public void CT121_SeedDigits_AlwaysWholeDigitsBelow251()
         {
             foreach (double seed in new[] { -1e9, -70000.0, -1, 0, 1, 12345.678, 65535, 65536, 1e9 })
             {
@@ -94,7 +94,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(0)]
         [InlineData(1234)]
         [InlineData(65535)]
-        public void Hash_EqualsTheIntegerReference(int _seed)
+        public void CT121_Hash_EqualsTheIntegerReference(int _seed)
         {
             var digits = LatticeHash.SeedDigits(_seed);
             var intDigits = ((long)digits.Low, (long)digits.Middle, (long)digits.High);
@@ -113,7 +113,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Hash_StrictlyBetween0And1_EveryValueReached()
+        public void CT121_Hash_StrictlyBetween0And1_EveryValueReached()
         {
             var seed = LatticeHash.SeedDigits(1234);
             var seen = new HashSet<int>();
@@ -131,7 +131,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Hash_TheQuotientMatters_NoRepeatEvery251Cells()
+        public void CT121_Hash_TheQuotientMatters_NoRepeatEvery251Cells()
         {
             var seed = LatticeHash.SeedDigits(7);
             int same = 0;

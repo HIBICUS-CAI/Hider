@@ -9,13 +9,13 @@ namespace Hider.Core.Tests.Mosaic
         private static readonly string[] sourceChild = { "src" };
 
         [Fact]
-        public void All_EveryEmbeddedShaderInOrdinalOrder()
+        public void CT133_All_EveryEmbeddedShaderInOrdinalOrder()
         {
             Assert.Equal(embeddedIds, ShaderSource.All());
         }
 
         [Fact]
-        public void All_OnlySkslResourcesOfTheMethodsFolder()
+        public void CT133_All_OnlySkslResourcesOfTheMethodsFolder()
         {
             var names = typeof(ShaderSource).Assembly.GetManifestResourceNames();
             var expected = names.Where(_n => _n.StartsWith("Hider.Core.Mosaic.Methods.", StringComparison.Ordinal) && _n.EndsWith(".sksl", StringComparison.Ordinal)).Count();
@@ -28,7 +28,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("hexcell")]
         [InlineData("noise")]
         [InlineData("pixelate")]
-        public void Load_TheFileText(string _id)
+        public void CT133_Load_TheFileText(string _id)
         {
             string path = Path.Combine(Imaging.Golden.RepoRoot, "src", "Hider.Core", "Mosaic", "Methods", _id + ".sksl");
             Assert.Equal(File.ReadAllText(path), ShaderSource.Load(_id));
@@ -39,7 +39,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("Block")]          // resource names are case sensitive
         [InlineData("block.sksl")]     // the suffix is added
         [InlineData("")]
-        public void Load_Unknown_Throws(string _id)
+        public void CT133_Load_Unknown_Throws(string _id)
         {
             var e = Assert.Throws<InvalidOperationException>(() => ShaderSource.Load(_id));
             Assert.Equal($"Missing embedded shader {_id}.sksl", e.Message);
@@ -47,7 +47,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Compile_EveryShader_ANewEffectEachTime()
+        public void CT14_Compile_EveryShader_ANewEffectEachTime()
         {
             foreach (string id in ShaderSource.All())
             {
@@ -69,7 +69,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("hexcell")]
         [InlineData("noise")]
         [InlineData("pixelate")]
-        public void HeaderComment_ListsTheDeclaredUniformsAndChildren(string _id)
+        public void CT15_HeaderComment_ListsTheDeclaredUniformsAndChildren(string _id)
         {
             string source = ShaderSource.Load(_id);
             var (uniforms, children) = ParseHeader(source);
@@ -94,7 +94,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("hexcell")]
         [InlineData("noise")]
         [InlineData("pixelate")]
-        public void HeaderComment_FirstLineNamesTheMethod(string _id)
+        public void CT15_HeaderComment_FirstLineNamesTheMethod(string _id)
         {
             string first = ShaderSource.Load(_id).Split('\n')[0];
             Assert.StartsWith($"// {_id}", first, StringComparison.Ordinal);
@@ -106,7 +106,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData("pixelate", "float", "block")]
         [InlineData("hexcell", "float", "radius")]
         [InlineData("blur", "float", "radius")]
-        public void ParamUniforms_AreFloats(string _id, string _type, params string[] _keys)
+        public void CT15_ParamUniforms_AreFloats(string _id, string _type, params string[] _keys)
         {
             // SkslMethod sets every ParamSpec key as one float.
             var declared = DeclarationRegex().Matches(ShaderSource.Load(_id)).ToDictionary(_m => _m.Groups[2].Value, _m => _m.Groups[1].Value);

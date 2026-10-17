@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Capture
     public class CaptureTypesTests
     {
         [Fact]
-        public void CaptureFailure_Values()
+        public void CT99_CaptureFailure_Values()
         {
             Assert.Equal(new[] { CaptureFailure.None, CaptureFailure.Black, CaptureFailure.Denied, CaptureFailure.Unavailable, CaptureFailure.Timeout },
                 Enum.GetValues<CaptureFailure>());
@@ -14,7 +14,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CaptureTraits_Flags()
+        public void CT99_CaptureTraits_Flags()
         {
             Assert.Equal(0, (int)CaptureTraits.None);
             Assert.Equal(1, (int)CaptureTraits.Live);
@@ -26,7 +26,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void FrameBuffer_Defaults()
+        public void CT100_FrameBuffer_Defaults()
         {
             var frame = new FrameBuffer();
             Assert.Equal((0, 0, 0), (frame.Width, frame.Height, frame.Stride));
@@ -39,7 +39,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(0, 0)]
         [InlineData(0, 5)]
         [InlineData(1920, 1080)]
-        public void Allocate_TightRowsOfZeros(int _w, int _h)
+        public void CT100_Allocate_TightRowsOfZeros(int _w, int _h)
         {
             var frame = FrameBuffer.Allocate(_w, _h);
             Assert.Equal((_w, _h, _w * 4), (frame.Width, frame.Height, frame.Stride));
@@ -51,13 +51,13 @@ namespace Hider.Core.Tests.Capture
         [InlineData(int.MaxValue, 1)]  // the stride overflows
         [InlineData(50000, 50000)]     // the size overflows
         [InlineData(-1, 1)]            // a negative size
-        public void Allocate_ImpossibleSize_Throws(int _w, int _h)
+        public void CT100_Allocate_ImpossibleSize_Throws(int _w, int _h)
         {
             Assert.Throws<OverflowException>(() => FrameBuffer.Allocate(_w, _h));
         }
 
         [Fact]
-        public void Resize_Larger_NewMemory()
+        public void CT100_Resize_Larger_NewMemory()
         {
             var frame = FrameBuffer.Allocate(2, 2);
             var before = frame.Bgra;
@@ -72,7 +72,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(2, 3)]   // smaller
         [InlineData(1, 16)]  // same byte count, other shape
         [InlineData(0, 0)]
-        public void Resize_NotLarger_ReusesTheMemory(int _w, int _h)
+        public void CT100_Resize_NotLarger_ReusesTheMemory(int _w, int _h)
         {
             var frame = FrameBuffer.Allocate(4, 4);
             frame.Bgra.Span[63] = 7;
@@ -85,7 +85,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Resize_FromEmpty_Allocates()
+        public void CT100_Resize_FromEmpty_Allocates()
         {
             var frame = new FrameBuffer();
             frame.Resize(5, 1);
@@ -98,7 +98,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(int.MaxValue, 0)]   // no pixels, but the stride overflows (it would be -4)
         [InlineData(int.MaxValue, 1)]
         [InlineData(0x2000_0000, 0)]    // stride exactly 2^31
-        public void Resize_Overflow_ThrowsAndKeepsTheFrame(int _w, int _h)
+        public void CT100_Resize_Overflow_ThrowsAndKeepsTheFrame(int _w, int _h)
         {
             var frame = FrameBuffer.Allocate(2, 2);
             var before = frame.Bgra;
@@ -108,7 +108,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void Resize_LargestStride_NoPixels()
+        public void CT100_Resize_LargestStride_NoPixels()
         {
             // A stride just below 2^31 is representable: 0 rows need no memory.
             var frame = FrameBuffer.Allocate(2, 2);
@@ -117,7 +117,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CaptureRequest_RecordEquality()
+        public void CT99_CaptureRequest_RecordEquality()
         {
             var windows = new nint[] { 1, 2 };
             var a = new CaptureRequest(new PhysicalRect(1, 2, 3, 4), windows, 8);
@@ -136,7 +136,7 @@ namespace Hider.Core.Tests.Capture
         [InlineData(CaptureFailure.Unavailable)]
         [InlineData(CaptureFailure.Timeout)]
         [InlineData(CaptureFailure.None)]
-        public void CaptureResult_Failed_HasNoFrame(CaptureFailure _failure)
+        public void CT99_CaptureResult_Failed_HasNoFrame(CaptureFailure _failure)
         {
             var result = CaptureResult.Failed(_failure);
             Assert.Null(result.Frame);
@@ -145,7 +145,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public void CaptureResult_WithFrame()
+        public void CT99_CaptureResult_WithFrame()
         {
             var frame = FrameBuffer.Allocate(1, 1);
             var result = new CaptureResult(frame, CaptureFailure.None);
@@ -154,7 +154,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task UnavailableCapture_AlwaysUnavailable_ExposureFree()
+        public async Task CT101_UnavailableCapture_AlwaysUnavailable_ExposureFree()
         {
             using var capture = new UnavailableCapture();
             Assert.Equal(CaptureTraits.ExposureFree, capture.Traits);
@@ -166,7 +166,7 @@ namespace Hider.Core.Tests.Capture
         }
 
         [Fact]
-        public async Task UnavailableCapture_IgnoresCancellationAndEmptyRects_DisposeTwice()
+        public async Task CT101_UnavailableCapture_IgnoresCancellationAndEmptyRects_DisposeTwice()
         {
             var capture = new UnavailableCapture();
             using var cancelled = new CancellationTokenSource();

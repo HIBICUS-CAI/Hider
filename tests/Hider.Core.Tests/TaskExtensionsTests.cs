@@ -42,7 +42,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_FailureMessage_IsExactlyOneLine()
+        public void CT148_Forget_FailureMessage_IsExactlyOneLine()
         {
             using var writer = new StringWriter();
             using (Log.CaptureTo(writer))
@@ -53,7 +53,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_Cancelled_IsNotAFailure()
+        public void CT148_Forget_Cancelled_IsNotAFailure()
         {
             using var writer = new StringWriter();
             using (Log.CaptureTo(writer))
@@ -67,7 +67,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_SucceedingLater_LogsNothing()
+        public void CT148_Forget_SucceedingLater_LogsNothing()
         {
             using var writer = new StringWriter();
             using (Log.CaptureTo(writer))
@@ -80,7 +80,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_NotCompleted_LogsNothingYet()
+        public void CT148_Forget_NotCompleted_LogsNothingYet()
         {
             using var writer = new StringWriter();
             var never = new TaskCompletionSource();
@@ -93,7 +93,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_ReportsTheFirstRealException_NotItsInnerCause()
+        public void CT148_Forget_ReportsTheFirstRealException_NotItsInnerCause()
         {
             using var writer = new StringWriter();
             using (Log.CaptureTo(writer))
@@ -104,7 +104,7 @@ namespace Hider.Core.Tests
         }
 
         [Fact]
-        public void Forget_SeveralExceptions_ReportedAsTheAggregate()
+        public void CT148_Forget_SeveralExceptions_ReportedAsTheAggregate()
         {
             using var writer = new StringWriter();
             using (Log.CaptureTo(writer))

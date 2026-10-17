@@ -5,7 +5,7 @@ namespace Hider.Core.Tests.Model
     public class PhysicalRectTests
     {
         [Fact]
-        public void RightAndBottom()
+        public void CT113_RightAndBottom()
         {
             var r = new PhysicalRect(-10, 20, 30, 40);
             Assert.Equal(20, r.Right);
@@ -20,13 +20,13 @@ namespace Hider.Core.Tests.Model
         [InlineData(-1, 5, true)]
         [InlineData(5, -1, true)]
         [InlineData(0, 0, true)]
-        public void IsEmpty_WhenWidthOrHeightIsNotPositive(int _w, int _h, bool _empty)
+        public void CT113_IsEmpty_WhenWidthOrHeightIsNotPositive(int _w, int _h, bool _empty)
         {
             Assert.Equal(_empty, new PhysicalRect(3, 4, _w, _h).IsEmpty);
         }
 
         [Fact]
-        public void Default_IsEmptyAtTheOrigin()
+        public void CT113_Default_IsEmptyAtTheOrigin()
         {
             PhysicalRect r = default;
             Assert.True(r.IsEmpty);
@@ -38,19 +38,19 @@ namespace Hider.Core.Tests.Model
         [InlineData(30, 20, 10, 50)]
         [InlineData(10, 50, 30, 20)]
         [InlineData(30, 50, 10, 20)]
-        public void FromEdges_AnyCornerOrder(int _l, int _t, int _r, int _b)
+        public void CT01_FromEdges_AnyCornerOrder(int _l, int _t, int _r, int _b)
         {
             Assert.Equal(new PhysicalRect(10, 20, 20, 30), PhysicalRect.FromEdges(_l, _t, _r, _b));
         }
 
         [Fact]
-        public void FromEdges_SameEdges_IsEmpty()
+        public void CT01_FromEdges_SameEdges_IsEmpty()
         {
             Assert.Equal(new PhysicalRect(5, 7, 0, 0), PhysicalRect.FromEdges(5, 7, 5, 7));
         }
 
         [Fact]
-        public void Normalized_PositiveIsUnchanged_NegativeFlipsTheOrigin()
+        public void CT01_Normalized_PositiveIsUnchanged_NegativeFlipsTheOrigin()
         {
             Assert.Equal(new PhysicalRect(1, 2, 3, 4), new PhysicalRect(1, 2, 3, 4).Normalized());
             Assert.Equal(new PhysicalRect(-2, 2, 3, 4), new PhysicalRect(1, 2, -3, 4).Normalized());
@@ -58,7 +58,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Intersects_Overlap()
+        public void CT113_Intersects_Overlap()
         {
             var a = new PhysicalRect(0, 0, 100, 100);
             Assert.True(a.Intersects(new PhysicalRect(50, 50, 100, 100)));
@@ -69,7 +69,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Intersects_TouchingEdgesOrApart_IsFalse()
+        public void CT113_Intersects_TouchingEdgesOrApart_IsFalse()
         {
             var a = new PhysicalRect(0, 0, 100, 100);
             Assert.False(a.Intersects(new PhysicalRect(100, 0, 10, 10))); // right edge
@@ -81,7 +81,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Intersects_EmptyNeverIntersects()
+        public void CT113_Intersects_EmptyNeverIntersects()
         {
             var a = new PhysicalRect(0, 0, 100, 100);
             Assert.False(a.Intersects(new PhysicalRect(50, 50, 0, 10)));
@@ -90,7 +90,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Intersect_Overlap_IsTheCommonPart()
+        public void CT113_Intersect_Overlap_IsTheCommonPart()
         {
             var a = new PhysicalRect(0, 0, 100, 100);
             Assert.Equal(new PhysicalRect(50, 60, 50, 40), a.Intersect(new PhysicalRect(50, 60, 100, 100)));
@@ -99,7 +99,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Intersect_NoOverlap_IsDefault()
+        public void CT113_Intersect_NoOverlap_IsDefault()
         {
             var a = new PhysicalRect(0, 0, 100, 100);
             Assert.Equal(default, a.Intersect(new PhysicalRect(100, 0, 10, 10))); // touching in x
@@ -109,7 +109,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Union_SmallestRectangleContainingBoth()
+        public void CT113_Union_SmallestRectangleContainingBoth()
         {
             var a = new PhysicalRect(0, 0, 10, 10);
             Assert.Equal(new PhysicalRect(-5, 0, 35, 40), a.Union(new PhysicalRect(-5, 20, 35, 20)));
@@ -118,7 +118,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Offset_MovesWithoutResizing()
+        public void CT113_Offset_MovesWithoutResizing()
         {
             var r = new PhysicalRect(1, 2, 3, 4);
             Assert.Equal(new PhysicalRect(11, -18, 3, 4), r.Offset(10, -20));
@@ -127,7 +127,7 @@ namespace Hider.Core.Tests.Model
         }
 
         [Fact]
-        public void Equality_ByValue()
+        public void CT113_Equality_ByValue()
         {
             Assert.Equal(new PhysicalRect(1, 2, 3, 4), new PhysicalRect(1, 2, 3, 4));
             Assert.NotEqual(new PhysicalRect(1, 2, 3, 4), new PhysicalRect(1, 2, 3, 5));

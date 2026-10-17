@@ -31,7 +31,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Identity()
+        public void CT114_Identity()
         {
             Assert.Equal("hexcell", method.Id);
             Assert.Equal("method.hexcell", method.LabelKey);
@@ -43,7 +43,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void Params_RadiusFadingToOne()
+        public void CT04_Params_RadiusFadingToOne()
         {
             var spec = Assert.Single(method.Params);
             Assert.Equal(new ParamSpec("radius", "param.radius", ParamUnit.Px, 2, 256, 2, 64, 10, LerpWithOpacity: true, LerpFloor: 1), spec);
@@ -54,7 +54,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(2)]
         [InlineData(3.7)]
         [InlineData(37)]
-        public void CellCentre_IsTheNearestLatticePoint(double _radius)
+        public void CT72_CellCentre_IsTheNearestLatticePoint(double _radius)
         {
             // Every point belongs to the hexagon of the nearest centre r·(√3 (i + j / 2), 1.5 j). All three branches of the
             // cube rounding are reached on this grid.
@@ -89,7 +89,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(10, 0, 9.9, 0, 0)]         // the top corner is 10 above the centre
         [InlineData(10, 0.1, 10.1, 8.660254, 15)]   // below the corner: the lower right neighbour
         [InlineData(10, -0.1, 10.1, -8.660254, 15)] // or the lower left one
-        public void CellCentre_EdgesAndCorners(double _radius, double _x, double _y, double _cx, double _cy)
+        public void CT72_CellCentre_EdgesAndCorners(double _radius, double _x, double _y, double _cx, double _cy)
         {
             var (cx, cy) = HexcellMethod.CellCentre(_x, _y, _radius);
             Assert.Equal(_cx, cx, 5);
@@ -103,13 +103,13 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(2.0, 0.01, false)]   // effective 1.01
         [InlineData(256.0, 1.0, false)]
         [InlineData(null, 1.0, false)]
-        public void IsPassThrough_AtEffectiveRadiusOne(double? _radius, double _opacity, bool _expected)
+        public void CT73_IsPassThrough_AtEffectiveRadiusOne(double? _radius, double _opacity, bool _expected)
         {
             Assert.Equal(_expected, method.IsPassThrough(Values(_radius, _opacity)));
         }
 
         [Fact]
-        public void TryRender_DeclinesThePassThrough()
+        public void CT119_TryRender_DeclinesThePassThrough()
         {
             using var source = SyntheticImage.CreateImage(16, 16);
             var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(16, 16) };
@@ -122,7 +122,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void TryRender_DeclinesASourceWithoutCpuPixels()
+        public void CT119_TryRender_DeclinesASourceWithoutCpuPixels()
         {
             // Effective radius 1.1 reads level 0 (the source); a picture-backed image has no pixels, so the shader is used.
             using var recorder = new SKPictureRecorder();
@@ -146,7 +146,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(10.0, 1.0)]  // level 4
         [InlineData(256.0, 1.0)] // level 8 (the last of 9)
         [InlineData(64.0, 0.5)]  // 32.5: level 5
-        public void CpuPath_MatchesTheShader(double _radius, double _opacity)
+        public void CT119_CpuPath_MatchesTheShader(double _radius, double _opacity)
         {
             var p = Values(_radius, _opacity);
             using var source = SyntheticImage.CreateImage(211, 143);
@@ -166,7 +166,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(2.0, 0.15)]   // 1.15: whole every 40th row
         [InlineData(10.0, 0.01)]  // 1.09
         [InlineData(2.0, 0.05)]   // 1.05: centres at y = 1.575 j, whole every 40th row
-        public void LevelZero_CpuPathIsTheShaderExactly_TexelEdgesIncluded(double _radius, double _opacity)
+        public void CT119_LevelZero_CpuPathIsTheShaderExactly_TexelEdgesIncluded(double _radius, double _opacity)
         {
             var p = Values(_radius, _opacity);
             using var source = SyntheticImage.CreateImage(211, 143);
@@ -185,7 +185,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(10.0)]
         [InlineData(7.3)]
         [InlineData(256.0)]
-        public void ShortPyramid_BothPathsSampleTheSourceNearest(double _radius)
+        public void CT119_ShortPyramid_BothPathsSampleTheSourceNearest(double _radius)
         {
             // Radius 10 wants level 4; with only the source in the pyramid both paths sample it (nearest).
             using var source = SyntheticImage.CreateImage(97, 61);
@@ -240,7 +240,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(37, 23, 64, 2.0)]
         [InlineData(1, 1, 12, 2.0)]
         [InlineData(1, 9, 4, 10.0)]
-        public void TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _radius)
+        public void CT119_TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _radius)
         {
             // ICpuRenderer takes any pixmap: rows longer than w * 4 are written row by row, the padding is left alone.
             using var source = SyntheticImage.CreateImage(_w, _h);
@@ -257,7 +257,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void RadiusBelowOneWithoutSpec_ShaderIsTheIdentity()
+        public void CT73_RadiusBelowOneWithoutSpec_ShaderIsTheIdentity()
         {
             // Level(): a hexagon narrower than a pixel reads level 0; the shader's own radius test returns the source.
             using var source = SyntheticImage.CreateImage(40, 30);
@@ -283,7 +283,7 @@ namespace Hider.Core.Tests.Mosaic
         [InlineData(10.0, 1.0)]
         [InlineData(12.0, 1.0)]
         [InlineData(37.0, 1.0)]
-        public void OneColorPerHexagon(double _radius, double _opacity)
+        public void CT72_OneColorPerHexagon(double _radius, double _opacity)
         {
             // The hexagons come from CellCentre (double, nearest lattice point, checked on its own above), independent of the
             // float arithmetic of the shader and the CPU path. Only pixels whose centre lies within 0.01 px of a hexagon's
@@ -337,7 +337,7 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         [Fact]
-        public void AboveTheMaximum_SameAsTheMaximum()
+        public void CT120_AboveTheMaximum_SameAsTheMaximum()
         {
             using var max = Render.Mosaic("hexcell", _params: new() { ["radius"] = 256 });
             using var above = Render.Mosaic("hexcell", _params: new() { ["radius"] = 5000 });

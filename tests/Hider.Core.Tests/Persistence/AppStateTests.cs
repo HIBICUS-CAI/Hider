@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Persistence
     public class AppStateTests
     {
         [Fact]
-        public void AppState_Defaults()
+        public void CT136_AppState_Defaults()
         {
             Assert.Equal(1, AppState.CurrentVersion);
             var state = new AppState();
@@ -15,7 +15,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void AreaState_Defaults()
+        public void CT136_AreaState_Defaults()
         {
             var a = new AreaState();
             Assert.Equal("", a.Id);
@@ -29,7 +29,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FromArea_PositionInPixels_SizeInDip_SettingsShared()
+        public void CT136_FromArea_PositionInPixels_SizeInDip_SettingsShared()
         {
             var area = Area.CreateNew("0f3b8d2e", new PhysicalRect(-300, 150, 600, 360), false);
             area.Opacity = 0.4;
@@ -46,7 +46,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FromArea_SizeRoundedToTwoDecimals()
+        public void CT136_FromArea_SizeRoundedToTwoDecimals()
         {
             var area = new Area { Id = "00000001", Rect = new PhysicalRect(0, 0, 1001, 100) };
             var s = AreaState.FromArea(area, 1.5);
@@ -58,7 +58,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void FromArea_StoresTheRawOpacity_NotThePatternRange()
+        public void CT136_FromArea_StoresTheRawOpacity_NotThePatternRange()
         {
             // Opacity 0.05 on a fill area draws at 0.10 but keeps 0.05, so switching to mosaic gets it back.
             var area = new Area { Id = "00000001", Pattern = PatternKind.Fill, Opacity = 0.05 };
@@ -66,7 +66,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void ToArea_SizeTimesScale_Rounded()
+        public void CT136_ToArea_SizeTimesScale_Rounded()
         {
             var s = new AreaState { Id = "0f3b8d2e", X = 12, Y = -34, Width = 667.33, Height = 66.67, Opacity = 0.25, Pattern = PatternKind.Generated };
             var a = s.ToArea(1.5);
@@ -80,7 +80,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void ToArea_HalfPixelRoundsToEven()
+        public void CT136_ToArea_HalfPixelRoundsToEven()
         {
             // Math.Round's default: 100.5 -> 100, 101.5 -> 102.
             var a = new AreaState { Id = "00000001", Width = 100.5, Height = 101.5 }.ToArea(1.0);
@@ -88,7 +88,7 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Fact]
-        public void ToArea_OpacityGoesThroughTheAreaClamp()
+        public void CT136_ToArea_OpacityGoesThroughTheAreaClamp()
         {
             Assert.Equal(1.0, new AreaState { Id = "00000001", Opacity = double.NaN }.ToArea(1.0).Opacity);
             Assert.Equal(0.0, new AreaState { Id = "00000001", Opacity = -3 }.ToArea(1.0).Opacity);
@@ -102,7 +102,7 @@ namespace Hider.Core.Tests.Persistence
         [InlineData(1.75)]
         [InlineData(2.0)]
         [InlineData(3.0)]
-        public void FromAreaToArea_RoundTripsEveryPixelSize(double _scale)
+        public void CT136_FromAreaToArea_RoundTripsEveryPixelSize(double _scale)
         {
             for (int px = 1; px <= 4000; px += 7)
             {

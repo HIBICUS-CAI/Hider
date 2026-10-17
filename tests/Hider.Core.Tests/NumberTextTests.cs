@@ -30,14 +30,14 @@ namespace Hider.Core.Tests
         [InlineData('ー', '-')] // prolonged sound mark (an IME's "-" in Japanese mode)
         [InlineData('−', '-')] // minus sign
         [InlineData('＋', '+')]
-        public void Normalize_EachMappedCharacter(char _from, char _to)
+        public void CT135_Normalize_EachMappedCharacter(char _from, char _to)
         {
             Assert.Equal(_to.ToString(), NumberText.Normalize("" + _from));
             Assert.Equal("1" + _to + "2", NumberText.Normalize("1" + _from + "2"));
         }
 
         [Fact]
-        public void Normalize_IdeographicSpace_IsASpace_AndTrimmed()
+        public void CT135_Normalize_IdeographicSpace_IsASpace_AndTrimmed()
         {
             Assert.Equal("1 2", NumberText.Normalize("1　2"));
             Assert.Equal("", NumberText.Normalize("　"));
@@ -56,13 +56,13 @@ namespace Hider.Core.Tests
         [InlineData(":", ":")] // just above '9'
         [InlineData("／", "／")] // just below '０'
         [InlineData("：", "：")] // just above '９'
-        public void Normalize_OtherCharactersUnchanged_Trimmed(string _text, string _expected)
+        public void CT135_Normalize_OtherCharactersUnchanged_Trimmed(string _text, string _expected)
         {
             Assert.Equal(_expected, NumberText.Normalize(_text));
         }
 
         [Fact]
-        public void Normalize_MixedWidths()
+        public void CT135_Normalize_MixedWidths()
         {
             Assert.Equal("+12.5", NumberText.Normalize("＋1２。5"));
             Assert.Equal("-0.25", NumberText.Normalize("ー０．２５"));
