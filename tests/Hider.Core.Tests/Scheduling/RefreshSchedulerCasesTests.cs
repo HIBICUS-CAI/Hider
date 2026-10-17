@@ -187,6 +187,61 @@ namespace Hider.Core.Tests.Scheduling
         }
 
         [Fact]
+        public void TimerPaused_TickMergedIntoARunningCapture_IsDroppedAtEndRun()
+        {
+            // A tick that arrived during a capture and is still waiting when a drag pauses the timer would otherwise start a
+            // capture in the middle of the drag (FR-38: Linux captures when the drag is committed).
+            var (scheduler, time, log) = Create(false);
+            scheduler.Configure(100);
+            scheduler.Request(RefreshReason.Manual);
+            time.Advance(TimeSpan.FromMilliseconds(100)); // merged into the running Manual capture
+            Assert.Single(log);
+            scheduler.TimerPaused = true;
+            scheduler.EndRun();
+            Assert.Single(log);
+            // No run is left open: a request goes through at once, and once the pause ends the ticks come again.
+            scheduler.Request(RefreshReason.Committed);
+            Assert.Equal((100, RefreshReason.Committed), log[^1]);
+            scheduler.EndRun();
+            scheduler.TimerPaused = false;
+            time.Advance(TimeSpan.FromMilliseconds(100));
+            Assert.Equal((200, RefreshReason.Timer), log[^1]);
+            Assert.Equal(3, log.Count);
+        }
+
+        [Fact]
+        public void TimerPaused_TickMergedThenPauseEndsBeforeEndRun_IsRaised()
+        {
+            var (scheduler, time, log) = Create(false);
+            scheduler.Configure(100);
+            scheduler.Request(RefreshReason.Manual);
+            time.Advance(TimeSpan.FromMilliseconds(100));
+            scheduler.TimerPaused = true;
+            scheduler.TimerPaused = false;
+            scheduler.EndRun();
+            Assert.Equal((100, RefreshReason.Timer), log[^1]);
+            Assert.Equal(2, log.Count);
+        }
+
+        [Theory]
+        [InlineData(RefreshReason.Manual)]
+        [InlineData(RefreshReason.Committed)]
+        [InlineData(RefreshReason.Created)]
+        public void TimerPaused_RequestMergedIntoARunningCapture_IsStillRaised(RefreshReason _reason)
+        {
+            // The pause is for ticks only: a request (also one that replaced a waiting tick) goes through.
+            var (scheduler, time, log) = Create(false);
+            scheduler.Configure(100);
+            scheduler.Request(RefreshReason.Manual);
+            time.Advance(TimeSpan.FromMilliseconds(100)); // a tick waits
+            scheduler.TimerPaused = true;
+            scheduler.Request(_reason); // replaces it
+            scheduler.EndRun();
+            Assert.Equal((100, _reason), log[^1]);
+            Assert.Equal(2, log.Count);
+        }
+
+        [Fact]
         public void Request_WithoutAHandler_StartsNoRun()
         {
             // Nobody would call EndRun: the next request after a handler is attached must not be stuck behind it.
