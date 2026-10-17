@@ -38,7 +38,7 @@ namespace Hider.Core.Persistence
             {
                 return new SingleInstance(new FileStream(_lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
             }
-            catch (IOException e) when (IsHeldByAnother(e))
+            catch (IOException e) when (IsHeldByAnother(OperatingSystem.IsWindows(), e.HResult))
             {
                 return null;
             }
@@ -50,13 +50,17 @@ namespace Hider.Core.Persistence
             }
         }
 
-        /// <summary>The lock is held by another process: a sharing or lock violation on Windows, a flock conflict on Linux.</summary>
-        private static bool IsHeldByAnother(IOException _e)
+        /// <summary>
+        /// The lock is held by another process: a sharing or lock violation on Windows (the Win32 code in the low word of
+        /// the HRESULT), a flock conflict (EWOULDBLOCK) on Linux. Any other code is an error, not "already running".
+        /// Takes the OS as an argument so that both rules run on every OS in the tests.
+        /// </summary>
+        internal static bool IsHeldByAnother(bool _isWindows, int _hresult)
         {
             const int errorSharingViolation = 32, errorLockViolation = 33, ewouldblock = 11;
-            return OperatingSystem.IsWindows()
-                ? (_e.HResult & 0xFFFF) is errorSharingViolation or errorLockViolation
-                : _e.HResult == ewouldblock;
+            return _isWindows
+                ? (_hresult & 0xFFFF) is errorSharingViolation or errorLockViolation
+                : _hresult == ewouldblock;
         }
 
         public void Dispose()

@@ -148,6 +148,29 @@ namespace Hider.Core.Tests.Persistence
             }
         }
 
+        [Theory]
+        [InlineData(true, unchecked((int)0x80070020), true)] // ERROR_SHARING_VIOLATION as an HRESULT
+        [InlineData(true, unchecked((int)0x80070021), true)] // ERROR_LOCK_VIOLATION
+        [InlineData(true, 32, true)] // the bare Win32 code: only the low word is compared
+        [InlineData(true, 33, true)]
+        [InlineData(true, unchecked((int)0x8007000B), false)] // ERROR_BAD_FORMAT: some other I/O error
+        [InlineData(true, unchecked((int)0x80070005), false)] // ERROR_ACCESS_DENIED
+        [InlineData(true, unchecked((int)0x80070034), false)] // 52: not 32 / 33
+        [InlineData(true, 11, false)] // EWOULDBLOCK means nothing on Windows
+        [InlineData(true, 0, false)]
+        [InlineData(false, 11, true)] // EWOULDBLOCK: flock conflict
+        [InlineData(false, 32, false)]
+        [InlineData(false, 33, false)]
+        [InlineData(false, unchecked((int)0x80070020), false)] // a Windows HRESULT is no flock conflict
+        [InlineData(false, 0x1000B, false)] // the low word is 11, but Linux compares the whole value
+        [InlineData(false, 36, false)] // ENAMETOOLONG
+        [InlineData(false, 21, false)] // EISDIR
+        [InlineData(false, 0, false)]
+        public void SingleInstance_IsHeldByAnother_PerOsCodes(bool _isWindows, int _hresult, bool _held)
+        {
+            Assert.Equal(_held, SingleInstance.IsHeldByAnother(_isWindows, _hresult));
+        }
+
         [Fact]
         public void SingleInstance_RootPath_HasNoFolderToCreate_IsAnError()
         {
