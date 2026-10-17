@@ -96,7 +96,9 @@ python scripts/install.py -d <folder>
 ```sh
 dotnet build -c Release -warnaserror
 dotnet test tests/Hider.Core.Tests
-dotnet test tests/Hider.App.Tests
+dotnet test tests/Hider.App.Tests            # Linux: make -C native/hidercap を先に（実ヘルパ・私的な dbus / PipeWire のテスト）
+make -C native/hidercap test                  # libhidercap の単体テスト（libpipewire が要る。デーモンは不要）
+python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト
 scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
 ```
 
