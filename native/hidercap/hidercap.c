@@ -62,10 +62,11 @@ static void release_held(void)
     g.held_data = NULL;
 }
 
-/* The row stride of a buffer's chunk (the format's width * 4 when the producer leaves it 0). */
+/* The row stride of a buffer's chunk (the format's width * 4 when the producer leaves it 0). A negative one (rows bottom
+ * up) is returned as it is, for usable to refuse. */
 static int32_t chunk_stride(const struct spa_data *_d)
 {
-    return _d->chunk->stride > 0 ? _d->chunk->stride : (int32_t)g.format.size.width * 4;
+    return _d->chunk->stride != 0 ? _d->chunk->stride : (int32_t)g.format.size.width * 4;
 }
 
 /* A buffer copy_held can read whole: mapped, not corrupted, and large enough for the current format (a short chunk from
