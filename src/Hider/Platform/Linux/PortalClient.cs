@@ -87,12 +87,14 @@ namespace Hider.Platform.Linux
                     {
                         response.TrySetResult(_n.Value);
                     }
-                    else if (!_n.IsCompletion)
+                    else
                     {
+                        // The connection closed or failed, or the Response could not be read: no answer can come any more.
                         response.TrySetException(_n.Exception);
                     }
                 },
-                emitOnCapturedContext: false).ConfigureAwait(false);
+                emitOnCapturedContext: false,
+                flags: ObserverFlags.EmitOnConnectionClosed | ObserverFlags.EmitOnConnectionFailed | ObserverFlags.EmitOnReaderFailed).ConfigureAwait(false);
 
             MessageBuffer call;
             var writer = _bus.GetMessageWriter();
