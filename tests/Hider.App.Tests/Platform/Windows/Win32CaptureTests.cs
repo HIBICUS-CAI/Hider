@@ -215,13 +215,14 @@ namespace Hider.App.Tests.Platform.Windows
             var source = new Win32WindowSource(printer.Print);
             var clock = Stopwatch.StartNew();
 
-            var image = source.Capture(Window(1, 16, 8), TimeSpan.FromMilliseconds(50));
+            var image = source.Capture(Window(1, 16, 8), TimeSpan.FromMilliseconds(200));
 
             clock.Stop();
             Assert.Equal(CaptureFailure.Timeout, image.Failure);
             Assert.Null(image.Image);
-            // Task.Wait gives up on a timer: allow it the timer's granularity, but not an early return.
-            Assert.True(clock.Elapsed >= TimeSpan.FromMilliseconds(40), $"returned after {clock.Elapsed.TotalMilliseconds} ms");
+            // Task.Wait gives up on a timer: the remaining time and the wait itself may each come up to one tick short
+            // (15.6 ms by default on Windows), so allow 50 ms of granularity, but not an early return.
+            Assert.True(clock.Elapsed >= TimeSpan.FromMilliseconds(150), $"returned after {clock.Elapsed.TotalMilliseconds} ms");
         }
 
         [Fact]
