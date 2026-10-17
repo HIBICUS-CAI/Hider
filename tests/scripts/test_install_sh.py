@@ -4,18 +4,26 @@ Every command the installer could reach the network or the system with is a stub
 pgrep (a running Hider), curl / wget (the download: they copy from a local folder), shasum and nohup (the launch). The
 file tools (tar, cp, sed, ...) are the real ones. The stubs log their arguments; the launch runs in the background, so
 the test waits for an inherited pipe to close instead of sleeping.
+
+Every test runs under each POSIX shell found (load_tests): dash (sh on Debian / Ubuntu), bash started as sh (sh on
+Fedora / Arch: POSIX mode) and as bash, and busybox sh (Alpine). On GitHub Actions all of them must be there.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
+import select
 import shutil
 import stat
 import subprocess
+import sys
+import time
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
+from unittest import mock
 
 import install
 import make_release
@@ -28,7 +36,10 @@ BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
 RIDS = ['linux-x64', 'linux-arm64']
 # Real commands the installer (and the stubs) use, linked into the private PATH.
 TOOLS = ['cat', 'chmod', 'cp', 'cut', 'dirname', 'gzip', 'mkdir', 'mktemp', 'rm', 'sed', 'tar', 'sha256sum', 'basename']
+# The stubs' interpreter.
 SH = shutil.which('sh') or '/bin/sh'
+# How long whatever the installer started in the background may outlive it.
+BACKGROUND_TIMEOUT_S = 30
 
 
 def real(name: str) -> str:
@@ -37,14 +48,41 @@ def real(name: str) -> str:
     return path
 
 
-def shells() -> list[str]:
-    """The POSIX shells on this machine to run the installer with (sh is dash on Ubuntu, bash elsewhere)."""
-    found: dict[str, str] = {}
-    for name in ['sh', 'dash', 'bash']:
+@dataclass(frozen=True)
+class Shell:
+    """A shell to run the installer with: the executable and the name it is started as (argv[0]: bash started as sh
+    runs in POSIX mode, busybox picks its applet by it)."""
+
+    name: str
+    path: str
+    argv0: str = 'sh'
+
+
+def shells() -> list[Shell]:
+    """The POSIX shells on this machine to run the installer with; on GitHub Actions all of them must be found."""
+    found: list[Shell] = []
+    sh = shutil.which('sh')
+    if sh is not None:
+        found.append(Shell('sh', sh))
+    for name, argv0, label in [('dash', 'sh', 'dash'), ('bash', 'sh', 'bash_as_sh'), ('bash', 'bash', 'bash')]:
         path = shutil.which(name)
         if path is not None:
-            found.setdefault(os.path.realpath(path), path)
-    return list(found.values())
+            found.append(Shell(label, path, argv0))
+    busybox = shutil.which('busybox')
+    if busybox is not None:
+        found.append(Shell('busybox', busybox))
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        missing = {'sh', 'dash', 'bash_as_sh', 'bash', 'busybox'} - {shell.name for shell in found}
+        assert not missing, f'shells missing on the runner: {sorted(missing)} (python-lint installs busybox-static)'
+    # The same program started the same way once only (sh is a link to dash on Ubuntu).
+    unique: dict[tuple[str, str], Shell] = {}
+    for shell in found:
+        unique.setdefault((os.path.realpath(shell.path), shell.argv0), shell)
+    return list(unique.values())
+
+
+SHELLS = shells()
+DEFAULT_SHELL = SHELLS[0]
 
 
 STUBS = {
@@ -123,6 +161,9 @@ class Machine:
 
 
 class InstallerTest(unittest.TestCase):
+    # load_tests makes one subclass per shell; run by name, a test uses the first one (sh).
+    shell: ClassVar[Shell] = DEFAULT_SHELL
+
     def setUp(self) -> None:
         self.root = Path(os.path.realpath(temp_dir(self)))
         self.release = self.root / 'release'
@@ -206,7 +247,6 @@ class InstallerTest(unittest.TestCase):
         *args: str,
         machine: Machine | None = None,
         env: dict[str, str | None] | None = None,
-        shell: str = SH,
         cwd: Path | None = None,
         stdin: str | None = None,
         script: Path | None = None,
@@ -230,12 +270,13 @@ class InstallerTest(unittest.TestCase):
                 variables[key] = value
         self.log.write_text('', encoding='utf-8')
         # Piped (curl ... | sh): $0 is the shell's name, as when sh is started from PATH.
-        command = ['sh'] if stdin is not None else [shell, str(script or self.script), *args]
+        argv0 = self.shell.argv0
+        command = [argv0] if stdin is not None else [argv0, str(script or self.script), *args]
         read_end, write_end = os.pipe()
         try:
             process = subprocess.Popen(
                 command,
-                executable=shell,
+                executable=self.shell.path,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -246,10 +287,15 @@ class InstallerTest(unittest.TestCase):
             os.close(write_end)
             write_end = -1
             out, err = process.communicate((stdin or '').encode('utf-8'), timeout=120)
-            # The pipe closes when the installer and everything it started in the background have exited.
-            with os.fdopen(read_end, 'rb') as pipe:
-                read_end = -1
-                pipe.read()
+            # The pipe closes when the installer and everything it started in the background have exited; something
+            # left running fails the test instead of hanging it.
+            deadline = time.monotonic() + BACKGROUND_TIMEOUT_S
+            while True:
+                ready, _, _ = select.select([read_end], [], [], max(0.0, deadline - time.monotonic()))
+                if not ready:
+                    self.fail(f'something the installer started still runs {BACKGROUND_TIMEOUT_S} s after it ended')
+                if not os.read(read_end, 4096):
+                    break
         finally:
             for fd in [read_end, write_end]:
                 if fd >= 0:
@@ -350,6 +396,32 @@ class OptionsTest(InstallerTest):
         self.assert_installed(work / 'rel' / 'Hider')
         self.assertIn(f'Copying to {work}/rel/Hider\n', result.out)
 
+    def test_empty_dest_is_the_default(self) -> None:
+        # As install.bat "" and scripts/install.py --dest '' do.
+        for option in ['-d', '--dest']:
+            with self.subTest(option=option):
+                result = self.run_installer(option, '')
+                self.assert_ok(result)
+                self.assert_installed(self.data / 'Hider')
+
+    def test_dest_with_an_equals_sign_is_an_unknown_argument(self) -> None:
+        # Only the forms of the usage line: -d <folder> and --dest <folder>.
+        for args in [('--dest=x',), ('-dx',), ('-d=x',)]:
+            with self.subTest(args=args):
+                result = self.run_installer(*args)
+                self.assertEqual((result.code, result.out), (2, ''))
+                self.assertTrue(result.err.startswith('usage: sh install.sh [-d <folder>]\n'))
+                self.assertFalse(self.data.exists())
+                self.assertFalse((self.root / 'x').exists())
+
+    def test_help_after_a_dest(self) -> None:
+        # The arguments are read in order: -h ends the run before anything is installed.
+        result = self.run_installer('-d', str(self.root / 'x'), '-h')
+        self.assert_ok(result)
+        self.assertTrue(result.out.startswith('usage: sh install.sh [-d <folder>]\n'))
+        self.assertFalse((self.root / 'x').exists())
+        self.assertEqual(result.log, [])
+
     def test_last_dest_wins(self) -> None:
         result = self.run_installer('-d', str(self.root / 'first'), '--dest', str(self.root / 'second'))
         self.assert_ok(result)
@@ -380,6 +452,27 @@ class DefaultFolderTest(InstallerTest):
                 share = self.home / '.local' / 'share'
                 self.assert_installed(share / 'Hider', data=share)
                 shutil.rmtree(self.home / '.local')
+
+    def test_xdg_data_home_without_home(self) -> None:
+        result = self.run_installer(env={'HOME': None})
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider')
+
+    def test_neither_xdg_data_home_nor_home(self) -> None:
+        # e.g. env -i sh install.sh: a message of ours, not the shell's "HOME: parameter not set" (set -u).
+        message = 'neither XDG_DATA_HOME nor HOME is set: the desktop entry goes under one of them'
+        envs: list[dict[str, str | None]] = [{'XDG_DATA_HOME': None, 'HOME': None}, {'XDG_DATA_HOME': '', 'HOME': None}]
+        # Empty: before, the entry (and the default folder) went under /.local/share. Not run as root, where a
+        # regression would really write there.
+        if os.geteuid() != 0:
+            envs.append({'XDG_DATA_HOME': '', 'HOME': ''})
+        for env in envs:
+            for args in [(), ('-d', str(self.root / 'dest'))]:
+                with self.subTest(env=env, args=args):
+                    result = self.run_installer(*args, env=env)
+                    self.assert_error(result, message)
+                    self.assertEqual(self.calls(result, 'curl'), [])
+                    self.assertFalse((self.root / 'dest').exists())
 
 
 class MachineTest(InstallerTest):
@@ -746,32 +839,53 @@ class InterruptTest(InstallerTest):
 
 
 class ShellsTest(InstallerTest):
-    """The main paths under every POSIX shell on the machine (dash is /bin/sh on Ubuntu and Debian)."""
+    """The awkward paths together (load_tests runs this under every shell like the rest), and the parametrisation."""
 
-    def test_install_under_each_shell(self) -> None:
-        for shell in shells():
-            with self.subTest(shell=shell):
-                dest = self.root / 'odd' / Path(shell).name / 'a "b" $c `d` \\e \\n 100%'
-                result = self.run_installer('-d', str(dest), shell=shell, env={'DISPLAY': ':0', 'HIDER_NO_LAUNCH': ''})
-                self.assert_ok(result)
-                self.assert_installed(dest)
-                self.assertEqual(self.calls(result, 'nohup'), [f'nohup {dest}/Hider'])
+    def test_runs_under_the_shell_asked_for(self) -> None:
+        # The process's executable, bash's options (posix when started as sh), and a command found through PATH (the
+        # uname stub).
+        probe = self.root / 'probe.sh'
+        readlink = real('readlink')
+        probe.write_text(
+            f'printf "%s|%s|%s\\n" "$({readlink} /proc/$$/exe)" "${{SHELLOPTS:-}}" "$(uname -s)"\n', encoding='utf-8'
+        )
+        result = self.run_installer(script=probe, env={'FAKE_UNAME_S': 'from-path'})
+        exe, options, uname = result.out.rstrip('\n').split('|')
+        self.assertEqual(os.path.realpath(exe), os.path.realpath(self.shell.path))
+        if Path(os.path.realpath(self.shell.path)).name == 'bash':
+            self.assertEqual('posix' in options.split(':'), self.shell.argv0 == 'sh')
+        # Commands come from PATH: a busybox built with FEATURE_SH_STANDALONE (Debian's busybox-static) would run its
+        # own applets and bypass the stubs.
+        self.assertEqual(uname, 'from-path')
 
-    def test_errors_under_each_shell(self) -> None:
-        for shell in shells():
-            with self.subTest(shell=shell):
-                self.assert_error(
-                    self.run_installer(shell=shell, env={'FAKE_DOWNLOAD_FAIL': '1'}),
-                    f'download failed: {BASE_URL}/Hider-{VERSION}-linux-x64.tar.gz',
-                )
-                self.assertEqual(self.run_installer('-x', shell=shell).code, 2)
+    def test_something_left_running_fails_instead_of_hanging(self) -> None:
+        # Output to /dev/null as the launch's nohup does: only the inherited pipe still sees the process.
+        script = self.root / 'leftover.sh'
+        script.write_text(f'{real("sleep")} 3 > /dev/null 2>&1 &\n', encoding='utf-8')
+        start = time.monotonic()
+        with (
+            mock.patch.object(sys.modules[__name__], 'BACKGROUND_TIMEOUT_S', 0.5),
+            self.assertRaises(AssertionError) as raised,
+        ):
+            self.run_installer(script=script)
+        self.assertEqual(str(raised.exception), 'something the installer started still runs 0.5 s after it ended')
+        self.assertLess(time.monotonic() - start, 3)
+
+    def test_odd_folder_and_launch(self) -> None:
+        dest = self.root / 'odd' / self.shell.name / 'a "b" $c `d` \\e \\n 100%'
+        result = self.run_installer('-d', str(dest), env={'DISPLAY': ':0', 'HIDER_NO_LAUNCH': ''})
+        self.assert_ok(result)
+        self.assert_installed(dest)
+        self.assertEqual(self.calls(result, 'nohup'), [f'nohup {dest}/Hider'])
 
 
 class SyntaxTest(unittest.TestCase):
     """`sh -n` on the template and the rendered script, `bash -n` on the Xvfb smoke test (CI runs shellcheck too)."""
 
-    def check(self, shell: str, path: Path) -> None:
-        result = subprocess.run([shell, '-n', str(path)], capture_output=True, text=True, check=False)
+    def check(self, shell: Shell, path: Path) -> None:
+        result = subprocess.run(
+            [shell.argv0, '-n', str(path)], executable=shell.path, capture_output=True, text=True, check=False
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_install_sh(self) -> None:
@@ -780,15 +894,15 @@ class SyntaxTest(unittest.TestCase):
         values = {'HIDER_VERSION': '1.0.0', 'HIDER_BASE_URL': 'https://x/y'}
         values |= {f'HIDER_SHA256_{k}': '0' * 64 for k in ['WIN_X64', 'LINUX_X64', 'LINUX_ARM64']}
         rendered.write_text(make_release.render('install.sh.in', values, '\n'), encoding='utf-8')
-        for shell in shells():
-            with self.subTest(shell=shell):
+        for shell in SHELLS:
+            with self.subTest(shell=shell.name):
                 self.check(shell, SCRIPTS_DIR / 'release' / 'install.sh.in')
                 self.check(shell, rendered)
 
     def test_xvfb_strip_smoke(self) -> None:
         path = SCRIPTS_DIR / 'xvfb-strip-smoke.sh'
         self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env bash\n'))
-        self.check(real('bash'), path)
+        self.check(Shell('bash', real('bash'), 'bash'), path)
         self.assertTrue(os.access(path, os.X_OK), 'xvfb-strip-smoke.sh is executable')
 
     def test_windows_stress_is_a_powershell_script(self) -> None:
@@ -797,3 +911,22 @@ class SyntaxTest(unittest.TestCase):
         self.assertTrue(text.startswith('#Requires -Version 7\n'))
         self.assertEqual(text.count('{'), text.count('}'))
         self.assertEqual(text.count('('), text.count(')'))
+
+
+# Every class with installer runs, collected before load_tests adds the per-shell subclasses.
+INSTALLER_CASES = InstallerTest.__subclasses__()
+
+
+def per_shell(case: type[InstallerTest], shell: Shell) -> type[InstallerTest]:
+    return type(f'{case.__name__}_{shell.name}', (case,), {'shell': shell, '__module__': __name__})
+
+
+def load_tests(loader: unittest.TestLoader, standard: unittest.TestSuite, pattern: str | None) -> unittest.TestSuite:
+    """unittest's load_tests protocol (discover, or the module by name): every installer test once per shell, named
+    <Class>_<shell>."""
+    suite = unittest.TestSuite()
+    for case in INSTALLER_CASES:
+        for shell in SHELLS:
+            suite.addTests(loader.loadTestsFromTestCase(per_shell(case, shell)))
+    suite.addTests(loader.loadTestsFromTestCase(SyntaxTest))
+    return suite
