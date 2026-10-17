@@ -2,6 +2,7 @@ using System.Text.Json;
 using Hider.Core.Model;
 using Hider.Core.Mosaic;
 using Hider.Core.Persistence;
+using Hider.Core.Tests.Fakes;
 
 namespace Hider.Core.Tests.Persistence
 {
@@ -390,7 +391,7 @@ namespace Hider.Core.Tests.Persistence
             var random = new ScriptedRandom(0x0000_0001, 0x0000_0002, 0x0000_0003);
             AreasFile.Normalize(state, random);
             Assert.Equal("00000001 1a2b3c4d 00000002 00000003 deadbeef", string.Join(' ', state.Areas.Select(_a => _a.Id)));
-            Assert.Equal(0, random.Left);
+            AssertAllDrawn(random);
         }
 
         [Fact]
@@ -401,7 +402,7 @@ namespace Hider.Core.Tests.Persistence
             var random = new ScriptedRandom(0x1a2b3c4d, 0x0f3b8d2e, 0x7777_7777);
             AreasFile.Normalize(state, random);
             Assert.Equal("0f3b8d2e 1a2b3c4d 77777777", string.Join(' ', state.Areas.Select(_a => _a.Id)));
-            Assert.Equal(0, random.Left);
+            AssertAllDrawn(random);
         }
 
         [Fact]
@@ -416,7 +417,7 @@ namespace Hider.Core.Tests.Persistence
             var random = new ScriptedRandom(0x0f3b8d2e, 0x1a2b3c4d);
             AreasFile.Normalize(state, random);
             Assert.Equal("0f3b8d2e 1a2b3c4d deadbeef", string.Join(' ', state.Areas.Select(_a => _a.Id)));
-            Assert.Equal(0, random.Left);
+            AssertAllDrawn(random);
         }
 
         [Fact]
@@ -428,19 +429,11 @@ namespace Hider.Core.Tests.Persistence
             Assert.NotEqual(state.Areas[0].Id, state.Areas[1].Id);
         }
 
-        /// <summary>Returns the given values in order from NextInt64 and fails when they run out.</summary>
-        private sealed class ScriptedRandom(params long[] _values) : Random
+        /// <summary>Every value was drawn, each from the whole id range.</summary>
+        private static void AssertAllDrawn(ScriptedRandom _random)
         {
-            private readonly Queue<long> values = new(_values);
-
-            public int Left => values.Count;
-
-            public override long NextInt64(long _minValue, long _maxValue)
-            {
-                Assert.Equal((0L, 1L << 32), (_minValue, _maxValue));
-                Assert.True(values.Count > 0, "more ids drawn than scripted");
-                return values.Dequeue();
-            }
+            Assert.Equal(0, _random.Left);
+            Assert.All(_random.Ranges, _r => Assert.Equal((0L, 1L << 32), _r));
         }
 
         [Theory]

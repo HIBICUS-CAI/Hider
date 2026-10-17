@@ -1,4 +1,5 @@
 using Hider.Core.Model;
+using Hider.Core.Tests.Fakes;
 
 namespace Hider.Core.Tests.Model
 {
@@ -52,7 +53,7 @@ namespace Hider.Core.Tests.Model
         public void CT11_AreaId_New_PadsSmallNumbersToEightDigits()
         {
             // A source that always draws 0x1f: the id keeps its leading zeros.
-            Assert.Equal("0000001f", AreaId.New(_ => false, new FixedRandom(0x1f)));
+            Assert.Equal("0000001f", AreaId.New(_ => false, new ScriptedRandom(0x1f)));
         }
 
         [Theory]
@@ -62,7 +63,7 @@ namespace Hider.Core.Tests.Model
         [InlineData(0xFFFF_FFFFL, "ffffffff")] // the largest value NextInt64(0, 2^32) gives (the upper bound is exclusive)
         public void CT11_AreaId_New_WholeRangeOfEightDigits(long _value, string _id)
         {
-            string id = AreaId.New(_ => false, new FixedRandom(_value));
+            string id = AreaId.New(_ => false, new ScriptedRandom(_value));
             Assert.Equal(_id, id);
             Assert.True(AreaId.IsValid(id));
         }
@@ -70,9 +71,9 @@ namespace Hider.Core.Tests.Model
         [Fact]
         public void CT11_AreaId_New_AsksForZeroUpToTwoToTheThirtySecond()
         {
-            var random = new RangeRecorder();
+            var random = new ScriptedRandom(5);
             AreaId.New(_ => false, random);
-            Assert.Equal((0L, 1L << 32), random.Range);
+            Assert.Equal((0L, 1L << 32), Assert.Single(random.Ranges));
         }
 
         [Theory]
@@ -127,26 +128,6 @@ namespace Hider.Core.Tests.Model
             Assert.Equal(expected, ColorText.Parse("nope"));
             Assert.Equal(expected, ColorText.Parse(""));
             Assert.Equal(expected, ColorText.Parse(null!));
-        }
-
-        /// <summary>A random source whose 64-bit draws are always the same value.</summary>
-        private sealed class RangeRecorder : Random
-        {
-            public (long Min, long Max) Range { get; private set; }
-
-            public override long NextInt64(long _minValue, long _maxValue)
-            {
-                Range = (_minValue, _maxValue);
-                return 5;
-            }
-        }
-
-        private sealed class FixedRandom(long _value) : Random
-        {
-            public override long NextInt64(long _minValue, long _maxValue)
-            {
-                return _value;
-            }
         }
     }
 }
