@@ -256,21 +256,60 @@ namespace Hider.Core.Tests.Persistence
                     new AreaState { Id = "deadbeef" },
                 },
             };
-            AreasFile.Normalize(state);
-            var ids = state.Areas.Select(_a => _a.Id).ToList();
-            Assert.Equal("1a2b3c4d", ids[1]);
-            Assert.Equal("deadbeef", ids[4]);
-            Assert.Equal(5, ids.Distinct().Count());
-            Assert.All(ids, _id => Assert.True(AreaId.IsValid(_id), _id));
+            var random = new ScriptedRandom(0x0000_0001, 0x0000_0002, 0x0000_0003);
+            AreasFile.Normalize(state, random);
+            Assert.Equal("00000001 1a2b3c4d 00000002 00000003 deadbeef", string.Join(' ', state.Areas.Select(_a => _a.Id)));
+            Assert.Equal(0, random.Left);
+        }
+
+        [Fact]
+        public void Normalize_ReplacementTakenByTheIdsBefore_IsDrawnAgain()
+        {
+            // The first draw for the third area is the second area's id: drawn again.
+            var state = new AppState { Areas = { new AreaState { Id = "0f3b8d2e" }, new AreaState { Id = "1a2b3c4d" }, new AreaState { Id = "bad" } } };
+            var random = new ScriptedRandom(0x1a2b3c4d, 0x0f3b8d2e, 0x7777_7777);
+            AreasFile.Normalize(state, random);
+            Assert.Equal("0f3b8d2e 1a2b3c4d 77777777", string.Join(' ', state.Areas.Select(_a => _a.Id)));
+            Assert.Equal(0, random.Left);
         }
 
         [Fact]
         public void Normalize_ReplacedIdAndALaterValidId_StayDistinct()
         {
-            // The replacement is unique among the ids seen so far; a later valid id is checked when its turn comes.
-            var state = new AppState { Areas = { new AreaState { Id = "bad" }, new AreaState { Id = "0f3b8d2e" } } };
-            AreasFile.Normalize(state);
+            // The replacement of "bad" is unique among the ids seen so far, and here equals the later valid id. That one is
+            // checked when its turn comes and replaced as a duplicate; the third, distinct id stays.
+            var state = new AppState
+            {
+                Areas = { new AreaState { Id = "bad" }, new AreaState { Id = "0f3b8d2e" }, new AreaState { Id = "deadbeef" } },
+            };
+            var random = new ScriptedRandom(0x0f3b8d2e, 0x1a2b3c4d);
+            AreasFile.Normalize(state, random);
+            Assert.Equal("0f3b8d2e 1a2b3c4d deadbeef", string.Join(' ', state.Areas.Select(_a => _a.Id)));
+            Assert.Equal(0, random.Left);
+        }
+
+        [Fact]
+        public void Normalize_WithoutARandom_DrawsFromTheShared()
+        {
+            var state = new AppState { Areas = { new AreaState { Id = "bad" }, new AreaState { Id = "bad" } } };
+            AreasFile.Normalize(state, null);
+            Assert.All(state.Areas, _a => Assert.True(AreaId.IsValid(_a.Id), _a.Id));
             Assert.NotEqual(state.Areas[0].Id, state.Areas[1].Id);
+        }
+
+        /// <summary>Returns the given values in order from NextInt64 and fails when they run out.</summary>
+        private sealed class ScriptedRandom(params long[] _values) : Random
+        {
+            private readonly Queue<long> values = new(_values);
+
+            public int Left => values.Count;
+
+            public override long NextInt64(long _minValue, long _maxValue)
+            {
+                Assert.Equal((0L, 1L << 32), (_minValue, _maxValue));
+                Assert.True(values.Count > 0, "more ids drawn than scripted");
+                return values.Dequeue();
+            }
         }
 
         [Theory]
