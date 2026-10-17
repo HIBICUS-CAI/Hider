@@ -505,8 +505,18 @@ namespace Hider.App.Tests.Areas
             area.Window.Toolbar.PatternMenu.ShowAt(area.Window.Toolbar.PatternButton);
             int calls = capture.Calls;
             area.Refresh();
+            // Runs after the controller's own handler: the captures made by the time each popup has closed.
+            var atClose = new List<int>();
+            area.Window.PopupOpenChanged += _open =>
+            {
+                if (!_open)
+                {
+                    atClose.Add(capture.Calls);
+                }
+            };
             area.ExitEdit();
             Assert.False(f.Manager.AnyPopupOpen);
+            Assert.Equal(new[] { calls, calls + 1 }, atClose); // none when the first one closed, one with the last
             Assert.Equal(calls + 1, capture.Calls);
         }
 
