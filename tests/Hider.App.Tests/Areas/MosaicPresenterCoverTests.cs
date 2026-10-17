@@ -9,8 +9,8 @@ namespace Hider.App.Tests.Areas
 {
     /// <summary>
     /// When a pattern cannot be drawn the area is filled with its fill color, opaque, never left see-through (NFR-05): a draw
-    /// that throws (also after drawing part of the area), no Skia lease, a lease whose canvas fails, the window closing. The
-    /// pattern itself is drawn as before once it can be.
+    /// that throws (also on a canvas that already holds other pixels), no Skia lease, a lease whose canvas fails, the window
+    /// closing. The pattern itself is drawn as before once it can be.
     /// </summary>
     public class MosaicPresenterCoverTests
     {
@@ -99,9 +99,11 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void FailureAfterPartOfTheAreaWasDrawn_TheCoverReplacesIt(PatternKind _pattern)
+        public void FailureOnACanvasHoldingOtherPixels_TheCoverReplacesThem(PatternKind _pattern)
         {
-            // The canvas already holds other pixels (a half-drawn pattern) when the draw fails: the cover replaces them all.
+            // The lease's canvas already holds other pixels (red, standing in for whatever the render target had) and the
+            // pattern draw fails at its first canvas read: the cover is drawn with BlendMode.Src, so it replaces every pixel
+            // instead of blending over them.
             var lease = new FakeLease(1, SKColors.Red);
             try
             {
