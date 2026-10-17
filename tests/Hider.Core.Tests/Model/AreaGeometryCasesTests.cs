@@ -8,6 +8,29 @@ namespace Hider.Core.Tests.Model
         private static readonly PhysicalRect start = new(100, 200, 400, 300);
 
         [Theory]
+        [InlineData(ResizeHandle.Left, 86, 200, 24, 300)]    // the dragged left edge moves out to the minimum
+        [InlineData(ResizeHandle.Right, 100, 200, 24, 300)]  // the dragged right edge moves out
+        [InlineData(ResizeHandle.Top, 100, 200, 10, 300)]    // the narrow width is not touched by a vertical handle
+        [InlineData(ResizeHandle.TopLeft, 86, 200, 24, 300)]
+        public void Resize_FromBelowTheMinimum_ZeroDragBringsTheDraggedSideToTheMinimum(ResizeHandle _handle, int _x, int _y, int _w, int _h)
+        {
+            // An area narrower than the minimum (a window scale grew since it was made) grows to the minimum as soon as one
+            // of its width handles is grabbed: the result always respects the minimum on the dragged sides, and the opposite
+            // edge stays where it is, as for any resize.
+            var narrow = new PhysicalRect(100, 200, 10, 300);
+            Assert.Equal(new PhysicalRect(_x, _y, _w, _h), AreaGeometry.Resize(narrow, _handle, 0, 0, 1.0));
+        }
+
+        [Fact]
+        public void Resize_FromBelowTheMinimum_BothSides()
+        {
+            var tiny = new PhysicalRect(100, 200, 10, 5);
+            Assert.Equal(new PhysicalRect(100, 200, 24, 24), AreaGeometry.Resize(tiny, ResizeHandle.BottomRight, 0, 0, 1.0));
+            Assert.Equal(new PhysicalRect(86, 181, 24, 24), AreaGeometry.Resize(tiny, ResizeHandle.TopLeft, 3, 3, 1.0));
+            Assert.Equal(new PhysicalRect(100, 200, 30, 24), AreaGeometry.Resize(tiny, ResizeHandle.BottomRight, 20, -100, 1.0));
+        }
+
+        [Theory]
         [InlineData(0, 1.0, 0.25)]
         [InlineData(60, 1.0, 60.25)]
         [InlineData(60, 2.0, 30.125)]
