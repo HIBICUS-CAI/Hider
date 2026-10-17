@@ -152,5 +152,41 @@ namespace Hider.Core.Tests.Mosaic
                 Assert.Equal(0, Golden.MaxDiff(max, above));
             }
         }
+
+        [Theory]
+        [InlineData("pixelate")]
+        [InlineData("hexcell")]
+        [InlineData("blur")]
+        public void MosaicCommonBlur_NotFinite_NaNIsTheDefault_InfinitiesTheEnds(string _id)
+        {
+            // MosaicCommon.Blur is a double: a value set in code or a future reader may be NaN or infinite.
+            var spec = CommonParams.Mosaic.Single(_s => _s.Key == CommonParams.Blur);
+            using var source = SyntheticImage.CreateImage(Width, Height);
+            using var nan = Render.Mosaic(_id, _blur: double.NaN, _source: source);
+            using var byDefault = Render.Mosaic(_id, _blur: spec.Default, _source: source);
+            using var positive = Render.Mosaic(_id, _blur: double.PositiveInfinity, _source: source);
+            using var max = Render.Mosaic(_id, _blur: spec.Max, _source: source);
+            using var negative = Render.Mosaic(_id, _blur: double.NegativeInfinity, _source: source);
+            using var min = Render.Mosaic(_id, _blur: spec.Min, _source: source);
+            Assert.Equal(0, Golden.MaxDiff(byDefault, nan));
+            Assert.Equal(0, Golden.MaxDiff(max, positive));
+            Assert.Equal(0, Golden.MaxDiff(min, negative));
+        }
+
+        [Theory]
+        [InlineData("pixelate")]
+        [InlineData("hexcell")]
+        [InlineData("blur")]
+        public void MosaicCommonLevels_ExtremeIntegers_AreTheEnds(string _id)
+        {
+            // Levels is an int (a hand-edited 1e300 is read as int.MaxValue by LenientInt32Converter).
+            using var source = SyntheticImage.CreateImage(Width, Height);
+            using var two = Render.Mosaic(_id, _levels: 2, _source: source);
+            using var lowest = Render.Mosaic(_id, _levels: int.MinValue, _source: source);
+            using var all = Render.Mosaic(_id, _levels: 256, _source: source);
+            using var highest = Render.Mosaic(_id, _levels: int.MaxValue, _source: source);
+            Assert.Equal(0, Golden.MaxDiff(two, lowest));
+            Assert.Equal(0, Golden.MaxDiff(all, highest));
+        }
     }
 }

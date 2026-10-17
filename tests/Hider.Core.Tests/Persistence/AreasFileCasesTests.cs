@@ -273,6 +273,28 @@ namespace Hider.Core.Tests.Persistence
             Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
         }
 
+        [Theory]
+        [InlineData("1e999", 128.0)]   // beyond double: read as infinity, clamped to the maximum
+        [InlineData("-1e999", 0.0)]
+        [InlineData("1e300", 128.0)]
+        public void Load_MosaicBlur_HugeNumbers_ClampedToTheRange(string _value, double _expected)
+        {
+            var a = LoadOne($$"""{ "id": "0f3b8d2e", "mosaic": { "common": { "blur": {{_value}} } } }""");
+            Assert.Equal(_expected, a.Mosaic.Common.Blur);
+        }
+
+        [Theory]
+        [InlineData("\"NaN\"")]
+        [InlineData("\"Infinity\"")]
+        [InlineData("NaN")]
+        public void Load_MosaicBlur_NamedFloatingPointLiterals_TheFileIsBroken(string _value)
+        {
+            // Neither the bare words (not JSON) nor the strings (named literals are not allowed) are numbers here.
+            File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "mosaic": { "common": { "blur": {{_value}} } } } ] }""");
+            AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Broken, status);
+        }
+
         [Fact]
         public void Load_Utf8WithByteOrderMark_IsLoaded()
         {
