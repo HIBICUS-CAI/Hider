@@ -207,6 +207,21 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
+        public async Task RequestAsync_ResponseBeforeTheReply_IsNotMissed()
+        {
+            // The Response arrives before the method's reply: the match must be in place before the call is sent, or the
+            // signal is dropped and the request waits for its timeout (short here, so a regression fails, not stalls).
+            using var env = await PortalEnv.StartAsync();
+            env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.RespondBeforeReply(0, (ref MessageWriter _w) => FakeDesktopPortal.Entry(ref _w, "early", "yes"));
+            using var client = new PortalClient(env.Address) { ResponseWait = TimeSpan.FromSeconds(5) };
+            var bus = (await client.ConnectAsync(Ct))!;
+            var response = await Request(client, bus);
+            Assert.Equal(0u, response.Code);
+            Assert.Equal("yes", response.Results["early"].GetString());
+            Assert.Empty(env.Portal.Closed);
+        }
+
+        [DbusFact]
         public async Task RequestAsync_CancelledBeforeTheResponse_ClosesTheRequestAndThrows()
         {
             using var env = await PortalEnv.StartAsync();

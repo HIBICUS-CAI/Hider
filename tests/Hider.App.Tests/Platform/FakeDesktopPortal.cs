@@ -46,6 +46,12 @@ namespace Hider.App.Tests.Platform
             /// <summary>A Response signal whose body is not ua{sv}.</summary>
             public sealed record Malformed : Answer;
 
+            /// <summary>
+            /// The Response signal sent before the method's reply (a portal that answers at once, without a dialog, may
+            /// do so): only a client that subscribed before calling sees it.
+            /// </summary>
+            public sealed record RespondBeforeReply(uint Code, ResultsWriter? Results = null) : Answer;
+
             /// <summary>A Response sent to another request path first (to be ignored), then the real one.</summary>
             public sealed record ElsewhereFirst(uint Code, ResultsWriter? Results = null) : Answer;
 
@@ -163,6 +169,11 @@ namespace Hider.App.Tests.Platform
             {
                 _context.ReplyError(error.Name, "request failed (test)");
                 return ValueTask.CompletedTask;
+            }
+            if (answer is Answer.RespondBeforeReply early)
+            {
+                // Same connection, so the bus delivers the signal before the reply.
+                Respond(sender, requestPath!, early.Code, early.Results);
             }
             using (var w = _context.CreateReplyWriter("o"))
             {
