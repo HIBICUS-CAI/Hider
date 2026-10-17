@@ -47,23 +47,18 @@ jobs:
         with:
           ref: main
           # Credentials kept (the token is read-only here) so that git ls-remote below also works on a private repository.
+      # The decision (tags listed, annotated ones peeled, numeric order, released already) is make_release.py
+      # next-version, unit-tested in tests/scripts/test_make_release.py; it prints what it decided on stderr.
       - id: version
+        shell: bash
         env:
           BUMP: ${{ inputs.bump }}
         run: |
-          fail() { echo "::error::$1"; exit 1; }
           sha="$(git rev-parse HEAD)"
           tags="$(git ls-remote --tags origin 'refs/tags/v*')"
-          # Annotated tags are listed twice, the second time peeled (^{}) to their commit.
-          released="$(echo "$tags" | awk -v sha="$sha" '$1 == sha { sub("refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2 }' | head -n 1)"
-          [ -z "$released" ] || fail "main ($sha) is released already as $released"
-          latest="$(echo "$tags" | sed -n 's#.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
-          if [ -z "$latest" ]; then
-            version="$(python3 scripts/make_release.py version)"
-            echo "No release yet: $version (Directory.Build.props)"
-          else
-            version="$(python3 scripts/make_release.py bump "$BUMP" "$latest")"
-            echo "v$latest -> v$version ($BUMP)"
+          if ! version="$(printf '%s\n' "$tags" | python3 scripts/make_release.py next-version --bump "$BUMP" --head "$sha")"; then
+            echo "::error::no version to release main ($sha) as: see the message above"
+            exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"

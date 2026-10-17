@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 import re
 import stat
+import subprocess
 import tarfile
 import unittest
 import zipfile
@@ -118,10 +120,13 @@ class ParseVersionTest(unittest.TestCase):
                 make_release.parse_version(version)
             self.assertEqual(raised.exception.code, f'invalid version "{version}" (expected MAJOR.MINOR.PATCH)')
 
-    def test_non_ascii_digits(self) -> None:
-        # \d matches other scripts' digits too; int() reads them.
-        arabic_indic = '\u0661.\u0662.\u0663'
-        self.assertEqual(make_release.parse_version(arabic_indic), (1, 2, 3))
+    def test_non_ascii_digits_exit(self) -> None:
+        # \d alone would take other scripts' digits (and int() would read them), but the version goes into file names
+        # and URLs: ASCII only.
+        for version in ['\u0661.\u0662.\u0663', '\uff11.\uff12.\uff13', '1.2.\u0663', '\U0001d7d9.0.0']:
+            with self.subTest(version=version), self.assertRaises(SystemExit) as raised:
+                make_release.parse_version(version)
+            self.assertEqual(raised.exception.code, f'invalid version "{version}" (expected MAJOR.MINOR.PATCH)')
 
 
 class PropsVersionTest(unittest.TestCase):
@@ -204,6 +209,195 @@ class BumpTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as raised:
             make_release.bump('minor', 'v2.1.0')
         self.assertEqual(raised.exception.code, 'invalid version "v2.1.0" (expected MAJOR.MINOR.PATCH)')
+
+
+HEAD = 'a' * 40
+OTHER = 'b' * 40
+TAG_OBJECT = 'c' * 40
+
+
+def ls_remote(*refs: tuple[str, str]) -> str:
+    """`git ls-remote --tags` output: '<object name>\\t<ref>' lines."""
+    return ''.join(f'{sha}\t{ref}\n' for sha, ref in refs)
+
+
+class ChooseVersionTest(unittest.TestCase):
+    """The release workflow's version (release.yml, job prepare): next-version on its `git ls-remote --tags` listing."""
+
+    last_props: mock.Mock
+
+    def choose(self, listing: str, part: str = 'minor', head: str = HEAD, props: str = '2.0.0') -> tuple[str, str]:
+        """Return the version and what was written to stderr."""
+        read_props = mock.Mock(return_value=props)
+        with captured() as output:
+            version = make_release.choose_version(listing, head, part, read_props)
+        self.assertEqual(output.out, '')
+        self.last_props = read_props
+        return version, output.err
+
+    def exit_message(self, listing: str, head: str = HEAD) -> object:
+        with self.assertRaises(SystemExit) as raised, captured():
+            make_release.choose_version(listing, head, 'minor', mock.Mock(side_effect=AssertionError('props read')))
+        return raised.exception.code
+
+    def test_no_tags_takes_the_props_version(self) -> None:
+        for listing in ['', '\n', '  \n\n']:
+            with self.subTest(listing=listing):
+                self.assertEqual(
+                    self.choose(listing, props='3.4.5'), ('3.4.5', 'No release yet: 3.4.5 (Directory.Build.props)\n')
+                )
+                self.last_props.assert_called_once_with()
+
+    def test_default_reads_directory_build_props(self) -> None:
+        with captured():
+            self.assertEqual(make_release.choose_version('', HEAD, 'minor'), make_release.props_version())
+
+    def test_props_are_not_read_once_there_is_a_tag(self) -> None:
+        version, err = self.choose(ls_remote((OTHER, 'refs/tags/v2.0.0')))
+        self.assertEqual((version, err), ('2.1.0', 'v2.0.0 -> v2.1.0 (minor)\n'))
+        self.last_props.assert_not_called()
+
+    def test_parts(self) -> None:
+        listing = ls_remote((OTHER, 'refs/tags/v2.3.4'))
+        self.assertEqual(self.choose(listing, 'minor')[0], '2.4.0')
+        self.assertEqual(self.choose(listing, 'patch'), ('2.3.5', 'v2.3.4 -> v2.3.5 (patch)\n'))
+        self.assertEqual(self.choose(listing, 'major')[0], '3.0.0')
+
+    def test_lightweight_and_annotated_tags(self) -> None:
+        # An annotated tag is listed twice: the tag object, then peeled (^{}) to the commit.
+        listing = ls_remote(
+            (OTHER, 'refs/tags/v2.0.0'),
+            (TAG_OBJECT, 'refs/tags/v2.1.0'),
+            ('d' * 40, 'refs/tags/v2.1.0^{}'),
+        )
+        self.assertEqual(self.choose(listing), ('2.2.0', 'v2.1.0 -> v2.2.0 (minor)\n'))
+
+    def test_only_a_peeled_line_counts_too(self) -> None:
+        self.assertEqual(self.choose(ls_remote((OTHER, 'refs/tags/v4.0.0^{}')))[0], '4.1.0')
+
+    def test_numeric_order(self) -> None:
+        # Not text order: v2.10.0 is above v2.9.0, v10.0.0 above v9.9.9, and the listing order does not matter.
+        listing = ls_remote(
+            (OTHER, 'refs/tags/v2.10.0'),
+            (OTHER, 'refs/tags/v2.9.0'),
+            (OTHER, 'refs/tags/v2.9.10'),
+        )
+        self.assertEqual(self.choose(listing), ('2.11.0', 'v2.10.0 -> v2.11.0 (minor)\n'))
+        listing = ls_remote((OTHER, 'refs/tags/v9.9.9'), (OTHER, 'refs/tags/v10.0.0'), (OTHER, 'refs/tags/v1.99.0'))
+        self.assertEqual(self.choose(listing, 'patch')[0], '10.0.1')
+
+    def test_leading_zeros_compare_as_numbers(self) -> None:
+        listing = ls_remote((OTHER, 'refs/tags/v2.010.0'), (OTHER, 'refs/tags/v2.9.0'))
+        self.assertEqual(self.choose(listing), ('2.11.0', 'v2.10.0 -> v2.11.0 (minor)\n'))
+
+    def test_other_tags_are_ignored(self) -> None:
+        others = [
+            'refs/tags/v2.0',
+            'refs/tags/v2.0.0-rc1',
+            'refs/tags/v2.0.0.1',
+            'refs/tags/release-1',
+            'refs/tags/V9.0.0',
+            'refs/tags/vv9.0.0',
+            'refs/tags/x/v9.0.0',
+            'refs/tags/v٩.0.0',
+            'refs/heads/v9.0.0',
+            'refs/tags/v9.0.0^{tree}',
+        ]
+        listing = ls_remote((OTHER, 'refs/tags/v1.2.3'), *((OTHER, ref) for ref in others))
+        self.assertEqual(self.choose(listing)[0], '1.3.0')
+        # Only such tags: still the first release.
+        self.assertEqual(self.choose(ls_remote(*((OTHER, ref) for ref in others)), props='2.0.0')[0], '2.0.0')
+
+    def test_head_released_already(self) -> None:
+        for ref, expected in [
+            ('refs/tags/v2.0.0', 'v2.0.0'),
+            # Either line of an annotated tag.
+            ('refs/tags/v2.0.0^{}', 'v2.0.0'),
+            # Any tag v* (the listing is limited to them), not only versions.
+            ('refs/tags/v2.0.0-rc1', 'v2.0.0-rc1'),
+        ]:
+            with self.subTest(ref=ref):
+                listing = ls_remote((OTHER, 'refs/tags/v1.0.0'), (HEAD, ref))
+                self.assertEqual(self.exit_message(listing), f'main ({HEAD}) is released already as {expected}')
+
+    def test_first_tag_of_head_is_named(self) -> None:
+        listing = ls_remote((HEAD, 'refs/tags/v2.1.0'), (HEAD, 'refs/tags/v2.2.0'))
+        self.assertEqual(self.exit_message(listing), f'main ({HEAD}) is released already as v2.1.0')
+
+    def test_head_on_a_branch_ref_is_not_released(self) -> None:
+        listing = ls_remote((HEAD, 'refs/heads/main'), (OTHER, 'refs/tags/v2.0.0'))
+        self.assertEqual(self.choose(listing)[0], '2.1.0')
+
+    def test_object_names_must_match_exactly(self) -> None:
+        # A tag on another commit whose name starts like HEAD's does not count as released.
+        listing = ls_remote(('a' * 39 + 'b', 'refs/tags/v2.0.0'))
+        self.assertEqual(self.choose(listing)[0], '2.1.0')
+
+    def test_sha256_repositories(self) -> None:
+        head = 'e' * 64
+        self.assertEqual(self.choose(ls_remote(('f' * 64, 'refs/tags/v2.0.0')), head=head)[0], '2.1.0')
+        listing = ls_remote(('f' * 64, 'refs/tags/v2.0.0'), (head, 'refs/tags/v2.1.0'))
+        self.assertEqual(self.exit_message(listing, head), f'main ({head}) is released already as v2.1.0')
+
+    def test_crlf_listing(self) -> None:
+        self.assertEqual(self.choose(f'{OTHER}\trefs/tags/v2.0.0\r\n')[0], '2.1.0')
+
+    def test_unexpected_lines_exit(self) -> None:
+        for line in [
+            'warning: redirecting to https://example.com',
+            f'{OTHER} refs/tags/v2.0.0',
+            f'{OTHER}\t',
+            f'{OTHER[:-1]}\trefs/tags/v2.0.0',
+            f'{OTHER.upper()}\trefs/tags/v2.0.0',
+            f'{OTHER}\trefs/tags/v2.0.0\textra',
+        ]:
+            with self.subTest(line=line):
+                self.assertEqual(
+                    self.exit_message(ls_remote((OTHER, 'refs/tags/v1.0.0')) + line + '\n'),
+                    f'unexpected line from git ls-remote: "{line}"',
+                )
+
+    def test_real_git_ls_remote_listing(self) -> None:
+        """The listing as release.yml makes it, from a scratch repository: lightweight and annotated tags."""
+        repo = temp_dir(self)
+        env = {
+            'PATH': os.environ.get('PATH', ''),
+            'HOME': str(repo),
+            'GIT_CONFIG_NOSYSTEM': '1',
+            'GIT_AUTHOR_NAME': 't',
+            'GIT_AUTHOR_EMAIL': 't@example.com',
+            'GIT_COMMITTER_NAME': 't',
+            'GIT_COMMITTER_EMAIL': 't@example.com',
+        }
+
+        def git(*args: str) -> str:
+            result = subprocess.run(
+                ['git', '-C', str(repo), *args], env=env, capture_output=True, text=True, check=True
+            )
+            return result.stdout.strip()
+
+        git('init', '-q')
+        git('commit', '-q', '--allow-empty', '-m', 'one')
+        git('tag', 'v2.9.0')
+        git('commit', '-q', '--allow-empty', '-m', 'two')
+        git('tag', '-a', '-m', 'release', 'v2.10.0')
+        git('tag', 'v3.0.0-rc1')
+        git('commit', '-q', '--allow-empty', '-m', 'three')
+        head = git('rev-parse', 'HEAD')
+        listing = git('ls-remote', '--tags', str(repo), 'refs/tags/v*')
+        # The annotated tag shows up twice (tag object, then ^{}).
+        self.assertIn('refs/tags/v2.10.0^{}', listing)
+        self.assertEqual(self.choose(listing, head=head), ('2.11.0', 'v2.10.0 -> v2.11.0 (minor)\n'))
+        # The commit of the annotated tag (listed only on its peeled line) and of the lightweight one: released.
+        tagged = git('rev-parse', 'HEAD~1')
+        self.assertEqual(self.exit_message(listing, tagged), f'main ({tagged}) is released already as v2.10.0')
+        first = git('rev-parse', 'HEAD~2')
+        self.assertEqual(self.exit_message(listing, first), f'main ({first}) is released already as v2.9.0')
+
+    def test_invalid_head_exits(self) -> None:
+        for head in ['', 'HEAD', 'main', 'a' * 39, 'a' * 41, 'A' * 40, 'g' * 40, 'a' * 63]:
+            with self.subTest(head=head):
+                self.assertEqual(self.exit_message('', head), f'invalid commit "{head}" (expected a full object name)')
 
 
 class FindInputTest(unittest.TestCase):
@@ -632,6 +826,43 @@ class MainTest(unittest.TestCase):
     def test_bump_invalid_version(self) -> None:
         self.assertEqual(self.exit_code('bump', 'patch', 'v1'), 'invalid version "v1" (expected MAJOR.MINOR.PATCH)')
 
+    def next_version(self, listing: str, *args: str) -> Output:
+        with mock.patch('sys.stdin', io.StringIO(listing)):
+            return self.run_main('next-version', *args)
+
+    def test_next_version_reads_stdin(self) -> None:
+        listing = ls_remote(
+            (OTHER, 'refs/tags/v2.1.0'), (TAG_OBJECT, 'refs/tags/v2.2.0'), (OTHER, 'refs/tags/v2.2.0^{}')
+        )
+        output = self.next_version(listing, '--head', HEAD)
+        # Only the version on stdout (release.yml takes it with $(...)); what was decided on stderr.
+        self.assertEqual((output.out, output.err), ('2.3.0\n', 'v2.2.0 -> v2.3.0 (minor)\n'))
+        for part, expected in [('minor', '2.3.0'), ('patch', '2.2.1'), ('major', '3.0.0')]:
+            with self.subTest(part=part):
+                self.assertEqual(self.next_version(listing, '--bump', part, '--head', HEAD).out, f'{expected}\n')
+
+    def test_next_version_without_tags(self) -> None:
+        output = self.next_version('', '--head', HEAD, '--bump', 'major')
+        version = make_release.props_version()
+        self.assertEqual(
+            (output.out, output.err), (f'{version}\n', f'No release yet: {version} (Directory.Build.props)\n')
+        )
+
+    def test_next_version_released_already(self) -> None:
+        with mock.patch('sys.stdin', io.StringIO(ls_remote((HEAD, 'refs/tags/v2.0.0')))):
+            self.assertEqual(
+                self.exit_code('next-version', '--head', HEAD), f'main ({HEAD}) is released already as v2.0.0'
+            )
+
+    def test_next_version_arguments(self) -> None:
+        with mock.patch('sys.stdin', io.StringIO('')):
+            self.assertEqual(self.exit_code('next-version'), 2)
+            self.assertEqual(self.exit_code('next-version', '--head', HEAD, '--bump', 'build'), 2)
+            self.assertEqual(self.exit_code('next-version', '--head', HEAD, 'minor'), 2)
+            self.assertEqual(
+                self.exit_code('next-version', '--head', 'main'), 'invalid commit "main" (expected a full object name)'
+            )
+
     def test_command_is_required(self) -> None:
         self.assertEqual(self.exit_code(), 2)
         self.assertEqual(self.exit_code('publish'), 2)
@@ -662,8 +893,10 @@ class MainTest(unittest.TestCase):
         package.assert_not_called()
 
     def test_package_repository_names(self) -> None:
-        valid = ['o/r', 'Owner/Repo', 'my-org/hider.v2', 'a_b/c_d', 'hibicus3258/Hider', '1/2', './..', 'ö/r']
+        valid = ['o/r', 'Owner/Repo', 'my-org/hider.v2', 'a_b/c_d', 'hibicus3258/Hider', '1/2', 'o/.github', 'o/a..b']
         invalid = ['', 'owner', 'o/', '/r', 'o/r/x', 'o r/x', "o'wner/repo", 'o/r;x', 'o/r\n', 'o\\r']
+        # The name goes into the installers' download URL: ASCII only, and no path parts . / .. (dots only).
+        invalid += ['./..', './r', 'o/.', 'o/..', '.../r', 'ö/r', 'o/r\u0661', 'o/\uff52']
         for repo in valid:
             with self.subTest(repo=repo), mock.patch.object(make_release, 'package') as package:
                 self.run_main('package', '1.0.0', '--repo', repo, '--out-dir', 'x')
@@ -689,7 +922,7 @@ class MainTest(unittest.TestCase):
             make_release.main()
         self.assertEqual(raised.exception.code, 0)
         self.assertIn('\n    python scripts/make_release.py bump minor 2.1.0\n', output.out)
-        for command in ['version', 'bump', 'package']:
+        for command in ['version', 'bump', 'next-version', 'package']:
             self.assertIn(command, output.out)
 
     def test_as_a_script(self) -> None:
@@ -699,6 +932,9 @@ class MainTest(unittest.TestCase):
         with captured() as output:
             run_as_main('make_release.py', 'version')
         self.assertEqual(output.out, f'{make_release.props_version()}\n')
+        with captured() as output, mock.patch('sys.stdin', io.StringIO(ls_remote((OTHER, 'refs/tags/v5.0.0')))):
+            run_as_main('make_release.py', 'next-version', '--head', HEAD, '--bump', 'patch')
+        self.assertEqual(output.out, '5.0.1\n')
 
 
 class ShaSumsFormatTest(unittest.TestCase):
