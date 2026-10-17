@@ -181,6 +181,9 @@ namespace Hider.App.Tests.Areas
 
         public bool IsWaiting => waiting is not null && !waiting.Task.IsCompleted;
 
+        /// <summary>The last capture that waits for <see cref="Complete"/> (or its token).</summary>
+        public Task Waiting => waiting!.Task;
+
         public Task<CaptureResult> CaptureAsync(CaptureRequest _request, CancellationToken _ct)
         {
             Calls++;
