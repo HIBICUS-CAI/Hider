@@ -710,21 +710,34 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaTheory]
-        [InlineData(44, false)]
-        [InlineData(43, true)]
-        [InlineData(0, true)]
-        [InlineData(500, false)]
-        public void Layout_ToolbarGoesInside_OnlyWhenTheBandAboveLeavesTheScreen(int _y, bool _inside)
+        [InlineData(1.0, 44, false)]
+        [InlineData(1.0, 43, true)]
+        [InlineData(1.0, 0, true)]
+        [InlineData(1.0, 500, false)]
+        [InlineData(1.25, 55, false)] // the band above is 55 px at 125%
+        [InlineData(1.25, 54, true)]
+        [InlineData(2.0, 88, false)]
+        [InlineData(2.0, 87, true)]
+        public void Layout_ToolbarGoesInside_OnlyWhenTheBandAboveLeavesTheScreen(double _scale, int _y, bool _inside)
         {
-            using var f = new AreaHarness();
-            var area = f.Add(new PhysicalRect(400, _y, 400, 240));
+            using var f = new AreaHarness(_scale);
+            var rect = new PhysicalRect(400, _y, 400, 240);
+            var area = f.Add(rect);
+            int side = (int)Math.Ceiling(8 * _scale - 1e-9), band = (int)Math.Ceiling(44 * _scale - 1e-9);
+            int top = _inside ? side : band;
             Assert.Equal(_inside, area.ToolbarInside);
-            Assert.Equal(new PixelPoint(8, _inside ? 8 : 44), area.AreaOffsetInWindow);
-            Assert.Equal(_inside ? _y - 8 : _y - 44, area.WindowRect.Y);
-            Assert.Equal(240 + (_inside ? 16 : 52), area.WindowRect.Height);
+            Assert.Equal(new PixelPoint(side, top), area.AreaOffsetInWindow);
+            Assert.Equal(_y - top, area.WindowRect.Y);
+            Assert.Equal(240 + top + side, area.WindowRect.Height);
             double toolbarTop = Canvas.GetTop(area.Window.Toolbar);
             double patternTop = Canvas.GetTop(area.Window.PatternView);
             Assert.Equal(_inside ? patternTop + 4 : patternTop - 8 - 36, toolbarTop, 6);
+
+            // Leaving edit mode puts the window back on the area itself.
+            area.ExitEdit();
+            Assert.False(area.ToolbarInside);
+            Assert.Equal(new PixelPoint(0, 0), area.AreaOffsetInWindow);
+            Assert.Equal(rect, area.WindowRect);
         }
 
         [AvaloniaFact]
