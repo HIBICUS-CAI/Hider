@@ -14,6 +14,8 @@ namespace Hider.Core.Tests.Capture
         private static readonly nint[] onlyWindowTwo = { 2 };
         private static readonly nint[] onlyWindowThree = { 3 };
         private static readonly nint[] oneThenTwo = { 1, 2 };
+        private static readonly nint[] oneThenDesktop = { 1, Progman };
+        private static readonly nint[] twoThenDesktop = { 2, Progman };
 
         /// <summary>Windows with images given by a function (any size, null, any failure).</summary>
         private sealed class ScriptedSource : IWindowSource
@@ -333,6 +335,78 @@ namespace Hider.Core.Tests.Capture
             Assert.True(UnderlayComposer.IsBlack(image));
             image.Bgra.Span[24] = 5; // first pixel of row 1
             Assert.False(UnderlayComposer.IsBlack(image));
+        }
+
+        /// <summary>Area, window 1 (left half), window 2 (right half) and the desktop.</summary>
+        private static FakeWindowSource TwoHalves(CaptureFailure _first = CaptureFailure.None, CaptureFailure _second = CaptureFailure.None)
+        {
+            return new FakeWindowSource()
+                .Add(Area, new PhysicalRect(0, 0, 10, 10), (9, 9, 9), "Hider")
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: _first)
+                .Add(2, new PhysicalRect(50, 0, 50, 100), green, _failure: _second)
+                .Add(Progman, screen, desktop, "Progman");
+        }
+
+        private static void SetFailure(FakeWindowSource _source, nint _handle, CaptureFailure _failure, bool _black = false)
+        {
+            int i = _source.TopDown.FindIndex(_e => _e.Info.Handle == _handle);
+            _source.TopDown[i] = _source.TopDown[i] with { Failure = _failure, Black = _black };
+        }
+
+        [Fact]
+        public void TimeoutSkip_IsUsedUpByTheNextCapture_EvenWhenThatOneFails()
+        {
+            // The skip is for the next capture of the area, whatever its outcome: when that one fails on another window
+            // (black here), the window that timed out is asked again the time after.
+            var source = TwoHalves(_first: CaptureFailure.Timeout);
+            var composer = new UnderlayComposer(source);
+            var rect = new PhysicalRect(0, 0, 100, 100);
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(rect, Area)).Failure);
+            SetFailure(source, 1, CaptureFailure.None);
+            SetFailure(source, 2, CaptureFailure.None, _black: true);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.Black, composer.Compose(Request(rect, Area)).Failure);
+            Assert.Equal(onlyWindowTwo, source.Captured);
+            SetFailure(source, 2, CaptureFailure.None);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.None, composer.Compose(Request(rect, Area)).Failure);
+            Assert.Equal(oneThenTwo, source.Captured);
+        }
+
+        [Fact]
+        public void TimeoutSkip_ANewTimeoutReplacesIt()
+        {
+            // Window 1 times out; the next capture skips it and times out on window 2; the one after asks 1 again and skips 2.
+            var source = TwoHalves(_first: CaptureFailure.Timeout);
+            var composer = new UnderlayComposer(source);
+            var rect = new PhysicalRect(0, 0, 100, 100);
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(rect, Area)).Failure);
+            SetFailure(source, 1, CaptureFailure.None);
+            SetFailure(source, 2, CaptureFailure.Timeout);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(rect, Area)).Failure);
+            Assert.Equal(onlyWindowTwo, source.Captured);
+            SetFailure(source, 2, CaptureFailure.None);
+            source.Captured.Clear();
+            var third = composer.Compose(Request(rect, Area));
+            Assert.Equal(CaptureFailure.None, third.Failure);
+            Assert.Equal(oneThenDesktop, source.Captured);
+            Assert.Equal(desktop, ((byte, byte, byte))(At(third.Frame!, 75, 50).R, At(third.Frame!, 75, 50).G, At(third.Frame!, 75, 50).B));
+        }
+
+        [Fact]
+        public void TimeoutSkip_KeptOverAnEmptyRequest()
+        {
+            // A request with an empty rectangle fails before anything is captured: it does not use up the skip.
+            var source = TwoHalves(_first: CaptureFailure.Timeout);
+            var composer = new UnderlayComposer(source);
+            var rect = new PhysicalRect(0, 0, 100, 100);
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(rect, Area)).Failure);
+            Assert.Equal(CaptureFailure.Unavailable, composer.Compose(Request(new PhysicalRect(0, 0, 0, 10), Area)).Failure);
+            SetFailure(source, 1, CaptureFailure.None);
+            source.Captured.Clear();
+            Assert.Equal(CaptureFailure.None, composer.Compose(Request(rect, Area)).Failure);
+            Assert.Equal(twoThenDesktop, source.Captured); // 1 skipped: the desktop shows through its half
         }
     }
 }
