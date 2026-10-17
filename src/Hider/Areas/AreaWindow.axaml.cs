@@ -33,6 +33,8 @@ namespace Hider.Areas
         public AreaWindow()
         {
             InitializeComponent();
+            // Not for handled events: a press a toolbar button took (✓, ⚙, also where the toolbar lies over the area) never
+            // starts a drag.
             AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Bubble);
             AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Bubble);
             AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Bubble);
@@ -286,7 +288,7 @@ namespace Hider.Areas
                 }
                 return;
             }
-            if (_e.Handled || !_e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            if (!_e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 return;
             }

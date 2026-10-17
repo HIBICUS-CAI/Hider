@@ -20,6 +20,7 @@ namespace Hider.App.Tests.Areas
     {
         private static readonly PhysicalRect areaRect = new(400, 300, 400, 240);
         private static readonly bool[] openThenClosed = { true, false };
+        private static readonly string[] exitEditOnly = { "exit-edit" };
 
         private static FakeUnderlayCapture Fake(AreaHarness _f) => (FakeUnderlayCapture)_f.Capture;
 
@@ -141,6 +142,48 @@ namespace Hider.App.Tests.Areas
             area.Window.MouseDown(p, MouseButton.Left);
             Assert.False(area.IsDragging);
             area.Window.MouseUp(p, MouseButton.Left);
+        }
+
+        /// <summary>The centre of a toolbar button in window coordinates (laid out first).</summary>
+        private static Point ButtonCenter(AreaController _area, Button _button)
+        {
+            _area.Window.UpdateLayout();
+            var p = _button.TranslatePoint(new Point(_button.Bounds.Width / 2, _button.Bounds.Height / 2), _area.Window);
+            Assert.NotNull(p);
+            return p.Value;
+        }
+
+        [AvaloniaFact]
+        public void Editing_PressOnASettingsButtonOverTheArea_ClicksItWithoutADrag()
+        {
+            // At the screen's top the toolbar lies inside the area: the button has handled the press, which must not also
+            // start moving the area below it.
+            using var f = new AreaHarness();
+            var area = f.Add(new PhysicalRect(400, 10, 400, 240));
+            Assert.True(area.ToolbarInside);
+            var p = ButtonCenter(area, area.Window.Toolbar.SettingsButton);
+            var inPattern = area.Window.TranslatePoint(p, area.Window.PatternView);
+            Assert.True(inPattern is { } q && new Rect(area.Window.PatternView.Bounds.Size).Contains(q)); // over the area
+            area.Window.MouseDown(p, MouseButton.Left);
+            Assert.False(area.IsDragging);
+            area.Window.MouseUp(p, MouseButton.Left);
+            Assert.True(area.Window.PopupOpen); // the click went to ⚙
+            Assert.Equal(new PhysicalRect(400, 10, 400, 240), area.Model.Rect);
+        }
+
+        [AvaloniaFact]
+        public void Editing_PressOnTheDoneButtonOverTheArea_LeavesEditModeWithoutADrag()
+        {
+            using var f = new AreaHarness();
+            var area = f.Add(new PhysicalRect(400, 10, 400, 240));
+            var log = new List<string>();
+            area.Transition += log.Add;
+            var p = ButtonCenter(area, area.Window.Toolbar.DoneButton);
+            area.Window.MouseDown(p, MouseButton.Left);
+            Assert.False(area.IsDragging);
+            area.Window.MouseUp(p, MouseButton.Left);
+            Assert.Equal(AreaMode.Hidden, area.Mode);
+            Assert.Equal(exitEditOnly, log);
         }
 
         [AvaloniaFact]
