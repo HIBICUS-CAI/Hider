@@ -180,6 +180,22 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
+        public async Task StartAsync_TwoStreams_TakesTheFirst()
+        {
+            // SelectSources asks for one monitor ("multiple" false); should a portal still hand out two, the first is used.
+            using var sc = await StartEnvAsync();
+            var (env, script) = (sc.Env, sc.Script);
+            script.Start = FakeDesktopPortal.Answer.Ok((ref MessageWriter _w) =>
+                FakeDesktopPortal.Streams(ref _w, 51, (100, 200), (1024, 768), (52, (-1920, 0), (1920, 1080))));
+            using var portal = new ScreenCastPortal(env.Address);
+            var session = await portal.StartAsync(null, Ct);
+            using var fd = session!.PipeWireFd;
+            Assert.Equal(51u, session.NodeId);
+            Assert.Equal(new PhysicalRect(100, 200, 1024, 768), session.StreamRect);
+            Assert.Equal(fourSteps, Members(env));
+        }
+
+        [DbusFact]
         public async Task StartAsync_EachSessionGetsANewToken()
         {
             using var sc = await StartEnvAsync();

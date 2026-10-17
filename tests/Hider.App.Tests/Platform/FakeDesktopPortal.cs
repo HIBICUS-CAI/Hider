@@ -278,18 +278,29 @@ namespace Hider.App.Tests.Platform
 
         /// <summary>
         /// Writes "streams" a(ua{sv}): one stream with the node id and, when given, position and size (ii), plus a string
-        /// property the client does not know.
+        /// property the client does not know; and a second stream after it when <paramref name="_second"/> is given.
         /// </summary>
-        public static void Streams(ref MessageWriter _w, uint _node, (int X, int Y)? _position, (int W, int H)? _size)
+        public static void Streams(ref MessageWriter _w, uint _node, (int X, int Y)? _position, (int W, int H)? _size,
+            (uint Node, (int X, int Y) Position, (int W, int H) Size)? _second = null)
         {
             _w.WriteDictionaryEntryStart();
             _w.WriteString("streams");
             _w.WriteSignature("a(ua{sv})");
             var streams = _w.WriteArrayStart(DBusType.Struct);
+            Stream(ref _w, _node, "monitor-0", _position, _size);
+            if (_second is { } second)
+            {
+                Stream(ref _w, second.Node, "monitor-1", second.Position, second.Size);
+            }
+            _w.WriteArrayEnd(streams);
+        }
+
+        private static void Stream(ref MessageWriter _w, uint _node, string _id, (int X, int Y)? _position, (int W, int H)? _size)
+        {
             _w.WriteStructureStart();
             _w.WriteUInt32(_node);
             var props = _w.WriteDictionaryStart();
-            Entry(ref _w, "id", "monitor-0");
+            Entry(ref _w, "id", _id);
             if (_position is { } p)
             {
                 Pair(ref _w, "position", p.X, p.Y);
@@ -300,7 +311,6 @@ namespace Hider.App.Tests.Platform
             }
             Entry(ref _w, "source_type", 1u);
             _w.WriteDictionaryEnd(props);
-            _w.WriteArrayEnd(streams);
         }
 
         private static void Pair(ref MessageWriter _w, string _key, int _a, int _b)
