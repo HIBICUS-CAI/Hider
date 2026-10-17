@@ -104,7 +104,7 @@ namespace Hider.Core.Tests.Persistence
         [Fact]
         public void CT112_Context_UsesThisConverter_ForThePatternOfAnArea()
         {
-            // The context's converter list wins over the enum's own [JsonConverter] attribute.
+            // The real path (HiderJsonContext, as AreasFile uses it) reads the pattern with this converter: "IMAGE" is mosaic.
             var state = JsonSerializer.Deserialize("""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": "IMAGE" } ] }""", HiderJsonContext.Default.AppState)!;
             Assert.Equal(PatternKind.Mosaic, state.Areas[0].Pattern);
         }
