@@ -39,6 +39,34 @@ namespace Hider.Core.Tests.Mosaic
             }
         }
 
+        /// <summary>
+        /// A mosaic method with a CPU path that records the pixmap it is handed and fills it with one color. The shader
+        /// path passes the capture through.
+        /// </summary>
+        private sealed class CpuProbe : IMosaicMethod, ICpuRenderer
+        {
+            private readonly DummyMethod shader = new("cpuprobe", MethodKind.Mosaic, PlatformSupport.All);
+
+            public SKColor Color { get; init; } = new(100, 150, 200);
+            public List<(int Width, int Height, int RowBytes, SKColorType ColorType, SKAlphaType AlphaType)> Targets { get; } = new();
+            public string Id => shader.Id;
+            public string LabelKey => shader.LabelKey;
+            public MethodKind Kind => shader.Kind;
+            public PlatformSupport Support => shader.Support;
+            public IReadOnlyList<ParamSpec> Params => shader.Params;
+
+            public SKShader CreateShader(MosaicInputs _inputs, ParamValues _p)
+            {
+                return _inputs.Source!.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, new SKSamplingOptions(SKFilterMode.Nearest));
+            }
+
+            public bool TryRender(SKPixmap _dst, MosaicInputs _inputs, ParamValues _p)
+            {
+                Targets.Add((_dst.Width, _dst.Height, _dst.RowBytes, _dst.ColorType, _dst.AlphaType));
+                return _dst.Erase(Color);
+            }
+        }
+
         private static bool IsDisposed(SKImage _image)
         {
             return _image.Handle == IntPtr.Zero;
@@ -433,6 +461,76 @@ namespace Hider.Core.Tests.Mosaic
             Assert.Equal(0, result.GetPixel(20, 25).Alpha);
             Assert.Equal(255, result.GetPixel(10, 5).Alpha);
             Assert.Equal(255, result.GetPixel(49, 24).Alpha);
+        }
+
+        [Fact]
+        public void Draw_CellPath_IntoAnOffsetRect_ClippedToIt()
+        {
+            // 20 x 10 in cells of 3: the upscaled cells cover 21 x 12 area pixels, one column and two rows more than the
+            // area. Drawn at (10, 5) scaled by 2 they would reach x = 52 and y = 29; the clip keeps them inside (10, 5, 40, 20).
+            using var source = SyntheticImage.CreateImage(20, 10);
+            var p = MosaicValues(0);
+            var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(20, 10) };
+            using var result = Render.Draw(60, 40, _c => new MosaicPipeline().Draw(_c, SKRect.Create(10, 5, 40, 20), inputs, new Probe { Cell = 3 }, p, 256));
+            using var plain = Render.ToBitmap(source);
+            for (int y = 0; y < 40; y++)
+            {
+                for (int x = 0; x < 60; x++)
+                {
+                    bool inside = x >= 10 && x < 50 && y >= 5 && y < 25;
+                    if (inside)
+                    {
+                        int ax = (x - 10) / 2, ay = (y - 5) / 2;
+                        Assert.Equal(plain.GetPixel(ax / 3 * 3, ay / 3 * 3), result.GetPixel(x, y));
+                    }
+                    else
+                    {
+                        Assert.True(result.GetPixel(x, y).Alpha == 0, $"({x},{y}) outside the destination was drawn");
+                    }
+                }
+            }
+            Assert.Equal(0, result.GetPixel(50, 10).Alpha); // the 21st cell column
+            Assert.Equal(0, result.GetPixel(20, 25).Alpha); // the 11th and 12th cell rows
+            Assert.Equal(0, result.GetPixel(9, 10).Alpha);
+            Assert.Equal(255, result.GetPixel(10, 5).Alpha);
+            Assert.Equal(255, result.GetPixel(49, 24).Alpha);
+        }
+
+        [Fact]
+        public void Draw_CpuPath_IntoAnOffsetScaledRect_ClippedToIt()
+        {
+            var method = new CpuProbe();
+            using var source = SyntheticImage.CreateImage(20, 10);
+            var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(20, 10) };
+            using var result = Render.Draw(60, 40, _c =>
+            {
+                _c.Clear(SKColors.Red);
+                new MosaicPipeline().Draw(_c, SKRect.Create(10, 5, 40, 20), inputs, method, MosaicValues(0), 256);
+            });
+            for (int y = 0; y < 40; y++)
+            {
+                for (int x = 0; x < 60; x++)
+                {
+                    bool inside = x >= 10 && x < 50 && y >= 5 && y < 25;
+                    Assert.Equal(inside ? method.Color : SKColors.Red, result.GetPixel(x, y));
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(20, 10)]
+        [InlineData(1, 1)]
+        [InlineData(37, 3)]
+        [InlineData(0, 0)] // counts as 1 x 1
+        public void Draw_CpuPath_HandsOverATightAreaSizedBgraPixmap(int _w, int _h)
+        {
+            // The pipeline's pixmap is tight (RowBytes == w * 4), area-sized, premultiplied BGRA.
+            var method = new CpuProbe();
+            var inputs = new MosaicInputs { AreaSize = new SKSizeI(_w, _h) };
+            using var result = Render.Draw(8, 8, _c => new MosaicPipeline().Draw(_c, SKRect.Create(8, 8), inputs, method, MosaicValues(0), 256));
+            int w = Math.Max(1, _w), h = Math.Max(1, _h);
+            Assert.Equal((w, h, w * 4, SKColorType.Bgra8888, SKAlphaType.Premul), Assert.Single(method.Targets));
+            Assert.Equal(method.Color, result.GetPixel(7, 7));
         }
 
         [Theory]
