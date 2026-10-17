@@ -45,7 +45,7 @@ namespace Hider.App.Tests.App
         [InlineData("--version")]
         [InlineData("--selftest", "--version")] // --version wins wherever it is
         [InlineData("--verbose", "--version", "--bogus")]
-        public async Task Version_PrintsTheVersion_AndTouchesNothing(params string[] _args)
+        public async Task GT41_Version_PrintsTheVersion_AndTouchesNothing(params string[] _args)
         {
             using var home = new Home();
 
@@ -58,7 +58,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public async Task Selftest_RunsCoreAndPlatformChecks_AndPasses()
+        public async Task GT49_Selftest_RunsCoreAndPlatformChecks_AndPasses()
         {
             // Linux: from a copy that ships no libhidercap.so (the test output may have the real one, see below).
             using var home = new Home();
@@ -102,7 +102,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact(Skip = OsOnly.ShippedHelper, SkipUnless = nameof(IsLinux))]
-        public async Task Selftest_ShippedHelperThatDoesNotLoad_Fails()
+        public async Task GT49_Selftest_ShippedHelperThatDoesNotLoad_Fails()
         {
             // A libhidercap.so that is not a library (or whose libpipewire is missing) fails the packaged build.
             using var home = new Home();
@@ -119,7 +119,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact(Skip = OsOnly.ShippedHelper, SkipUnless = nameof(IsLinux))]
-        public async Task Selftest_ShippedHelperWithoutTheApi_Fails()
+        public async Task GT49_Selftest_ShippedHelperWithoutTheApi_Fails()
         {
             // A library that loads but lacks hidercap_last_sequence (an old helper): the call fails, the self test reports it.
             using var home = new Home();
@@ -140,7 +140,7 @@ namespace Hider.App.Tests.App
         [InlineData]
         [InlineData("--bogus")]          // unknown switches are ignored
         [InlineData("--bogus", "file.txt")]
-        public async Task AnotherInstanceRunning_ExitsZeroQuietly(params string[] _args)
+        public async Task GT50_AnotherInstanceRunning_ExitsZeroQuietly(params string[] _args)
         {
             using var home = new Home();
             using var held = SingleInstance.TryAcquire(home.LockPath, out string? error);
@@ -155,7 +155,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public async Task AnotherInstanceRunning_Verbose_SaysSoOnStandardError()
+        public async Task GT50_AnotherInstanceRunning_Verbose_SaysSoOnStandardError()
         {
             using var home = new Home();
             using var held = SingleInstance.TryAcquire(home.LockPath, out _);
@@ -169,7 +169,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact(Skip = OsOnly.LockErrorExit, SkipUnless = nameof(IsLinux))]
-        public async Task LockCannotBeOpened_ExitsTwo_WithTheReason()
+        public async Task GT51_LockCannotBeOpened_ExitsTwo_WithTheReason()
         {
             // The home directory is a file: .hider cannot be created. Not "already running" (exit 0): the user must see why.
             using var home = new Home();
@@ -188,7 +188,7 @@ namespace Hider.App.Tests.App
 
         [Fact(Skip = OsOnly.MessageBox, SkipUnless = nameof(IsWindows))]
         [SupportedOSPlatform("windows")]
-        public async Task LockCannotBeOpened_Windows_ShowsTheReasonInAMessageBox_ThenExitsTwo()
+        public async Task GT51_LockCannotBeOpened_Windows_ShowsTheReasonInAMessageBox_ThenExitsTwo()
         {
             // Started from Explorer there is no console: the reason reaches the user only through the message box
             // (Win32Dialog.ShowError). The test closes it as the × button does; the process then ends with 2.
@@ -217,7 +217,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact(Skip = OsOnly.NoDisplay, SkipUnless = nameof(IsLinux))]
-        public async Task NoDisplay_TheAppStartFails_NotWithASilentSuccess_AndReleasesTheLock()
+        public async Task GT51_NoDisplay_TheAppStartFails_NotWithASilentSuccess_AndReleasesTheLock()
         {
             // Past the switches and the lock the resident app starts (X11): without a display that must fail visibly, at the
             // X11 step. Avalonia throws from XOpenDisplay and nothing catches it: the runtime prints the unhandled exception
@@ -237,7 +237,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public void BuildAvaloniaApp_IsHiderOnTheDetectedDesktopPlatform_WithSkia()
+        public void GT52_BuildAvaloniaApp_IsHiderOnTheDetectedDesktopPlatform_WithSkia()
         {
             // The windowing platform is picked when the app starts (UsePlatformDetect: Win32, or X11 on Linux, D-1).
             var builder = Program.BuildAvaloniaApp();
@@ -250,7 +250,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public void BuildAvaloniaApp_SetsTheX11WmClass_TheInstallersWriteAsStartupWMClass()
+        public void GT52_BuildAvaloniaApp_SetsTheX11WmClass_TheInstallersWriteAsStartupWMClass()
         {
             // The one Hider-specific option (D-1): the running window groups with the .desktop entry only while WM_CLASS and
             // StartupWMClass agree. AppBuilder.With<T> keeps each option in a closure added to the private _optionsInitializers

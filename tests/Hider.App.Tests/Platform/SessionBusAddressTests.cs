@@ -28,7 +28,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task NoSessionBus_ClientGivesNoConnection()
+        public async Task GT109_NoSessionBus_ClientGivesNoConnection()
         {
             SessionBus(null);
             using var client = new PortalClient();
@@ -37,7 +37,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task SessionBus_ClientConnectsToIt()
+        public async Task GT109_SessionBus_ClientConnectsToIt()
         {
             using var env = await PortalEnv.StartAsync();
             SessionBus(env.Address);
@@ -48,14 +48,14 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task NoSessionBus_NoTray()
+        public async Task GT109_NoSessionBus_NoTray()
         {
             SessionBus(null);
             Assert.False(await StatusNotifierProbe.HasWatcherAsync());
         }
 
         [DbusFact]
-        public async Task SessionBus_TrayProbeAsksIt()
+        public async Task GT109_SessionBus_TrayProbeAsksIt()
         {
             using var bus = PrivateBus.Start();
             using var watcher = await FakeDesktopPortal.OwnNameAsync(bus.Address, StatusNotifierProbe.WatcherName);
@@ -64,7 +64,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task NoSessionBus_ScreenshotGrabberIsNotReady()
+        public async Task GT109_NoSessionBus_ScreenshotGrabberIsNotReady()
         {
             SessionBus(null);
             using var grabber = new PortalScreenshotGrabber(() => new PhysicalRect(0, 0, 100, 100));
@@ -73,7 +73,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task SessionBus_ScreenshotGrabberUsesIt()
+        public async Task GT109_SessionBus_ScreenshotGrabberUsesIt()
         {
             using var env = await PortalEnv.StartAsync();
             SessionBus(env.Address);
@@ -83,7 +83,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task NoSessionBus_ScreenCastIsNull_AndCloseOnlyDisposesTheFd()
+        public async Task GT109_NoSessionBus_ScreenCastIsNull_AndCloseOnlyDisposesTheFd()
         {
             SessionBus(null);
             using var portal = new ScreenCastPortal();
@@ -94,7 +94,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task SessionBus_ScreenCastUsesIt()
+        public async Task GT109_SessionBus_ScreenCastUsesIt()
         {
             using var env = await PortalEnv.StartAsync();
             SessionBus(env.Address);

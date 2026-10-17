@@ -45,7 +45,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Hidden_RightDoubleClick_DoesNotEnterEditMode()
+        public void GT03_Hidden_RightDoubleClick_DoesNotEnterEditMode()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -60,7 +60,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Hidden_SingleLeftClick_StaysHidden_AndBothPressAndReleaseAreHandled()
+        public void GT04_Hidden_SingleLeftClick_StaysHidden_AndBothPressAndReleaseAreHandled()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -77,7 +77,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Hidden_Wheel_IsHandled()
+        public void GT04_Hidden_Wheel_IsHandled()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -89,7 +89,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_Wheel_IsHandledToo()
+        public void GT04_Editing_Wheel_IsHandledToo()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -101,7 +101,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_RightPress_StartsNoDrag()
+        public void GT75_Editing_RightPress_StartsNoDrag()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -118,7 +118,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(407, 60)] // right margin
         [InlineData(100, 247)] // bottom margin
         [InlineData(100, -7)] // between the toolbar and the area
-        public void Editing_PressInTheTransparentMargin_StartsNoDrag(double _dx, double _dy)
+        public void GT75_Editing_PressInTheTransparentMargin_StartsNoDrag(double _dx, double _dy)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -132,7 +132,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_PressOnTheToolbarBackground_StartsNoDrag()
+        public void GT75_Editing_PressOnTheToolbarBackground_StartsNoDrag()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -154,7 +154,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_PressOnASettingsButtonOverTheArea_ClicksItWithoutADrag()
+        public void GT75_Editing_PressOnASettingsButtonOverTheArea_ClicksItWithoutADrag()
         {
             // At the screen's top the toolbar lies inside the area: the button has handled the press, which must not also
             // start moving the area below it.
@@ -172,7 +172,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_PressOnTheDoneButtonOverTheArea_LeavesEditModeWithoutADrag()
+        public void GT75_Editing_PressOnTheDoneButtonOverTheArea_LeavesEditModeWithoutADrag()
         {
             using var f = new AreaHarness();
             var area = f.Add(new PhysicalRect(400, 10, 400, 240));
@@ -187,7 +187,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_PressOnTheBody_FocusesTheWindow_AndCapturesThePointer()
+        public void GT06_Editing_PressOnTheBody_FocusesTheWindow_AndCapturesThePointer()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -209,7 +209,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Editing_ControlWithAHandleTagThatIsNoHandle_Moves()
+        public void GT06_Editing_ControlWithAHandleTagThatIsNoHandle_Moves()
         {
             // Only the chrome's own eight handles resize; a Tag alone does not make a handle.
             using var f = new AreaHarness();
@@ -225,7 +225,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PointerMove_WithoutADrag_IsLeftAlone()
+        public void GT06_PointerMove_WithoutADrag_IsLeftAlone()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -237,7 +237,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PointerRelease_InEditModeWithoutADrag_IsLeftAlone()
+        public void GT06_PointerRelease_InEditModeWithoutADrag_IsLeftAlone()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -250,7 +250,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PointerCaptureLost_EndsTheDrag_AndSaves()
+        public void GT62_PointerCaptureLost_EndsTheDrag_AndSaves()
         {
             // Another window or the system took the pointer (a modal, Alt+Tab): the drag ends where it is.
             using var f = new AreaHarness();
@@ -278,7 +278,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(Key.Up, RawInputModifiers.Shift, 0, -10)]
         [InlineData(Key.Down, RawInputModifiers.Shift, 0, 10)]
         [InlineData(Key.Down, RawInputModifiers.Control, 0, 1)] // only Shift changes the step
-        public void ArrowKeys_MoveOneOrTenPixels(Key _key, RawInputModifiers _modifiers, int _dx, int _dy)
+        public void GT08_ArrowKeys_MoveOneOrTenPixels(Key _key, RawInputModifiers _modifiers, int _dx, int _dy)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -293,7 +293,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(Key.A)]
         [InlineData(Key.Back)]
         [InlineData(Key.F5)]
-        public void OtherKeys_InEditMode_AreLeftAlone(Key _key)
+        public void GT76_OtherKeys_InEditMode_AreLeftAlone(Key _key)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -310,7 +310,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(Key.Left)]
         [InlineData(Key.Delete)]
         [InlineData(Key.Escape)]
-        public void Keys_InHiddenMode_DoNothing(Key _key)
+        public void GT76_Keys_InHiddenMode_DoNothing(Key _key)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -324,7 +324,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Keys_AlreadyHandledByTheFocusedControl_DoNothing()
+        public void GT76_Keys_AlreadyHandledByTheFocusedControl_DoNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -334,7 +334,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Escape_LeavesEditMode_AndDelete_RemovesTheArea()
+        public void GT10_Escape_LeavesEditMode_AndDelete_RemovesTheArea()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -348,7 +348,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData("FillItem", PatternKind.Fill)]
         [InlineData("GeneratedItem", PatternKind.Generated)]
-        public void PatternMenuItems_SwitchThePattern(string _item, PatternKind _pattern)
+        public void GT77_PatternMenuItems_SwitchThePattern(string _item, PatternKind _pattern)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -361,7 +361,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void RefreshButton_CapturesAgain()
+        public void GT35_RefreshButton_CapturesAgain()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -371,7 +371,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DeleteButton_RemovesTheArea_AndDoneButton_LeavesEditMode()
+        public void GT77_DeleteButton_RemovesTheArea_AndDoneButton_LeavesEditMode()
         {
             using var f = new AreaHarness();
             var a = f.Add(areaRect);
@@ -383,7 +383,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SettingsButton_OpensAndClosesTheSettingsPopup()
+        public void GT77_SettingsButton_OpensAndClosesTheSettingsPopup()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -409,7 +409,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PatternMenu_OpenAndClose_AreReported()
+        public void GT77_PatternMenu_OpenAndClose_AreReported()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -424,7 +424,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void OpenSettings_AreRebuiltWhenThePatternChanges_AndKeptOtherwise()
+        public void GT77_OpenSettings_AreRebuiltWhenThePatternChanges_AndKeptOtherwise()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -440,7 +440,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void LeavingEditMode_ClosesTheSettingsAndThePatternMenu_AndRemovesTheChrome()
+        public void GT02_LeavingEditMode_ClosesTheSettingsAndThePatternMenu_AndRemovesTheChrome()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -460,7 +460,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_ClosingTheSettings_RunsTheHeldLinuxCapture()
+        public void GT55_ExitEdit_ClosingTheSettings_RunsTheHeldLinuxCapture()
         {
             // The popup closed by leaving edit mode (ApplyLayout), not by ⚙: the capture held for it runs then. ExitEdit
             // itself asks for no capture (it only saves), so this is the one place that takes it.
@@ -479,7 +479,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_ClosingThePatternMenu_RunsTheHeldLinuxCapture()
+        public void GT55_ExitEdit_ClosingThePatternMenu_RunsTheHeldLinuxCapture()
         {
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
             using var f = new AreaHarness(_capture: capture, _isWindows: false);
@@ -495,7 +495,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_ClosingBothPopups_RunsTheHeldLinuxCaptureOnce_AfterTheLastOne()
+        public void GT55_ExitEdit_ClosingBothPopups_RunsTheHeldLinuxCaptureOnce_AfterTheLastOne()
         {
             // The settings popup closes first while the menu is still open: the capture waits for the menu too.
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
@@ -511,7 +511,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Accessors_AreTheWindowsOwnParts()
+        public void GT58_Accessors_AreTheWindowsOwnParts()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -526,7 +526,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Generated, 0.05, 0.10)] // alpha opacity has a floor (spec §4.5)
         [InlineData(PatternKind.Fill, 0.0, 0.10)]
         [InlineData(PatternKind.Mosaic, 0.3, 1.0)] // mosaic opacity is the fineness, not alpha
-        public void Opacity_IsWindowAlphaWhenHidden_PatternAlphaWhenEditing(PatternKind _pattern, double _opacity, double _alpha)
+        public void GT22_Opacity_IsWindowAlphaWhenHidden_PatternAlphaWhenEditing(PatternKind _pattern, double _opacity, double _alpha)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, _pattern);
@@ -540,7 +540,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void UsersClose_IsRefused_ControllersCloseIsNot()
+        public void GT14_UsersClose_IsRefused_ControllersCloseIsNot()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -552,14 +552,14 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Strip_Constants()
+        public void GT78_Strip_Constants()
         {
             Assert.Equal(1, AreaWindow.StripSpareFrames);
             Assert.Equal(TimeSpan.FromMilliseconds(250), AreaWindow.StripFrameTimeout);
         }
 
         [AvaloniaFact]
-        public void SetTransparentRows_AlreadyCancelled_ThrowsBeforeAnythingTurnsSeeThrough()
+        public void GT78_SetTransparentRows_AlreadyCancelled_ThrowsBeforeAnythingTurnsSeeThrough()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -575,7 +575,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SetTransparentRows_CancelledWhileWaitingForTheFrame_IsNoTimeout()
+        public void GT78_SetTransparentRows_CancelledWhileWaitingForTheFrame_IsNoTimeout()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -592,7 +592,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void RestoreRows_ClearsTheClip_AtOnce()
+        public void GT78_RestoreRows_ClearsTheClip_AtOnce()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -606,7 +606,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Clip_CoversTheRowsAboveAndBelow_WithOnePixelOfSlack()
+        public void GT78_Clip_CoversTheRowsAboveAndBelow_WithOnePixelOfSlack()
         {
             using var f = new AreaHarness(2.0);
             var area = f.Add(new PhysicalRect(100, 200, 120, 80), PatternKind.Generated);
@@ -625,7 +625,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Clip_StripAtTheTop_LeavesNoNegativeBandAbove()
+        public void GT78_Clip_StripAtTheTop_LeavesNoNegativeBandAbove()
         {
             using var f = new AreaHarness();
             var area = f.Add(new PhysicalRect(100, 200, 120, 80), PatternKind.Generated);
@@ -637,7 +637,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void WindowWithoutListeners_RaisesNothing()
+        public void GT77_WindowWithoutListeners_RaisesNothing()
         {
             // The events have no listener on a window the controller did not make (its own window always has them):
             // ↻, the pattern menu, the settings popup and a strip still work.

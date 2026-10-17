@@ -55,7 +55,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void New_RegistersOneVisibleTrayIcon_WithTheMenuAndTooltip()
+        public void GT01_New_RegistersOneVisibleTrayIcon_WithTheMenuAndTooltip()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -71,7 +71,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Items_AreTheModelForTheCurrentAreas()
+        public void GT16_Items_AreTheModelForTheCurrentAreas()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -84,7 +84,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Update_FollowsAreaChanges_MenuTooltipAndIcon()
+        public void GT20_Update_FollowsAreaChanges_MenuTooltipAndIcon()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -102,7 +102,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void NativeMenuClick_RunsTheItemsCommand()
+        public void GT126_NativeMenuClick_RunsTheItemsCommand()
         {
             using var f = new AreaFixture();
             var exits = new Exits();
@@ -120,7 +120,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Execute_AddArea_AddsAnAreaInEditMode()
+        public async Task GT126_Execute_AddArea_AddsAnAreaInEditMode()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -132,7 +132,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Execute_EditAll_ThenEndEdit()
+        public async Task GT126_Execute_EditAll_ThenEndEdit()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -149,7 +149,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Execute_Exit_CallsTheExitAction_Only()
+        public async Task GT126_Execute_Exit_CallsTheExitAction_Only()
         {
             using var f = new AreaFixture();
             var exits = new Exits();
@@ -165,7 +165,7 @@ namespace Hider.App.Tests.Tray
         [AvaloniaTheory]
         [InlineData(TrayCommand.Version)]
         [InlineData((TrayCommand)99)]
-        public async Task Execute_VersionOrUnknown_DoesNothing(TrayCommand _command)
+        public async Task GT126_Execute_VersionOrUnknown_DoesNothing(TrayCommand _command)
         {
             using var f = new AreaFixture();
             var exits = new Exits();
@@ -180,7 +180,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task ConfirmDeleteAll_HoldsCapturesWhileOpen()
+        public async Task GT18_ConfirmDeleteAll_HoldsCapturesWhileOpen()
         {
             // The dialog covers areas: their captures wait until it is gone (no dialog pixels in a mosaic).
             using var f = new AreaFixture();
@@ -198,7 +198,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task ConfirmDeleteAll_AskedAgain_ReplacesTheOpenDialog()
+        public async Task GT18_ConfirmDeleteAll_AskedAgain_ReplacesTheOpenDialog()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -219,7 +219,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task DeleteAll_Cancelled_KeepsTheAreas()
+        public async Task GT18_DeleteAll_Cancelled_KeepsTheAreas()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -233,7 +233,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Update_AfterTheDialogClosed_LeavesItClosed()
+        public async Task GT18_Update_AfterTheDialogClosed_LeavesItClosed()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -251,7 +251,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void ShowPopup_WithoutACursor_ShowsTheItemsWhereTheWindowIs()
+        public void GT19_ShowPopup_WithoutACursor_ShowsTheItemsWhereTheWindowIs()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -270,7 +270,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void ShowPopup_Again_ClosesTheOpenOne()
+        public void GT19_ShowPopup_Again_ClosesTheOpenOne()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -286,7 +286,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void ShowPopup_AtACursorOnAScreen_OpensAboveLeftOfIt()
+        public void GT19_ShowPopup_AtACursorOnAScreen_OpensAboveLeftOfIt()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -306,7 +306,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void ShowPopup_AtACursorOffEveryScreen_IsKeptOnThePrimary()
+        public void GT19_ShowPopup_AtACursorOffEveryScreen_IsKeptOnThePrimary()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -323,7 +323,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_Command_RunsThroughTheController()
+        public void GT19_Popup_Command_RunsThroughTheController()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -342,7 +342,7 @@ namespace Hider.App.Tests.Tray
         [InlineData(2000, 900, 300, 200, 1920, 40, 1280, 984, 1920, 700)] // second monitor with a taskbar on top
         [InlineData(500, 500, 3000, 2000, 0, 0, 1920, 1040, 0, 0)]        // larger than the working area: its top-left wins
         [InlineData(500, 500, 0, 0, 0, 0, 1920, 1040, 500, 500)]          // empty size: at the cursor
-        public void PlaceAboveLeft_ClampsIntoTheWorkingArea(int _cx, int _cy, int _w, int _h, int _ax, int _ay, int _aw, int _ah, int _x, int _y)
+        public void GT19_PlaceAboveLeft_ClampsIntoTheWorkingArea(int _cx, int _cy, int _w, int _h, int _ax, int _ay, int _aw, int _ah, int _x, int _y)
         {
             var place = TrayController.PlaceAboveLeft(new PixelPoint(_cx, _cy), new PixelSize(_w, _h), new PixelRect(_ax, _ay, _aw, _ah));
 
@@ -350,7 +350,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact(Skip = OsOnly.NotWindowsTrayLeftClick, SkipWhen = nameof(IsWindows))]
-        public void IconClick_NotWindows_OpensNothing()
+        public void GT127_IconClick_NotWindows_OpensNothing()
         {
             // Linux AppIndicator opens the native menu itself for both buttons.
             using var f = new AreaFixture();
@@ -362,7 +362,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Click_NotWindows_OpensNothing_AndAsksNoCursor()
+        public void GT127_Click_NotWindows_OpensNothing_AndAsksNoCursor()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -379,7 +379,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Click_Windows_OpensThePopupAboveLeftOfTheCursor()
+        public void GT127_Click_Windows_OpensThePopupAboveLeftOfTheCursor()
         {
             // The cursor near the bottom-right corner of the primary screen's working area (where the taskbar's tray is): the
             // popup's bottom-right corner is at the cursor.
@@ -408,7 +408,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Click_Windows_WithoutACursor_OpensThePopupUnplaced()
+        public void GT127_Click_Windows_WithoutACursor_OpensThePopupUnplaced()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
@@ -423,7 +423,7 @@ namespace Hider.App.Tests.Tray
 
         [AvaloniaFact(Skip = OsOnly.TrayLeftClick, SkipUnless = nameof(IsWindows))]
         [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-        public void IconClick_Windows_OpensThePopupNearTheCursor()
+        public void GT127_IconClick_Windows_OpensThePopupNearTheCursor()
         {
             // The real cursor: when it did not move during the click, the popup is above-left of it, kept in the working area
             // of its monitor; when it did, the popup is at least inside a monitor's working area.
@@ -453,7 +453,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Probe_TrayFound_LogsIt_AndShowsNoWindow()
+        public async Task GT128_Probe_TrayFound_LogsIt_AndShowsNoWindow()
         {
             using var f = new AreaFixture();
             var log = new StringWriter();
@@ -472,7 +472,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Probe_NoTray_LogsIt_AndTheWindowRunsCommands()
+        public async Task GT128_Probe_NoTray_LogsIt_AndTheWindowRunsCommands()
         {
             using var f = new AreaFixture();
             var exits = new Exits();
@@ -496,7 +496,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Probe_Fails_LogsIt_AndShowsNoWindow()
+        public async Task GT128_Probe_Fails_LogsIt_AndShowsNoWindow()
         {
             // A probe that throws (it catches its own D-Bus errors, so a bug) is logged, not taken as "no tray".
             using var f = new AreaFixture();
@@ -517,7 +517,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Probe_AnsweredAfterDispose_ShowsNoWindow()
+        public async Task GT128_Probe_AnsweredAfterDispose_ShowsNoWindow()
         {
             using var f = new AreaFixture();
             var probe = new TaskCompletionSource<bool>();
@@ -531,7 +531,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public async Task Dispose_ClosesEveryWindow_AndStopsFollowingTheAreas()
+        public async Task GT129_Dispose_ClosesEveryWindow_AndStopsFollowingTheAreas()
         {
             using var f = new AreaFixture();
             var tray = CreateTray(f, null, () => Task.FromResult(false));
@@ -556,7 +556,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Dispose_WithNothingOpen_DoesNotThrow()
+        public void GT129_Dispose_WithNothingOpen_DoesNotThrow()
         {
             using var f = new AreaFixture();
             var tray = CreateTray(f);

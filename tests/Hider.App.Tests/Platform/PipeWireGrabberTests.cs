@@ -452,7 +452,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Constants_AreTheDesignValues()
+        public void GT95_Constants_AreTheDesignValues()
         {
             Assert.Equal(TimeSpan.FromSeconds(3), PipeWireGrabber.IdleClose);
             Assert.Equal(TimeSpan.FromMinutes(1), PipeWireGrabber.RetryAfterFailure);
@@ -464,7 +464,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task WithoutAClock_TheSystemClockIsUsed()
+        public async Task GT95_WithoutAClock_TheSystemClockIsUsed()
         {
             using var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary });
             Assert.True(await Prepare(g));
@@ -475,7 +475,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task ReadyWithoutPrepare_OnlyWhileASessionIsOpen()
+        public async Task GT95_ReadyWithoutPrepare_OnlyWhileASessionIsOpen()
         {
             var g = Create();
             Assert.False(g.ReadyWithoutPrepare);
@@ -489,7 +489,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task AfterDispose_PrepareAndGrabDoNothing()
+        public async Task GT95_AfterDispose_PrepareAndGrabDoNothing()
         {
             var g = Create();
             g.Dispose();
@@ -501,7 +501,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Dispose_WhileAGrabRuns_TheSessionStaysButIsNotReady_AndNoIdleTimer()
+        public async Task GT95_Dispose_WhileAGrabRuns_TheSessionStaysButIsNotReady_AndNoIdleTimer()
         {
             var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary }, time) { DisposeWait = TimeSpan.FromMilliseconds(50) };
             using var block = new ManualResetEventSlim();
@@ -526,7 +526,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task SharedMonitorUnknown_PrepareIsFalse_GrabIsNullAndSaysSo()
+        public async Task GT96_SharedMonitorUnknown_PrepareIsFalse_GrabIsNullAndSaysSo()
         {
             // The stream's origin matches no X11 monitor (two monitors, so no single-monitor guess).
             portal.StreamRect = new PhysicalRect(500, 500, 1920, 1080);
@@ -542,7 +542,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Grab_AreaPartlyOffTheSharedMonitor_IsNull()
+        public async Task GT96_Grab_AreaPartlyOffTheSharedMonitor_IsNull()
         {
             using var g = Create(primary, right);
             Assert.True(await Prepare(g));
@@ -562,7 +562,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(0L, 1, "pts", "0.0 ms after the strip")]
         [InlineData(5_000_000L, 1, "pts", "16.0 ms after the strip")]
         [InlineData(5_000_000L, 0, "receive time", "16.0 ms after the strip")]
-        public async Task Grab_LogsTheFramesAgeAndTimeSource(long _notBeforeNs, int _ptsFromMeta, string _source, string _age)
+        public async Task GT97_Grab_LogsTheFramesAgeAndTimeSource(long _notBeforeNs, int _ptsFromMeta, string _source, string _age)
         {
             // FakeTimeProvider counts 100 ns ticks; the fake helper stamps each frame 16 ms after not_before.
             helper.PtsFromMeta = _ptsFromMeta;
@@ -580,7 +580,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Grab_Timeout_IsLoggedWithTheLastSequence()
+        public async Task GT97_Grab_Timeout_IsLoggedWithTheLastSequence()
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -597,7 +597,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(Hidercap.NotStarted)]
         [InlineData(Hidercap.StreamError)]
         [InlineData(Hidercap.AlreadyStarted)]
-        public async Task Grab_HelperError_ClosesAndBacksOff(int _code)
+        public async Task GT97_Grab_HelperError_ClosesAndBacksOff(int _code)
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -611,7 +611,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Grab_CancelledWhileTheHelperWaits_Throws_AndKeepsTheSession()
+        public async Task GT97_Grab_CancelledWhileTheHelperWaits_Throws_AndKeepsTheSession()
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -630,7 +630,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task AlreadyCancelled_PrepareAndGrabThrow()
+        public async Task GT97_AlreadyCancelled_PrepareAndGrabThrow()
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -642,7 +642,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task CloseIdleAsync_CloseFails_IsLogged_AndTheGrabberGoesOn()
+        public async Task GT95_CloseIdleAsync_CloseFails_IsLogged_AndTheGrabberGoesOn()
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -660,7 +660,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task CloseIdleAsync_NothingOpen_DoesNothing()
+        public async Task GT95_CloseIdleAsync_NothingOpen_DoesNothing()
         {
             using var g = Create();
             await g.CloseIdleAsync(g.IdleGeneration);
@@ -668,7 +668,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Dispose_CloseHangs_GivesUpAfterTheWait()
+        public async Task GT95_Dispose_CloseHangs_GivesUpAfterTheWait()
         {
             var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary }, time) { DisposeWait = TimeSpan.FromMilliseconds(50) };
             Assert.True(await Prepare(g));
@@ -685,7 +685,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Dispose_CloseFails_IsLogged()
+        public async Task GT95_Dispose_CloseFails_IsLogged()
         {
             var g = Create();
             Assert.True(await Prepare(g));
@@ -701,7 +701,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task Prepare_FirstGrabNeedsABiggerBuffer_AsksAgain_ThenKeepsIt()
+        public async Task GT95_Prepare_FirstGrabNeedsABiggerBuffer_AsksAgain_ThenKeepsIt()
         {
             using var g = Create();
             Assert.True(await Prepare(g));
@@ -713,13 +713,13 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Rows_ShownHeightZero_UsesScaleOne()
+        public void GT96_Rows_ShownHeightZero_UsesScaleOne()
         {
             Assert.Equal((4, 9), PipeWireGrabber.Rows(new PhysicalRect(0, 0, 100, 0), new PhysicalRect(10, 5, 10, 3), 100));
         }
 
         [Fact]
-        public void Rows_ClampedToTheFrame()
+        public void GT96_Rows_ClampedToTheFrame()
         {
             // Above and below the frame: empty ranges at its edges.
             Assert.Equal((0, 0), PipeWireGrabber.Rows(new PhysicalRect(0, 0, 100, 100), new PhysicalRect(0, -50, 10, 10), 100));
@@ -727,7 +727,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void MapStream_NoScreens_IsNull()
+        public void GT96_MapStream_NoScreens_IsNull()
         {
             Assert.Null(PipeWireGrabber.MapStream(new PhysicalRect(0, 0, 10, 10), Array.Empty<ScreenInfo>()));
         }

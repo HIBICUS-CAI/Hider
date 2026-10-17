@@ -63,7 +63,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Show_CapturesMosaic_ThroughTheOwner()
+        public void GT59_Show_CapturesMosaic_ThroughTheOwner()
         {
             var (owner, area) = Create(PatternKind.Mosaic);
             owner.Windows.Add(7);
@@ -73,7 +73,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Show_FillCapturesNothing()
+        public void GT59_Show_FillCapturesNothing()
         {
             var (owner, area) = Create();
             area.Show();
@@ -82,7 +82,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChanges_AreReported_AndLeavingSaves()
+        public void GT10_ModeChanges_AreReported_AndLeavingSaves()
         {
             var (owner, area) = Create();
             area.Show();
@@ -93,7 +93,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DragEnd_SavesNow_ArrowKeysSaveSoon()
+        public void GT67_DragEnd_SavesNow_ArrowKeysSaveSoon()
         {
             var (owner, area) = Create();
             area.Show();
@@ -108,7 +108,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveSettings_ChoosesNowOrSoon()
+        public void GT67_SaveSettings_ChoosesNowOrSoon()
         {
             var (owner, area) = Create();
             area.SaveSettings(true);
@@ -118,7 +118,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Delete_AsksTheOwner_WhichDecides()
+        public void GT70_Delete_AsksTheOwner_WhichDecides()
         {
             var (owner, area) = Create();
             area.Delete();
@@ -128,7 +128,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SetPattern_SavesNow()
+        public void GT64_SetPattern_SavesNow()
         {
             var (owner, area) = Create();
             area.SetPattern(PatternKind.Generated);
@@ -137,7 +137,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SettingsPopup_OpenAndClose_AreReported()
+        public void GT55_SettingsPopup_OpenAndClose_AreReported()
         {
             var (owner, area) = Create();
             area.Show();
@@ -150,7 +150,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void OwnersPopups_HoldAStripCapture_UntilResumed()
+        public void GT55_OwnersPopups_HoldAStripCapture_UntilResumed()
         {
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
             var (owner, area) = Create(PatternKind.Fill, capture);
@@ -169,7 +169,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Failure_SavesTheFallback()
+        public void GT24_Failure_SavesTheFallback()
         {
             var (owner, area) = Create(PatternKind.Mosaic, new FakeUnderlayCapture { Failure = CaptureFailure.Denied });
             area.Show();

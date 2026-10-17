@@ -18,7 +18,7 @@ namespace Hider.App.Tests.Settings
         };
 
         [Fact]
-        public void EveryCommonRow_HasAField()
+        public void GT119_EveryCommonRow_HasAField()
         {
             // A common parameter added to CommonParams.Mosaic without a field would show 0 and drop its edits: this table, and
             // GetCommon / SetCommon, must follow it.
@@ -26,7 +26,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void EveryCommonRow_ShowsItsField_AndWritesIt()
+        public void GT119_EveryCommonRow_ShowsItsField_AndWritesIt()
         {
             using var f = new AreaFixture();
             var area = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
@@ -57,7 +57,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(CommonParams.Levels, 16.6, 17)]  // whole numbers: rounded
         [InlineData(CommonParams.IntervalMs, 99.4, 99)]
         [InlineData(CommonParams.StripPx, 7.7, 8)]
-        public void SetCommon_StoresTheField_RoundingWholeNumbers(string _key, double _value, double _stored)
+        public void GT119_SetCommon_StoresTheField_RoundingWholeNumbers(string _key, double _value, double _stored)
         {
             var common = new MosaicCommon();
 
@@ -71,7 +71,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(CommonParams.Seed)] // a generated common parameter, not a mosaic one
         [InlineData("bogus")]
         [InlineData("")]
-        public void UnknownKey_Throws_InsteadOfShowingZero(string _key)
+        public void GT119_UnknownKey_Throws_InsteadOfShowingZero(string _key)
         {
             var common = new MosaicCommon();
 

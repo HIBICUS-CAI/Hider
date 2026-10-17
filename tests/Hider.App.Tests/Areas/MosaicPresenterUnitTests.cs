@@ -76,7 +76,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void NoModel_DrawsNothing()
+        public void GT84_NoModel_DrawsNothing()
         {
             using var presenter = new MosaicPresenter();
             Assert.Null(presenter.Model);
@@ -91,7 +91,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(0, H)]
         [InlineData(W, 0)]
         [InlineData(0, 0)]
-        public void NoSize_DrawsNothing(double _w, double _h)
+        public void GT84_NoSize_DrawsNothing(double _w, double _h)
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             using var bitmap = Draw(presenter, _w, _h);
@@ -100,7 +100,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Fill_IsThePlainColour_FollowingItsChanges()
+        public void GT22_Fill_IsThePlainColour_FollowingItsChanges()
         {
             var area = NewArea(PatternKind.Fill);
             area.Fill.Color = "#336699";
@@ -122,7 +122,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Generated_IsDrawnOnce_ThenCopied_AndAgainForANewSize()
+        public void GT25_Generated_IsDrawnOnce_ThenCopied_AndAgainForANewSize()
         {
             var area = NewArea(PatternKind.Generated);
             using var presenter = new MosaicPresenter { Model = area };
@@ -140,7 +140,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_BeforeAnyFrame_CoversWithTheGeneratedPattern()
+        public void GT85_Mosaic_BeforeAnyFrame_CoversWithTheGeneratedPattern()
         {
             // NFR-05: until the first capture arrives the area stays covered.
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = new FrameExchange() };
@@ -151,7 +151,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_WithoutAFrameExchange_CoversWithTheGeneratedPattern()
+        public void GT85_Mosaic_WithoutAFrameExchange_CoversWithTheGeneratedPattern()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic) };
             using var bitmap = Draw(presenter);
@@ -161,7 +161,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_FrameCleared_GoesBackToTheGeneratedPattern()
+        public void GT85_Mosaic_FrameCleared_GoesBackToTheGeneratedPattern()
         {
             var frames = WithFrame();
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = frames };
@@ -174,7 +174,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_IsRedrawnOnlyForANewFrameValuesOrPlace()
+        public void GT84_Mosaic_IsRedrawnOnlyForANewFrameValuesOrPlace()
         {
             var area = NewArea(PatternKind.Mosaic);
             var frames = WithFrame();
@@ -214,7 +214,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_UnknownMethod_IsDrawnWithTheDefaultMethod()
+        public void GT86_Mosaic_UnknownMethod_IsDrawnWithTheDefaultMethod()
         {
             var known = NewArea(PatternKind.Mosaic);
             var unknown = NewArea(PatternKind.Mosaic);
@@ -228,7 +228,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Generated_UnknownMethod_IsDrawnWithTheDefaultMethod()
+        public void GT86_Generated_UnknownMethod_IsDrawnWithTheDefaultMethod()
         {
             var known = NewArea(PatternKind.Generated);
             var unknown = NewArea(PatternKind.Generated);
@@ -241,7 +241,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_MethodOfTheOtherKind_IsDrawnWithTheDefaultMethod()
+        public void GT86_Mosaic_MethodOfTheOtherKind_IsDrawnWithTheDefaultMethod()
         {
             // A generated pattern's id stored as the mosaic method is no mosaic method.
             var known = NewArea(PatternKind.Mosaic);
@@ -255,7 +255,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DrawFailure_IsCaught_AndLeavesTheCachesAlone()
+        public void GT82_DrawFailure_IsCaught_AndLeavesTheCachesAlone()
         {
             // A front frame without pixels (no capture makes one) cannot be drawn: the render thread carries on.
             var frames = new FrameExchange();
@@ -272,7 +272,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ReleaseCaches_DropsTheMosaicImage_SoTheNextFrameDrawsItAgain()
+        public void GT87_ReleaseCaches_DropsTheMosaicImage_SoTheNextFrameDrawsItAgain()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = WithFrame() };
             Draw(presenter).Dispose();
@@ -283,7 +283,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ReleaseCaches_BeforeAnyDraw_IsFine()
+        public void GT87_ReleaseCaches_BeforeAnyDraw_IsFine()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             presenter.ReleaseCaches();
@@ -292,7 +292,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Disposed_DrawsNoMosaicOrPattern_AndDisposingTwiceIsFine()
+        public void GT87_Disposed_DrawsNoMosaicOrPattern_AndDisposingTwiceIsFine()
         {
             // No new images once disposed; the area is covered with its fill color instead (MosaicPresenterCoverTests).
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = WithFrame() };
@@ -308,7 +308,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Mosaic_AnotherMethod_IsDrawnAgain_AndBackAgain()
+        public void GT84_Mosaic_AnotherMethod_IsDrawnAgain_AndBackAgain()
         {
             // The cache key holds the method id: a method with the same values (none set) is still another drawing.
             var area = NewArea(PatternKind.Mosaic);
@@ -329,7 +329,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Generated_AnotherMethod_IsDrawnAgain_AndBackAgain()
+        public void GT84_Generated_AnotherMethod_IsDrawnAgain_AndBackAgain()
         {
             var area = NewArea(PatternKind.Generated);
             using var presenter = new MosaicPresenter { Model = area };
@@ -348,7 +348,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Retire_Defaults_AreTheSharedListAndSkiasOwnTest()
+        public void GT87_Retire_Defaults_AreTheSharedListAndSkiasOwnTest()
         {
             using var presenter = new MosaicPresenter();
             Assert.Same(MosaicPresenter.RetiredImages.Shared, presenter.Retired);
@@ -375,7 +375,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void Dispose_GpuImage_WaitsInTheRetireList_UntilTheNextDrawOfAnyArea(PatternKind _pattern)
+        public void GT87_Dispose_GpuImage_WaitsInTheRetireList_UntilTheNextDrawOfAnyArea(PatternKind _pattern)
         {
             // GPU textures are freed on the render thread (with the GrContext), never on the UI thread where Dispose runs
             // (crashes seen on Windows otherwise): the next draw of any area frees them.
@@ -399,7 +399,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ReleaseCaches_GpuImages_AreRetired_AndTheDisposedPresentersOwnDrawFreesThem()
+        public void GT87_ReleaseCaches_GpuImages_AreRetired_AndTheDisposedPresentersOwnDrawFreesThem()
         {
             var retired = new MosaicPresenter.RetiredImages();
             var asked = new List<SKImage>();
@@ -419,7 +419,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Dispose_RasterImage_IsFreedAtOnce_WithoutTheRetireList()
+        public void GT87_Dispose_RasterImage_IsFreedAtOnce_WithoutTheRetireList()
         {
             var retired = new MosaicPresenter.RetiredImages();
             var asked = new List<SKImage>();
@@ -441,7 +441,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void RetiredImages_FreeAll_DisposesEachOnce_AndEmptiesTheList()
+        public void GT87_RetiredImages_FreeAll_DisposesEachOnce_AndEmptiesTheList()
         {
             var retired = new MosaicPresenter.RetiredImages();
             var a = SKImage.Create(new SKImageInfo(4, 4));
@@ -458,7 +458,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DrawnArea_IsWhatThePointerHits()
+        public void GT04_DrawnArea_IsWhatThePointerHits()
         {
             // The custom draw operation answers hit tests for the presenter's whole rectangle.
             using var f = new AreaHarness();

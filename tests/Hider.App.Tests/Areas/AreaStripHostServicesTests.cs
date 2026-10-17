@@ -13,7 +13,7 @@ namespace Hider.App.Tests.Areas
         private static AreaStripHost Inline() => new(_f => _f());
 
         [Fact]
-        public void BeforeAttach_NoAreasNoScreen()
+        public void GT73_BeforeAttach_NoAreasNoScreen()
         {
             var host = Inline();
             Assert.Empty(host.Areas);
@@ -22,7 +22,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AfterAttach_ReadsTheManagersStripState()
+        public void GT73_AfterAttach_ReadsTheManagersStripState()
         {
             using var f = new AreaHarness(_isWindows: false);
             var host = Inline();
@@ -36,7 +36,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public async Task Calls_BeforeAttach_CompleteWithoutAWindow()
+        public async Task GT73_Calls_BeforeAttach_CompleteWithoutAWindow()
         {
             var host = Inline();
             await host.SetTransparentRowsAsync("0f3b8d2e", 0, 8, TestContext.Current.CancellationToken);
@@ -44,7 +44,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public async Task Calls_ForAnAreaThatIsGone_TouchNoWindow()
+        public async Task GT73_Calls_ForAnAreaThatIsGone_TouchNoWindow()
         {
             using var f = new AreaHarness();
             var host = Inline();
@@ -56,7 +56,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public async Task Calls_ReachTheAreasWindow_ByItsId()
+        public async Task GT73_Calls_ReachTheAreasWindow_ByItsId()
         {
             using var f = new AreaHarness();
             var host = Inline();
@@ -79,7 +79,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public async Task CaptureCancelled_StopsWaitingForTheUiThread()
+        public async Task GT73_CaptureCancelled_StopsWaitingForTheUiThread()
         {
             var never = new TaskCompletionSource();
             var host = new AreaStripHost(_ => never.Task);
@@ -91,7 +91,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public async Task DispatcherDroppingTheJob_CancelsTheCall()
+        public async Task GT73_DispatcherDroppingTheJob_CancelsTheCall()
         {
             var host = new AreaStripHost(_ => Task.FromCanceled(new CancellationToken(true)));
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => host.RestoreAsync("0f3b8d2e"));
@@ -99,7 +99,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public async Task OnThreadPool_RunsTheCaptureOnAPoolThread_AndReturnsItsResult()
+        public async Task GT74_OnThreadPool_RunsTheCaptureOnAPoolThread_AndReturnsItsResult()
         {
             bool pool = false;
             var expected = CaptureResult.Failed(CaptureFailure.Denied);
@@ -113,13 +113,13 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public async Task OnThreadPool_PassesFailuresOn()
+        public async Task GT74_OnThreadPool_PassesFailuresOn()
         {
             await Assert.ThrowsAsync<IOException>(() => AreaServices.OnThreadPool(() => throw new IOException("gone")));
         }
 
         [Fact]
-        public void Services_KeepWhatTheyAreGiven()
+        public void GT58_Services_KeepWhatTheyAreGiven()
         {
             var screens = new FakeScreenService();
             var time = new FakeTimeProvider();
@@ -143,7 +143,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public void AreaMode_HiddenIsTheDefault()
+        public void GT58_AreaMode_HiddenIsTheDefault()
         {
             Assert.Equal(AreaMode.Hidden, default(AreaMode));
             var values = Enum.GetValues<AreaMode>();

@@ -9,13 +9,13 @@ namespace Hider.App.Tests.Platform
     public sealed class StatusNotifierProbeTests
     {
         [Fact]
-        public void WatcherName_IsKdesStatusNotifierWatcher()
+        public void GT110_WatcherName_IsKdesStatusNotifierWatcher()
         {
             Assert.Equal("org.kde.StatusNotifierWatcher", StatusNotifierProbe.WatcherName);
         }
 
         [DbusFact]
-        public async Task HasWatcherAsync_SomeoneOwnsTheName_IsTrue()
+        public async Task GT110_HasWatcherAsync_SomeoneOwnsTheName_IsTrue()
         {
             using var bus = PrivateBus.Start();
             using var watcher = await FakeDesktopPortal.OwnNameAsync(bus.Address, StatusNotifierProbe.WatcherName);
@@ -23,7 +23,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task HasWatcherAsync_NobodyOwnsTheName_IsFalse()
+        public async Task GT110_HasWatcherAsync_NobodyOwnsTheName_IsFalse()
         {
             using var bus = PrivateBus.Start();
             // Another name does not count (GNOME without the AppIndicator extension).
@@ -32,7 +32,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task HasWatcherAsync_WatcherGoneAgain_IsFalse()
+        public async Task GT110_HasWatcherAsync_WatcherGoneAgain_IsFalse()
         {
             using var bus = PrivateBus.Start();
             using var watcher = await FakeDesktopPortal.OwnNameAsync(bus.Address, StatusNotifierProbe.WatcherName);
@@ -42,7 +42,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task HasWatcherAsync_NoBus_IsFalse_AndLogged()
+        public async Task GT110_HasWatcherAsync_NoBus_IsFalse_AndLogged()
         {
             using var log = new StringWriter();
             using (Log.CaptureTo(log))

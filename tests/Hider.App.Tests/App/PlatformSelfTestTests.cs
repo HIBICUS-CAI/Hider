@@ -23,7 +23,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact(Skip = OsOnly.WindowCapture, SkipUnless = nameof(IsWindows))]
-        public void Windows_EnumeratesAndComposesTheDesktopCorner()
+        public void GT49_Windows_EnumeratesAndComposesTheDesktopCorner()
         {
             var output = new StringWriter();
 

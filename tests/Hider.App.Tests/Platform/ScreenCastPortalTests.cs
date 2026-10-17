@@ -87,7 +87,7 @@ namespace Hider.App.Tests.Platform
         private static string[] Members(PortalEnv _env) => _env.Portal.Calls.Select(_c => _c.Member).ToArray();
 
         [Fact]
-        public void Session_HoldsWhatThePortalGave()
+        public void GT106_Session_HoldsWhatThePortalGave()
         {
             using var fd = new SafeFileHandle(-1, false);
             var session = new ScreenCastSession("/s/1", 42, new PhysicalRect(1, 2, 3, 4), "tok", fd);
@@ -97,7 +97,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_Ok_RunsTheFourSteps_AndReturnsTheSession()
+        public async Task GT106_StartAsync_Ok_RunsTheFourSteps_AndReturnsTheSession()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;
@@ -150,7 +150,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_WithARestoreToken_PassesIt_AndNoNewTokenIsNull()
+        public async Task CT91_StartAsync_WithARestoreToken_PassesIt_AndNoNewTokenIsNull()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -168,7 +168,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(false, false)]
         [InlineData(true, false)]
         [InlineData(false, true)]
-        public async Task StartAsync_StreamWithoutPositionOrSize_LeavesThemZero(bool _position, bool _size)
+        public async Task GT106_StartAsync_StreamWithoutPositionOrSize_LeavesThemZero(bool _position, bool _size)
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -180,7 +180,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_TwoStreams_TakesTheFirst()
+        public async Task GT106_StartAsync_TwoStreams_TakesTheFirst()
         {
             // SelectSources asks for one monitor ("multiple" false); should a portal still hand out two, the first is used.
             using var sc = await StartEnvAsync();
@@ -196,7 +196,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_EachSessionGetsANewToken()
+        public async Task GT106_StartAsync_EachSessionGetsANewToken()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;
@@ -211,7 +211,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_CreateSessionCancelled_ThrowsDenied_NothingToClose()
+        public async Task GT107_StartAsync_CreateSessionCancelled_ThrowsDenied_NothingToClose()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -224,7 +224,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_SelectSourcesCancelled_ThrowsDenied_AndClosesTheSession()
+        public async Task GT107_StartAsync_SelectSourcesCancelled_ThrowsDenied_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -236,7 +236,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_StartCancelled_ThrowsDenied_AndClosesTheSession()
+        public async Task GT107_StartAsync_StartCancelled_ThrowsDenied_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -253,7 +253,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_StartFails_IsNull_ClosesTheSession_AndReconnectsNextTime()
+        public async Task GT107_StartAsync_StartFails_IsNull_ClosesTheSession_AndReconnectsNextTime()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -273,7 +273,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_CreateSessionFails_IsNull_NothingToClose()
+        public async Task GT107_StartAsync_CreateSessionFails_IsNull_NothingToClose()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -285,7 +285,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_CreateSessionWithoutAHandle_IsNull()
+        public async Task GT107_StartAsync_CreateSessionWithoutAHandle_IsNull()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -297,7 +297,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_StartWithoutStreams_IsNull_AndClosesTheSession()
+        public async Task GT107_StartAsync_StartWithoutStreams_IsNull_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -309,7 +309,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_StreamsOfAnotherShape_IsNull_AndClosesTheSession()
+        public async Task GT107_StartAsync_StreamsOfAnotherShape_IsNull_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -320,7 +320,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_OpenPipeWireRemoteFails_IsNull_AndClosesTheSession()
+        public async Task GT107_StartAsync_OpenPipeWireRemoteFails_IsNull_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;
@@ -332,7 +332,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_CancelledWhileTheDialogIsOpen_ClosesRequestAndSession_AndThrows()
+        public async Task GT107_StartAsync_CancelledWhileTheDialogIsOpen_ClosesRequestAndSession_AndThrows()
         {
             using var sc = await StartEnvAsync();
             var (env, script) = (sc.Env, sc.Script);
@@ -356,7 +356,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task StartAsync_NoPortal_IsNull()
+        public async Task GT107_StartAsync_NoPortal_IsNull()
         {
             using var env = await PortalEnv.StartAsync(false);
             using var portal = new ScreenCastPortal(env.Address);
@@ -369,14 +369,14 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task StartAsync_NoBus_IsNull()
+        public async Task GT107_StartAsync_NoBus_IsNull()
         {
             using var portal = new ScreenCastPortal("unix:path=/nonexistent/hider-test-bus");
             Assert.Null(await portal.StartAsync("t", Ct));
         }
 
         [DbusFact]
-        public async Task CloseAsync_DisposesTheFd_AndClosesTheSession()
+        public async Task GT106_CloseAsync_DisposesTheFd_AndClosesTheSession()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;
@@ -388,7 +388,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task CloseAsync_CloseFails_OnlyLogs()
+        public async Task GT106_CloseAsync_CloseFails_OnlyLogs()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;
@@ -405,7 +405,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public async Task CloseAsync_NoBus_DisposesTheFd_AndLogs()
+        public async Task GT106_CloseAsync_NoBus_DisposesTheFd_AndLogs()
         {
             using var portal = new ScreenCastPortal("unix:path=/nonexistent/hider-test-bus");
             string file = Path.GetTempFileName();
@@ -427,7 +427,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Dispose_DropsTheConnection_LaterStartsAreNull()
+        public async Task GT106_Dispose_DropsTheConnection_LaterStartsAreNull()
         {
             using var sc = await StartEnvAsync();
             var env = sc.Env;

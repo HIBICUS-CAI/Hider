@@ -71,7 +71,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Request_HasTheRectTheStripHeightAndTheOwnWindowFirst()
+        public void GT53_Request_HasTheRectTheStripHeightAndTheOwnWindowFirst()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture, _firstHandle: 100);
@@ -88,7 +88,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Request_WithoutNativeHandles_HasOnlyTheAreasOwnEntry()
+        public void GT53_Request_WithoutNativeHandles_HasOnlyTheAreasOwnEntry()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -99,7 +99,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Frame_IsCopiedRowByRow_WithoutTheSourcesRowPadding()
+        public void GT53_Frame_IsCopiedRowByRow_WithoutTheSourcesRowPadding()
         {
             const int w = 30, h = 20, stride = w * 4 + 12;
             var source = new byte[stride * h];
@@ -137,7 +137,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void StartingTheCaptureThrows_FallsBackAsUnavailable()
+        public void GT24_StartingTheCaptureThrows_FallsBackAsUnavailable()
         {
             using var f = new AreaHarness(_runCapture: _ => throw new InvalidOperationException("no thread"));
             var area = f.Manager.AddNew();
@@ -146,7 +146,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void StartingTheCaptureThrows_LaterRequest_FallsBackWithTheFailureNamed()
+        public void GT24_StartingTheCaptureThrows_LaterRequest_FallsBackWithTheFailureNamed()
         {
             bool fail = false;
             using var f = new AreaHarness(_runCapture: _c => fail ? throw new InvalidOperationException("no thread") : _c());
@@ -158,7 +158,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureFaults_FallsBackAsUnavailable()
+        public void GT24_CaptureFaults_FallsBackAsUnavailable()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -170,7 +170,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureCancelledOnItsOwn_FallsBackAsTimeout()
+        public void GT24_CaptureCancelledOnItsOwn_FallsBackAsTimeout()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -186,7 +186,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(CaptureFailure.Denied)]
         [InlineData(CaptureFailure.Unavailable)]
         [InlineData(CaptureFailure.Timeout)]
-        public void ReportedFailure_FallsBackWithItsName(CaptureFailure _failure)
+        public void GT24_ReportedFailure_FallsBackWithItsName(CaptureFailure _failure)
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -198,7 +198,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SuccessWithoutAFrame_IsNoFrame_AndFallsBack()
+        public void GT24_SuccessWithoutAFrame_IsNoFrame_AndFallsBack()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -210,7 +210,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void FrameThatCannotBeCopied_FallsBackAsUnavailable()
+        public void GT24_FrameThatCannotBeCopied_FallsBackAsUnavailable()
         {
             // A frame whose buffer is shorter than its size says: copying it fails on the capture thread.
             var capture = new ScriptedCapture();
@@ -223,7 +223,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void FailureAfterTheUserChoseAnotherPattern_KeepsTheChoice()
+        public void GT24_FailureAfterTheUserChoseAnotherPattern_KeepsTheChoice()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -246,7 +246,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void RequestsWhileACaptureRuns_AreMergedIntoOneAfterIt()
+        public void GT54_RequestsWhileACaptureRuns_AreMergedIntoOneAfterIt()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -263,7 +263,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PatternChangedBeforeThePostedStartRuns_CapturesNothing_AndEndsTheRun()
+        public void GT54_PatternChangedBeforeThePostedStartRuns_CapturesNothing_AndEndsTheRun()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture, _queuePosts: true);
@@ -280,7 +280,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AreaDeletedBeforeThePostedStartRuns_CapturesNothing()
+        public void GT54_AreaDeletedBeforeThePostedStartRuns_CapturesNothing()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture, _queuePosts: true);
@@ -293,7 +293,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AreaDeletedBeforeThePostedFinishRuns_DoesNotFallBack()
+        public void GT54_AreaDeletedBeforeThePostedFinishRuns_DoesNotFallBack()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture, _queuePosts: true);
@@ -314,7 +314,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DeletingTheAreaDuringACapture_CancelsIt_WithoutFallingBack()
+        public void GT54_DeletingTheAreaDuringACapture_CancelsIt_WithoutFallingBack()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -331,7 +331,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupOnWindows_DoesNotHoldOrCancelTheCapture()
+        public void GT55_PopupOnWindows_DoesNotHoldOrCancelTheCapture()
         {
             var capture = new ScriptedCapture();
             using var f = new AreaHarness(_capture: capture, _queuePosts: true);
@@ -350,7 +350,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupWithoutARunningCapture_HoldsNothing()
+        public void GT55_PopupWithoutARunningCapture_HoldsNothing()
         {
             var (f, capture) = Linux();
             using (f)
@@ -367,7 +367,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupDuringStrips_CancelsWithoutFallingBack_AndRetakesWhenClosed()
+        public void GT55_PopupDuringStrips_CancelsWithoutFallingBack_AndRetakesWhenClosed()
         {
             var (f, capture) = Linux();
             using (f)
@@ -395,7 +395,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupClosedWhileTheCancelledCaptureIsFinishing_RetakesWhenItHasFinished()
+        public void GT55_PopupClosedWhileTheCancelledCaptureIsFinishing_RetakesWhenItHasFinished()
         {
             var (f, capture) = Linux();
             using (f)
@@ -417,7 +417,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureFinishedJustBeforeThePopupsCancel_ShowsItsFrame_AndTakesNothingAgain()
+        public void GT55_CaptureFinishedJustBeforeThePopupsCancel_ShowsItsFrame_AndTakesNothingAgain()
         {
             // The frame was good: the cancel came after the capture had finished, before its finish ran on the UI thread.
             var (f, capture) = Linux();
@@ -442,7 +442,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupClosedBeforeTheFirstStrip_LetsTheCaptureGoOn()
+        public void GT55_PopupClosedBeforeTheFirstStrip_LetsTheCaptureGoOn()
         {
             var (f, capture) = Linux();
             using (f)
@@ -464,7 +464,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void TwoPopupsBeforeTheFirstStrip_CancelOnceItStarts_AndRetakeOnce()
+        public void GT55_TwoPopupsBeforeTheFirstStrip_CancelOnceItStarts_AndRetakeOnce()
         {
             var (f, capture) = Linux();
             using (f)
@@ -491,7 +491,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureEndingBeforeAnyStrip_WhileAPopupIsOpen_DropsTheHeldCancel()
+        public void GT55_CaptureEndingBeforeAnyStrip_WhileAPopupIsOpen_DropsTheHeldCancel()
         {
             // A capture that never reached its strips (a refusal, a portal screenshot) did not see the popup.
             var (f, capture) = Linux();
@@ -512,7 +512,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChangeDuringStrips_WithAPopupOpen_RetakesOnceThePopupCloses()
+        public void GT56_ModeChangeDuringStrips_WithAPopupOpen_RetakesOnceThePopupCloses()
         {
             var (f, capture) = Linux();
             using (f)
@@ -537,7 +537,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChangeAfterAPopupCancelled_RetakesOnlyOnce()
+        public void GT56_ModeChangeAfterAPopupCancelled_RetakesOnlyOnce()
         {
             var (f, capture) = Linux();
             using (f)
@@ -562,7 +562,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChangeAfterTheStripCaptureFinished_TakesNothingAgain()
+        public void GT56_ModeChangeAfterTheStripCaptureFinished_TakesNothingAgain()
         {
             var (f, capture) = Linux();
             using (f)
@@ -581,7 +581,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void StripWithoutARunningCaptureOfThisArea_ChangesNothing()
+        public void GT56_StripWithoutARunningCaptureOfThisArea_ChangesNothing()
         {
             var (f, capture) = Linux();
             using (f)

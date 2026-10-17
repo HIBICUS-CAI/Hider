@@ -28,7 +28,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Constants_AreThePortalsNamesAndTwoMinutes()
+        public void GT99_Constants_AreThePortalsNamesAndTwoMinutes()
         {
             Assert.Equal("org.freedesktop.portal.Desktop", PortalClient.Destination);
             Assert.Equal("/org/freedesktop/portal/desktop", PortalClient.ObjectPath);
@@ -38,7 +38,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Response_HoldsCodeAndResults()
+        public void GT99_Response_HoldsCodeAndResults()
         {
             var results = new Dictionary<string, VariantValue> { ["uri"] = VariantValue.String("file:///x.png") };
             var response = new PortalClient.Response(2, results);
@@ -48,7 +48,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task ConnectAsync_ConnectsOnceAndReusesTheConnection()
+        public async Task GT99_ConnectAsync_ConnectsOnceAndReusesTheConnection()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -59,7 +59,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task ConnectAsync_Concurrent_MakesOneConnection()
+        public async Task GT99_ConnectAsync_Concurrent_MakesOneConnection()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -68,7 +68,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task ConnectAsync_NobodyListens_ThrowsAndConnectsOnceTheBusIsThere()
+        public async Task GT99_ConnectAsync_NobodyListens_ThrowsAndConnectsOnceTheBusIsThere()
         {
             string dir = PrivateBus.NewDirectory();
             using var client = new PortalClient(PrivateBus.AddressIn(dir));
@@ -80,7 +80,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task ConnectAsync_Cancelled_Throws()
+        public async Task GT99_ConnectAsync_Cancelled_Throws()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -92,7 +92,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Reset_DropsTheConnection_TheNextCallConnectsAgain()
+        public async Task GT99_Reset_DropsTheConnection_TheNextCallConnectsAgain()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -110,7 +110,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Dispose_DisposesTheConnection_AndTheClientCannotConnectAgain()
+        public async Task GT99_Dispose_DisposesTheConnection_AndTheClientCannotConnectAgain()
         {
             using var env = await PortalEnv.StartAsync();
             var client = new PortalClient(env.Address);
@@ -121,7 +121,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_Ok_ReturnsTheResults_AndSendsTheRequestTheWayThePortalExpects()
+        public async Task GT100_RequestAsync_Ok_ReturnsTheResults_AndSendsTheRequestTheWayThePortalExpects()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => FakeDesktopPortal.Answer.Ok((ref MessageWriter _w) =>
@@ -154,7 +154,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_EachRequestGetsANewToken()
+        public async Task GT100_RequestAsync_EachRequestGetsANewToken()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -171,7 +171,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_NoResults_IsAnEmptyDictionary()
+        public async Task GT100_RequestAsync_NoResults_IsAnEmptyDictionary()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -184,7 +184,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(1u)]
         [InlineData(2u)]
         [InlineData(77u)]
-        public async Task RequestAsync_OtherCodes_AreReturnedAsTheyCame(uint _code)
+        public async Task GT100_RequestAsync_OtherCodes_AreReturnedAsTheyCame(uint _code)
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Respond(_code, (ref MessageWriter _w) => FakeDesktopPortal.Entry(ref _w, "k", "v"));
@@ -196,7 +196,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_IgnoresTheResponseOfAnotherRequest()
+        public async Task GT100_RequestAsync_IgnoresTheResponseOfAnotherRequest()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.ElsewhereFirst(0, (ref MessageWriter _w) => FakeDesktopPortal.Entry(ref _w, "mine", "yes"));
@@ -207,7 +207,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_ResponseBeforeTheReply_IsNotMissed()
+        public async Task GT100_RequestAsync_ResponseBeforeTheReply_IsNotMissed()
         {
             // The Response arrives before the method's reply: the match must be in place before the call is sent, or the
             // signal is dropped and the request waits for its timeout (short here, so a regression fails, not stalls).
@@ -222,7 +222,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_CancelledBeforeTheResponse_ClosesTheRequestAndThrows()
+        public async Task GT101_RequestAsync_CancelledBeforeTheResponse_ClosesTheRequestAndThrows()
         {
             using var env = await PortalEnv.StartAsync();
             using var cts = new CancellationTokenSource();
@@ -240,7 +240,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_AlreadyCancelled_StillSendsTheCallAndClosesIt()
+        public async Task GT101_RequestAsync_AlreadyCancelled_StillSendsTheCallAndClosesIt()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
@@ -254,7 +254,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_NoResponseInTime_ClosesTheRequestAndTimesOut()
+        public async Task GT101_RequestAsync_NoResponseInTime_ClosesTheRequestAndTimesOut()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
@@ -269,7 +269,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_CloseFailsAfterATimeout_StillTimesOut_AndLogs()
+        public async Task GT101_RequestAsync_CloseFailsAfterATimeout_StillTimesOut_AndLogs()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
@@ -288,7 +288,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_NoPortalOnTheBus_ThrowsTheCallsError()
+        public async Task GT101_RequestAsync_NoPortalOnTheBus_ThrowsTheCallsError()
         {
             using var env = await PortalEnv.StartAsync(false);
             using var client = new PortalClient(env.Address);
@@ -298,7 +298,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_MethodFails_ThrowsTheError_AndClosesNothing()
+        public async Task GT101_RequestAsync_MethodFails_ThrowsTheError_AndClosesNothing()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Fail("org.freedesktop.portal.Error.NotAllowed");
@@ -310,7 +310,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_BodyWriterThrows_NothingIsSent_TheClientStillWorks()
+        public async Task GT101_RequestAsync_BodyWriterThrows_NothingIsSent_TheClientStillWorks()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -322,7 +322,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task CloseObjectAsync_SendsCloseToThatObject()
+        public async Task GT101_CloseObjectAsync_SendsCloseToThatObject()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);
@@ -337,7 +337,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task CloseObjectAsync_Failures_AreOnlyLogged()
+        public async Task GT101_CloseObjectAsync_Failures_AreOnlyLogged()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.FailClose = true;
@@ -358,7 +358,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_MalformedResponse_FailsAtOnce_AndTheConnectionStays()
+        public async Task GT101_RequestAsync_MalformedResponse_FailsAtOnce_AndTheConnectionStays()
         {
             // A Response whose body is not ua{sv}: the request fails with the reader's error instead of waiting for the
             // timeout (two minutes in the app, with a strip transparent meanwhile). The wait here is short enough that a
@@ -377,7 +377,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_BusGoesAway_FailsAtOnce()
+        public async Task GT101_RequestAsync_BusGoesAway_FailsAtOnce()
         {
             var env = await PortalEnv.StartAsync();
             try
@@ -401,7 +401,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task RequestAsync_ResetWhileWaiting_FailsAtOnce()
+        public async Task GT101_RequestAsync_ResetWhileWaiting_FailsAtOnce()
         {
             // Dispose at exit (or a Reset after another error) drops the connection a request waits on: it ends at once.
             using var env = await PortalEnv.StartAsync();
@@ -418,7 +418,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Entry_WritesAStringVariant()
+        public async Task GT99_Entry_WritesAStringVariant()
         {
             using var env = await PortalEnv.StartAsync();
             using var client = new PortalClient(env.Address);

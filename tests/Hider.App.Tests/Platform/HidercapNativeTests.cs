@@ -92,13 +92,13 @@ namespace Hider.App.Tests.Platform
         private static HidercapFrame Dirty() => new() { Width = 7, Height = 7, Stride = 7, PtsFromMeta = 7, PtsNs = 7, Sequence = 7 };
 
         [Fact]
-        public void Constants_MatchTheCHeader()
+        public void GT93_Constants_MatchTheCHeader()
         {
             Assert.Equal((0, 1, -1, -2, -3, -4), (Hidercap.Ok, Hidercap.BufferTooSmall, Hidercap.Timeout, Hidercap.NotStarted, Hidercap.StreamError, Hidercap.AlreadyStarted));
         }
 
         [HidercapFact]
-        public void IsAvailable_LoadsTheLibraryNextToTheTests()
+        public void GT93_IsAvailable_LoadsTheLibraryNextToTheTests()
         {
             Assert.True(File.Exists(LinuxTestEnvironment.HidercapPath), "libhidercap.so is not next to the tests: make -C native/hidercap before dotnet build");
             Assert.True(helper.IsAvailable);
@@ -106,7 +106,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void NotStarted_EveryCallIsSafe()
+        public void GT94_NotStarted_EveryCallIsSafe()
         {
             var frame = Dirty();
             var buffer = new byte[64];
@@ -120,7 +120,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void RemoteHangsUp_GrabReportsAStreamErrorAtOnce()
+        public void GT94_RemoteHangsUp_GrabReportsAStreamErrorAtOnce()
         {
             using var remote = new FakeRemote();
             remote.Server.Dispose();
@@ -136,7 +136,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void SilentRemote_GrabTimesOut_AndASecondStartIsRefused()
+        public void GT94_SilentRemote_GrabTimesOut_AndASecondStartIsRefused()
         {
             using var remote = new FakeRemote();
             Assert.Equal(Hidercap.Ok, helper.Start(remote.TakeFd(), 42));
@@ -161,7 +161,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void StartAfterStop_Works_Repeatedly()
+        public void GT94_StartAfterStop_Works_Repeatedly()
         {
             for (int i = 0; i < 3; i++)
             {
@@ -173,7 +173,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void InvalidFd_IsAStreamError_AndLeavesTheHelperStopped()
+        public void GT94_InvalidFd_IsAStreamError_AndLeavesTheHelperStopped()
         {
             Assert.Equal(Hidercap.StreamError, helper.Start(-1, 42));
             Assert.Equal(Hidercap.NotStarted, helper.GrabAfter(0, 0, 0, 1, Span<byte>.Empty, out _));
@@ -182,7 +182,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [HidercapFact]
-        public void FdThatCannotBePolled_IsAStreamError()
+        public void GT94_FdThatCannotBePolled_IsAStreamError()
         {
             // /dev/null is no PipeWire socket: the start itself goes through (the connection is made asynchronously), the
             // connection then fails and the grab reports it instead of waiting for its timeout.

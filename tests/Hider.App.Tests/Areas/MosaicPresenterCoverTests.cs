@@ -20,7 +20,7 @@ namespace Hider.App.Tests.Areas
         [InlineData("#FFFFFF", 0xFF, 0xFF, 0xFF)]
         [InlineData("#ff8000", 0xFF, 0x80, 0x00)]   // lower case is the same color
         [InlineData("not a color", 0x68, 0x76, 0x8A)] // an invalid one falls back to the default fill color
-        public void MosaicDrawThatThrows_CoversTheWholeAreaWithTheFillColor_Opaque(string _fill, byte _r, byte _g, byte _b)
+        public void GT81_MosaicDrawThatThrows_CoversTheWholeAreaWithTheFillColor_Opaque(string _fill, byte _r, byte _g, byte _b)
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic, _fill), Frames = BrokenFrame() };
             using var bitmap = Draw(presenter);
@@ -32,7 +32,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(0.0)]  // mosaic allows 0 (the mosaic is see-through by the user's choice), the cover never is
         [InlineData(0.5)]
         [InlineData(1.0)]
-        public void Cover_IsOpaque_WhateverTheOpacity(double _opacity)
+        public void GT81_Cover_IsOpaque_WhateverTheOpacity(double _opacity)
         {
             var area = NewArea(PatternKind.Mosaic);
             area.Opacity = _opacity;
@@ -42,7 +42,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Cover_UsesTheFillColorOfThisDraw()
+        public void GT81_Cover_UsesTheFillColorOfThisDraw()
         {
             var area = NewArea(PatternKind.Mosaic, "#112233");
             using var presenter = new MosaicPresenter { Model = area, Frames = BrokenFrame() };
@@ -56,7 +56,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Cover_FillsTheBoundsOnly()
+        public void GT81_Cover_FillsTheBoundsOnly()
         {
             // A presenter smaller than the target: the cover is its rectangle, nothing outside.
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = BrokenFrame() };
@@ -68,7 +68,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AfterAFailure_TheNextGoodFrameDrawsTheMosaicAgain()
+        public void GT82_AfterAFailure_TheNextGoodFrameDrawsTheMosaicAgain()
         {
             var frames = BrokenFrame();
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = frames };
@@ -86,7 +86,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void DeletedArea_ItsPresenterIsDisposed_LastFramesAreTheCover(PatternKind _pattern)
+        public void GT83_DeletedArea_ItsPresenterIsDisposed_LastFramesAreTheCover(PatternKind _pattern)
         {
             // AreaWindow.CloseFromController disposes the presenter: a frame the closing window still renders makes no new
             // image (it would outlive the retire list) and covers the area with its fill color.
@@ -108,7 +108,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DrawFailure_IsLogged()
+        public void GT82_DrawFailure_IsLogged()
         {
             using var log = new StringWriter();
             using (Log.CaptureTo(log))
@@ -123,7 +123,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void FailureOnACanvasHoldingOtherPixels_TheCoverReplacesThem(PatternKind _pattern)
+        public void GT81_FailureOnACanvasHoldingOtherPixels_TheCoverReplacesThem(PatternKind _pattern)
         {
             // The lease's canvas already holds other pixels (red, standing in for whatever the render target had) and the
             // pattern draw fails at its first canvas read: the cover is drawn with BlendMode.Src, so it replaces every pixel
@@ -149,7 +149,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void GoodLease_DrawsThePattern_AndIsDisposedOnce(PatternKind _pattern)
+        public void GT83_GoodLease_DrawsThePattern_AndIsDisposedOnce(PatternKind _pattern)
         {
             var lease = new FakeLease(0, SKColors.Red);
             try
@@ -173,7 +173,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void NoSkiaLease_AvaloniaCoversTheArea(PatternKind _pattern)
+        public void GT83_NoSkiaLease_AvaloniaCoversTheArea(PatternKind _pattern)
         {
             using var presenter = new MosaicPresenter { Model = NewArea(_pattern, "#203040"), Frames = GoodFrame(), LeaseSkia = _ => null };
             using var bitmap = Draw(presenter);
@@ -185,7 +185,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void LeaseWhoseCanvasAlwaysFails_AvaloniaCoversTheArea_AndTheLeaseIsDisposed(PatternKind _pattern)
+        public void GT83_LeaseWhoseCanvasAlwaysFails_AvaloniaCoversTheArea_AndTheLeaseIsDisposed(PatternKind _pattern)
         {
             var lease = new FakeLease(-1, SKColors.Red);
             try
@@ -213,7 +213,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Disposed_CoversWithTheFillColor_WithoutMakingImages()
+        public void GT83_Disposed_CoversWithTheFillColor_WithoutMakingImages()
         {
             // The window is closing: no new pattern image (it would leak past the retire list), but its last frames cover.
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic, "#0A0B0C"), Frames = GoodFrame() };
@@ -227,7 +227,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Disposed_GeneratedPattern_IsCoveredToo()
+        public void GT83_Disposed_GeneratedPattern_IsCoveredToo()
         {
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             presenter.Dispose();
@@ -237,7 +237,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void FillPattern_IsNotAffected()
+        public void GT83_FillPattern_IsNotAffected()
         {
             // The fill pattern never goes through Skia: a missing lease changes nothing.
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Fill, "#336699"), LeaseSkia = _ => throw new InvalidOperationException("not used") };
@@ -246,7 +246,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DefaultLease_IsTheSkiaFeatureOfTheContext()
+        public void GT83_DefaultLease_IsTheSkiaFeatureOfTheContext()
         {
             // Without a replacement the real Skia lease is used: the generated pattern is drawn, not the cover.
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };

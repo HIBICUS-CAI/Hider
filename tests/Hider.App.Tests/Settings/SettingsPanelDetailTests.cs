@@ -40,7 +40,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Panel_FollowsTheDesign()
+        public void GT26_Panel_FollowsTheDesign()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -62,7 +62,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(PatternKind.Fill, "settings.fillSection")]
         [InlineData(PatternKind.Mosaic, "settings.mosaicSection")]
         [InlineData(PatternKind.Generated, "settings.generatedSection")]
-        public void Rebuild_SectionHeaderAndPatternFollowTheArea(PatternKind _pattern, string _headerKey)
+        public void GT120_Rebuild_SectionHeaderAndPatternFollowTheArea(PatternKind _pattern, string _headerKey)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -78,7 +78,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Rebuild_ControlsExistOnlyForTheirPattern()
+        public void GT120_Rebuild_ControlsExistOnlyForTheirPattern()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -120,7 +120,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(PatternKind.Generated, "5", 0.1)]
         [InlineData(PatternKind.Mosaic, "0", 0.0)]
         [InlineData(PatternKind.Mosaic, "35", 0.35)]
-        public void Opacity_RangeDependsOnThePattern(PatternKind _pattern, string _typed, double _stored)
+        public void GT121_Opacity_RangeDependsOnThePattern(PatternKind _pattern, string _typed, double _stored)
         {
             // Spec §4.5: alpha for fill / generated (10..100 %), fineness for mosaic (0..100 %).
             var (f, area) = Area(_pattern);
@@ -138,7 +138,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Opacity_ShowsTheEffectiveOpacity()
+        public void GT121_Opacity_ShowsTheEffectiveOpacity()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -152,7 +152,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void SlidingAValue_SavesLater_TypingSavesNow()
+        public void GT31_SlidingAValue_SavesLater_TypingSavesNow()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -176,7 +176,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(CommonParams.Levels, "16", 16.0)]
         [InlineData(CommonParams.IntervalMs, "250", 250.0)]
         [InlineData(CommonParams.StripPx, "48", 48.0)]
-        public void MosaicCommonRows_WriteTheirOwnValue(string _key, string _typed, double _value)
+        public void GT119_MosaicCommonRows_WriteTheirOwnValue(string _key, string _typed, double _value)
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -196,7 +196,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void MosaicCommonRows_ShowTheStoredValues_AndTheIntervalBoxIsWider()
+        public void GT119_MosaicCommonRows_ShowTheStoredValues_AndTheIntervalBoxIsWider()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -219,7 +219,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void MosaicCommonRows_RoundIntegerValues()
+        public void GT119_MosaicCommonRows_RoundIntegerValues()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -236,7 +236,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void MethodRows_ShowStoredValues_ElseTheDefault(PatternKind _pattern)
+        public void GT122_MethodRows_ShowStoredValues_ElseTheDefault(PatternKind _pattern)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -262,7 +262,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void MethodRows_NothingStored_ShowEveryDefault(PatternKind _pattern)
+        public void GT122_MethodRows_NothingStored_ShowEveryDefault(PatternKind _pattern)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -280,7 +280,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void MethodRows_WriteToTheCurrentMethodsValues(PatternKind _pattern)
+        public void GT122_MethodRows_WriteToTheCurrentMethodsValues(PatternKind _pattern)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -304,7 +304,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(PatternKind.Mosaic, AreaDefaults.GeneratedMethod)] // a method of the other kind
         [InlineData(PatternKind.Generated, "no-such-method")]
         [InlineData(PatternKind.Generated, AreaDefaults.MosaicMethod)]
-        public void UnknownMethod_ShowsTheDefaultMethod(PatternKind _pattern, string _stored)
+        public void GT86_UnknownMethod_ShowsTheDefaultMethod(PatternKind _pattern, string _stored)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -332,7 +332,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void MethodBox_ListsThePlatformsMethods_StretchedAndNamed(PatternKind _pattern)
+        public void GT123_MethodBox_ListsThePlatformsMethods_StretchedAndNamed(PatternKind _pattern)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -351,7 +351,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void MethodBox_SameMethodOrNoSelection_ChangesNothing()
+        public void GT123_MethodBox_SameMethodOrNoSelection_ChangesNothing()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -371,7 +371,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void MethodBox_OtherMethod_SavesAndRebuildsForIt()
+        public void GT123_MethodBox_OtherMethod_SavesAndRebuildsForIt()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)
@@ -394,7 +394,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(PatternKind.Fill)]
         [InlineData(PatternKind.Generated)]
-        public void ColorButton_ShowsTheColor_SwatchHexAndName(PatternKind _pattern)
+        public void GT124_ColorButton_ShowsTheColor_SwatchHexAndName(PatternKind _pattern)
         {
             var (f, area) = Area(_pattern);
             using (f)
@@ -424,7 +424,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void ColorPicked_Fill_AppliesAndSavesLater_AndHighlightsAMatchingPreset()
+        public void GT124_ColorPicked_Fill_AppliesAndSavesLater_AndHighlightsAMatchingPreset()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -447,7 +447,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void ColorPicked_SameHexOnlyAlphaDiffers_ChangesNothing()
+        public void GT124_ColorPicked_SameHexOnlyAlphaDiffers_ChangesNothing()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -466,7 +466,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void ColorPicked_Generated_SetsTheBaseColor()
+        public void GT124_ColorPicked_Generated_SetsTheBaseColor()
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -483,7 +483,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Presets_OnlyTheCurrentColorIsHighlighted_IgnoringCase()
+        public void GT33_Presets_OnlyTheCurrentColorIsHighlighted_IgnoringCase()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -503,7 +503,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Presets_NoneMatches_NoneHighlighted()
+        public void GT33_Presets_NoneMatches_NoneHighlighted()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -517,7 +517,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Presets_AreSwatchButtonsNamedByColor()
+        public void GT33_Presets_AreSwatchButtonsNamedByColor()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -537,7 +537,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Preset_Click_RebuildsWithTheNewHighlight()
+        public void GT33_Preset_Click_RebuildsWithTheNewHighlight()
         {
             var (f, area) = Area(PatternKind.Fill);
             using (f)
@@ -561,7 +561,7 @@ namespace Hider.App.Tests.Settings
         [InlineData("65535", 65535)]
         [InlineData("99999999999", 65535)]
         [InlineData("０４２", 42)]
-        public void Seed_Enter_StoresTheClampedSeed(string _text, int _seed)
+        public void GT125_Seed_Enter_StoresTheClampedSeed(string _text, int _seed)
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -584,7 +584,7 @@ namespace Hider.App.Tests.Settings
         [InlineData("")]
         [InlineData("1.5")]
         [InlineData("1234")] // the current seed
-        public void Seed_NotANumberOrUnchanged_RestoresTheTextWithoutSaving(string _text)
+        public void GT125_Seed_NotANumberOrUnchanged_RestoresTheTextWithoutSaving(string _text)
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -604,7 +604,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Seed_EnterIsHandled_OtherKeysAreNot()
+        public void GT125_Seed_EnterIsHandled_OtherKeysAreNot()
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -625,7 +625,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Seed_LeavingTheBox_Commits()
+        public void GT125_Seed_LeavingTheBox_Commits()
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -645,7 +645,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Seed_BoxShowsTheStoredSeed_AndIsNamed()
+        public void GT125_Seed_BoxShowsTheStoredSeed_AndIsNamed()
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -663,7 +663,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Reseed_PicksANewSeedInRange_ShowsAndSavesIt()
+        public void GT125_Reseed_PicksANewSeedInRange_ShowsAndSavesIt()
         {
             var (f, area) = Area(PatternKind.Generated);
             using (f)
@@ -687,7 +687,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Rebuild_ReplacesTheRows_AndTheLabels()
+        public void GT120_Rebuild_ReplacesTheRows_AndTheLabels()
         {
             var (f, area) = Area(PatternKind.Mosaic);
             using (f)

@@ -18,7 +18,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public void Window_IsASmallFramelessTopmostDialog()
+        public void GT88_Window_IsASmallFramelessTopmostDialog()
         {
             var dialog = new ConfirmDeleteWindow();
             Assert.Equal(400, dialog.Width);
@@ -32,7 +32,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public void Texts_AreTheJapaneseStrings()
+        public void GT18_Texts_AreTheJapaneseStrings()
         {
             var dialog = new ConfirmDeleteWindow();
             Assert.Equal("Hider", dialog.TitleText.Text);
@@ -50,7 +50,7 @@ namespace Hider.App.Tests.Dialogs
         [InlineData(0, "0 個のエリアをすべて削除します。")]
         [InlineData(1, "1 個のエリアをすべて削除します。")]
         [InlineData(12, "12 個のエリアをすべて削除します。")]
-        public void SetCount_PutsTheNumberInTheQuestion(int _count, string _text)
+        public void GT18_SetCount_PutsTheNumberInTheQuestion(int _count, string _text)
         {
             var dialog = new ConfirmDeleteWindow();
             dialog.SetCount(_count);
@@ -60,7 +60,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task Delete_AnswersTrue_AndCloses()
+        public async Task GT18_Delete_AnswersTrue_AndCloses()
         {
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
@@ -72,7 +72,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task Cancel_AnswersFalse_AndCloses()
+        public async Task GT18_Cancel_AnswersFalse_AndCloses()
         {
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
@@ -82,7 +82,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task CloseButton_AnswersFalse_AndCloses()
+        public async Task GT88_CloseButton_AnswersFalse_AndCloses()
         {
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
@@ -92,7 +92,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task ClosedAnotherWay_AnswersFalse()
+        public async Task GT88_ClosedAnotherWay_AnswersFalse()
         {
             // Alt+F4, or the tray closing it when the areas are gone.
             var dialog = new ConfirmDeleteWindow();
@@ -102,7 +102,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task Escape_AnswersFalse_AndCloses()
+        public async Task GT88_Escape_AnswersFalse_AndCloses()
         {
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
@@ -115,7 +115,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public async Task OnlyTheFirstAnswerCounts()
+        public async Task GT88_OnlyTheFirstAnswerCounts()
         {
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
@@ -125,7 +125,7 @@ namespace Hider.App.Tests.Dialogs
         }
 
         [AvaloniaFact]
-        public void AskAsync_ShowsAndActivatesTheDialog()
+        public void GT88_AskAsync_ShowsAndActivatesTheDialog()
         {
             var dialog = new ConfirmDeleteWindow();
             _ = dialog.AskAsync();

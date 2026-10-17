@@ -51,7 +51,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void New_LabelSliderBoxAndUnit_InFourColumns()
+        public void GT26_New_LabelSliderBoxAndUnit_InFourColumns()
         {
             var row = new ParamRow(px);
 
@@ -79,7 +79,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void New_WithBadgeAndWidth_ShowsTheBadgeAfterTheLabel()
+        public void GT34_New_WithBadgeAndWidth_ShowsTheBadgeAfterTheLabel()
         {
             var row = new ParamRow(px, "Linux", 64);
 
@@ -94,7 +94,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void New_SliderAndBox_AreNamedAfterTheLabel()
+        public void GT79_New_SliderAndBox_AreNamedAfterTheLabel()
         {
             var row = new ParamRow(percent);
 
@@ -109,7 +109,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(1000, 256, "256")]   // above Max
         [InlineData(100, 100, "100")]    // beyond the slider, inside the box range
         [InlineData(double.NaN, 12, "12")] // not a number: the default
-        public void SetValue_ClampsAndShows_WithoutRaisingValueChanged(double _value, double _stored, string _text)
+        public void GT29_SetValue_ClampsAndShows_WithoutRaisingValueChanged(double _value, double _stored, string _text)
         {
             var (row, changes) = Row(px, 20);
 
@@ -122,7 +122,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void SetValue_Percent_ShowsWholePercent()
+        public void GT116_SetValue_Percent_ShowsWholePercent()
         {
             var (row, _) = Row(percent, 0.456);
 
@@ -131,7 +131,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Slider_Move_RaisesRoundedValue_NotTyped()
+        public void GT27_Slider_Move_RaisesRoundedValue_NotTyped()
         {
             var (row, changes) = Row(px, 12);
 
@@ -143,7 +143,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Slider_MoveThatRoundsToTheSameValue_RaisesNothing()
+        public void GT27_Slider_MoveThatRoundsToTheSameValue_RaisesNothing()
         {
             var (row, changes) = Row(px, 33);
 
@@ -154,7 +154,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Slider_OtherPropertyChanges_AreIgnored()
+        public void GT27_Slider_OtherPropertyChanges_AreIgnored()
         {
             var (row, changes) = Row(px, 12);
 
@@ -173,7 +173,7 @@ namespace Hider.App.Tests.Settings
         [InlineData("1e2", 100)]
         [InlineData("999", 256)]   // clamped to Max
         [InlineData("-3", 2)]      // clamped to Min
-        public void CommitInput_RaisesTypedValue(string _text, double _value)
+        public void GT117_CommitInput_RaisesTypedValue(string _text, double _value)
         {
             var (row, changes) = Row(px, 12);
 
@@ -189,7 +189,7 @@ namespace Hider.App.Tests.Settings
         [InlineData("abc")]
         [InlineData("1,5")]
         [InlineData(null)]
-        public void CommitInput_NotANumber_RestoresTheText(string? _text)
+        public void GT117_CommitInput_NotANumber_RestoresTheText(string? _text)
         {
             var (row, changes) = Row(px, 12);
 
@@ -201,7 +201,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void CommitInput_SameValue_RaisesNothing_ButNormalisesTheText()
+        public void GT117_CommitInput_SameValue_RaisesNothing_ButNormalisesTheText()
         {
             var (row, changes) = Row(px, 12);
 
@@ -212,7 +212,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void CommitInput_Percent_StoresAFraction()
+        public void GT116_CommitInput_Percent_StoresAFraction()
         {
             var (row, changes) = Row(percent, 1);
 
@@ -224,7 +224,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void EnterInTheBox_Commits_AndIsHandled()
+        public void GT117_EnterInTheBox_Commits_AndIsHandled()
         {
             var (row, changes) = Row(px, 12);
             row.Input.Text = "30";
@@ -237,7 +237,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void OtherKeysInTheBox_DoNotCommit()
+        public void GT117_OtherKeysInTheBox_DoNotCommit()
         {
             var (row, changes) = Row(px, 12);
             row.Input.Text = "30";
@@ -251,7 +251,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void LeavingTheBox_Commits()
+        public void GT117_LeavingTheBox_Commits()
         {
             var (row, changes) = Row(px, 12);
             var other = new Button { Content = "x" };
@@ -276,7 +276,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(Avalonia.Input.Key.Right, KeyModifiers.Shift, 1, true)]
         [InlineData(Avalonia.Input.Key.Left, KeyModifiers.Shift, -1, true)]
         [InlineData(Avalonia.Input.Key.PageUp, KeyModifiers.Shift, 1, true)]
-        public void SliderKeys_StepLikeStep_AndAreHandled(Key _key, KeyModifiers _modifiers, int _direction, bool _large)
+        public void GT118_SliderKeys_StepLikeStep_AndAreHandled(Key _key, KeyModifiers _modifiers, int _direction, bool _large)
         {
             var (row, changes) = Row(px, 30);
             var (expected, _) = Row(px, 30);
@@ -294,7 +294,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(Avalonia.Input.Key.Home, 2.0)]
         [InlineData(Avalonia.Input.Key.End, 64.0)]
-        public void SliderKeys_HomeAndEnd_AreLeftToTheSlider_WhichJumpsToItsEnds(Key _key, double _value)
+        public void GT118_SliderKeys_HomeAndEnd_AreLeftToTheSlider_WhichJumpsToItsEnds(Key _key, double _value)
         {
             var (row, changes) = Row(px, 30);
 
@@ -307,7 +307,7 @@ namespace Hider.App.Tests.Settings
         [InlineData(Avalonia.Input.Key.A)]
         [InlineData(Avalonia.Input.Key.Enter)]
         [InlineData(Avalonia.Input.Key.Tab)]
-        public void SliderKeys_OthersMoveNothing(Key _key)
+        public void GT118_SliderKeys_OthersMoveNothing(Key _key)
         {
             var (row, changes) = Row(px, 30);
             var key = Key(row.Slider, _key);
@@ -319,7 +319,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Step_MovesOnePercentOfTheTrack_OrTenPercentWhenLarge()
+        public void GT118_Step_MovesOnePercentOfTheTrack_OrTenPercentWhenLarge()
         {
             var (row, changes) = Row(new ParamSpec("x", "param.block", ParamUnit.Px, 0, 1000, 0, 1000, 500), 500);
 
@@ -336,7 +336,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Step_LessThanADisplayedUnit_MovesOneUnit()
+        public void GT118_Step_LessThanADisplayedUnit_MovesOneUnit()
         {
             var (row, _) = Row(small, 4);
 
@@ -349,7 +349,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Step_Percent_MovesOnePercentAtLeast()
+        public void GT116_Step_Percent_MovesOnePercentAtLeast()
         {
             var (row, _) = Row(percent, 0.5);
 
@@ -360,7 +360,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Step_AtTheTracksEnds_StaysThere_AndRaisesNothing()
+        public void GT118_Step_AtTheTracksEnds_StaysThere_AndRaisesNothing()
         {
             var (row, changes) = Row(px, 64);
 
@@ -378,7 +378,7 @@ namespace Hider.App.Tests.Settings
         [AvaloniaTheory]
         [InlineData(5)]    // typed below the slider
         [InlineData(80)]   // typed above the slider
-        public void Step_TypedValueBeyondTheTrack_IsKept(double _value)
+        public void GT28_Step_TypedValueBeyondTheTrack_IsKept(double _value)
         {
             // The slider could not have produced it either: keys do not pull it back.
             var (row, changes) = Row(wide, 20);
@@ -393,7 +393,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Step_AtTheTracksEdgeValue_StillMovesInwards()
+        public void GT118_Step_AtTheTracksEdgeValue_StillMovesInwards()
         {
             var (row, _) = Row(wide, 10);
 
@@ -407,7 +407,7 @@ namespace Hider.App.Tests.Settings
         }
 
         [AvaloniaFact]
-        public void Changes_WithoutSubscribers_DoNotThrow()
+        public void GT27_Changes_WithoutSubscribers_DoNotThrow()
         {
             var row = new ParamRow(px);
             row.SetValue(12);

@@ -15,7 +15,7 @@ namespace Hider.App.Tests.Platform.Windows
         public static bool IsWindows => OperatingSystem.IsWindows();
 
         [Fact]
-        public void Rect_MatchesRECT()
+        public void GT115_Rect_MatchesRECT()
         {
             // typedef struct tagRECT { LONG left, top, right, bottom; } RECT;
             Assert.Equal(16, Marshal.SizeOf<Win32Native.Rect>());
@@ -27,7 +27,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void BitmapInfoHeader_MatchesBITMAPINFOHEADER()
+        public void GT115_BitmapInfoHeader_MatchesBITMAPINFOHEADER()
         {
             // DWORD biSize; LONG biWidth, biHeight; WORD biPlanes, biBitCount; DWORD biCompression, biSizeImage;
             // LONG biXPelsPerMeter, biYPelsPerMeter; DWORD biClrUsed, biClrImportant;  (40 bytes)
@@ -54,7 +54,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void Constants_MatchTheWindowsHeaders()
+        public void GT115_Constants_MatchTheWindowsHeaders()
         {
             Assert.Equal(9, Win32Native.DWMWA_EXTENDED_FRAME_BOUNDS);   // dwmapi.h
             Assert.Equal(14, Win32Native.DWMWA_CLOAKED);
@@ -68,7 +68,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
-        public void Calls_OnNoWindow_FailWithoutThrowing()
+        public void GT115_Calls_OnNoWindow_FailWithoutThrowing()
         {
             // The declarations bind (LibraryImport entry points exist) and a bogus handle fails cleanly. (The pointer taking
             // ones, GetClassNameW / DwmGetWindowAttribute / CreateDIBSection, run through Win32WindowSource in Win32CaptureTests.)
@@ -83,7 +83,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
-        public void Calls_ScreenAndMemoryDc_Work()
+        public void GT115_Calls_ScreenAndMemoryDc_Work()
         {
             nint screen = Win32Native.GetDC(0);
             Assert.NotEqual(0, screen);
@@ -95,7 +95,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
-        public void Calls_MonitorAndDpi_AnswerForAnyRect()
+        public void GT115_Calls_MonitorAndDpi_AnswerForAnyRect()
         {
             // MONITOR_DEFAULTTONEAREST always finds a monitor, even far off every screen.
             foreach (var rect in new[] { new Win32Native.Rect { Right = 10, Bottom = 10 }, new Win32Native.Rect { Left = -90000, Top = -90000, Right = -89990, Bottom = -89990 } })
@@ -109,7 +109,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
-        public void Cursor_PositionIsKnownInADesktopSession()
+        public void GT115_Cursor_PositionIsKnownInADesktopSession()
         {
             Assert.True(Win32Cursor.TryGetPosition(out int x, out int y));
             var rect = new Win32Native.Rect { Left = x, Top = y, Right = x + 1, Bottom = y + 1 };

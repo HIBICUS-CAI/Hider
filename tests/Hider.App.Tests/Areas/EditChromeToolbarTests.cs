@@ -19,7 +19,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Chrome_HasEightHandles_EachTaggedWithItsKind()
+        public void GT05_Chrome_HasEightHandles_EachTaggedWithItsKind()
         {
             var chrome = new EditChrome();
             var expected = new (Border, ResizeHandle)[]
@@ -39,7 +39,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Chrome_HandlesHaveTheirResizeCursors()
+        public void GT05_Chrome_HandlesHaveTheirResizeCursors()
         {
             var chrome = new EditChrome();
             var expected = new Dictionary<ResizeHandle, Avalonia.Input.StandardCursorType>
@@ -63,7 +63,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Chrome_OutlinesAndFrame_SurroundTheArea_WithoutTakingClicks()
+        public void GT05_Chrome_OutlinesAndFrame_SurroundTheArea_WithoutTakingClicks()
         {
             var chrome = new EditChrome();
             var area = new Rect(20, 60, 200, 100);
@@ -90,7 +90,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(ResizeHandle.BottomLeft, 20, 160)]
         [InlineData(ResizeHandle.Bottom, 120, 160)]
         [InlineData(ResizeHandle.BottomRight, 220, 160)]
-        public void Chrome_HandlesAreCentredOnCornersAndEdgeMiddles(ResizeHandle _kind, double _cx, double _cy)
+        public void GT05_Chrome_HandlesAreCentredOnCornersAndEdgeMiddles(ResizeHandle _kind, double _cx, double _cy)
         {
             // The handle sizes come from the area window's styles.
             using var f = new AreaHarness();
@@ -107,7 +107,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(false, 8, 60 - 8 - 36)]
         [InlineData(false, 12, 60 - 12 - 36)]
         [InlineData(true, 8, 60 + 4)]
-        public void Chrome_ToolbarAboveTheArea_OrInsideItsTop(bool _inside, double _gap, double _top)
+        public void GT12_Chrome_ToolbarAboveTheArea_OrInsideItsTop(bool _inside, double _gap, double _top)
         {
             var chrome = new EditChrome();
             chrome.Arrange(new Rect(20, 60, 200, 100), _inside, _gap);
@@ -116,7 +116,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Chrome_EmptyArea_GivesEmptyInnerOutline()
+        public void GT05_Chrome_EmptyArea_GivesEmptyInnerOutline()
         {
             var chrome = new EditChrome();
             chrome.Arrange(new Rect(5, 5, 0, 0), false, 8);
@@ -126,7 +126,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public void Toolbar_Sizes()
+        public void GT57_Toolbar_Sizes()
         {
             Assert.Equal(436, EditToolbar.NormalWidth);
             Assert.Equal(540, EditToolbar.WidthWithWarning);
@@ -134,7 +134,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_StartsAtTheNormalSize_WithItsLabels()
+        public void GT57_Toolbar_StartsAtTheNormalSize_WithItsLabels()
         {
             var toolbar = new EditToolbar();
             Assert.Equal(EditToolbar.NormalWidth, toolbar.Width);
@@ -148,7 +148,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_IconButtons_HaveTooltipsAndAccessibleNames()
+        public void GT79_Toolbar_IconButtons_HaveTooltipsAndAccessibleNames()
         {
             var toolbar = new EditToolbar();
             foreach (var (button, name) in new (Button, string)[]
@@ -164,7 +164,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_PatternMenu_IsTheButtonsFlyoutWithTheThreePatterns()
+        public void GT77_Toolbar_PatternMenu_IsTheButtonsFlyoutWithTheThreePatterns()
         {
             var toolbar = new EditToolbar();
             Assert.Same(toolbar.PatternButton.Flyout, toolbar.PatternMenu);
@@ -172,7 +172,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_ButtonsAndItems_RaiseTheirEvents()
+        public void GT77_Toolbar_ButtonsAndItems_RaiseTheirEvents()
         {
             var toolbar = new EditToolbar();
             var log = new List<string>();
@@ -192,7 +192,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_ButtonsAndItems_WithoutListeners_DoNothing()
+        public void GT77_Toolbar_ButtonsAndItems_WithoutListeners_DoNothing()
         {
             var toolbar = new EditToolbar();
             foreach (var control in new Control[] { toolbar.FillItem, toolbar.MosaicItem, toolbar.GeneratedItem, toolbar.SettingsButton, toolbar.RefreshButton, toolbar.DeleteButton, toolbar.DoneButton })
@@ -207,7 +207,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Mosaic, "モザイク", true)]
         [InlineData(PatternKind.Generated, "パターン", false)]
         [InlineData((PatternKind)99, "パターン", false)] // anything else reads as a generated pattern
-        public void Toolbar_Update_NamesThePattern_AndShowsRefreshOnlyForMosaic(PatternKind _pattern, string _label, bool _refresh)
+        public void GT35_Toolbar_Update_NamesThePattern_AndShowsRefreshOnlyForMosaic(PatternKind _pattern, string _label, bool _refresh)
         {
             var toolbar = new EditToolbar();
             toolbar.Update(_pattern, new PhysicalRect(1, 2, 640, 360), false);
@@ -219,7 +219,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_Update_CaptureFailed_ShowsTheWarningAndWidens_ThenNarrowsAgain()
+        public void GT24_Toolbar_Update_CaptureFailed_ShowsTheWarningAndWidens_ThenNarrowsAgain()
         {
             var toolbar = new EditToolbar();
             toolbar.Update(PatternKind.Generated, new PhysicalRect(0, 0, 24, 24), true);
@@ -232,7 +232,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Toolbar_Tips_AnyOpenAndCloseAll()
+        public void GT79_Toolbar_Tips_AnyOpenAndCloseAll()
         {
             var window = new Window { Content = new EditToolbar() };
             var toolbar = (EditToolbar)window.Content!;

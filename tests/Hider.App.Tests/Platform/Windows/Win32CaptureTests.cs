@@ -130,7 +130,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void UnderlayCapture_IsLiveAndExposureFree()
+        public void GT111_UnderlayCapture_IsLiveAndExposureFree()
         {
             // NFR-01 / NFR-02: read from DWM, nothing is hidden or excluded while capturing.
             using var capture = new Win32UnderlayCapture();
@@ -140,7 +140,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void UnderlayCapture_Cancelled_ThrowsBeforeCapturing()
+        public void GT111_UnderlayCapture_Cancelled_ThrowsBeforeCapturing()
         {
             using var capture = new Win32UnderlayCapture();
             using var cancelled = new CancellationTokenSource();
@@ -155,7 +155,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void UnderlayCapture_Dispose_IsIdempotent()
+        public void GT111_UnderlayCapture_Dispose_IsIdempotent()
         {
             var capture = new Win32UnderlayCapture();
 
@@ -166,7 +166,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_New_HasEnumeratedNothing()
+        public void GT113_WindowSource_New_HasEnumeratedNothing()
         {
             var source = new Win32WindowSource();
 
@@ -175,7 +175,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Trim_WithNothingCached_DoesNothing()
+        public void GT113_WindowSource_Trim_WithNothingCached_DoesNothing()
         {
             var source = new Win32WindowSource();
 
@@ -187,7 +187,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_ReturnsWhatTheCallGave_OnItsOwnTask()
+        public void GT112_WindowSource_Capture_ReturnsWhatTheCallGave_OnItsOwnTask()
         {
             using var printer = new Printer();
             int caller = Environment.CurrentManagedThreadId;
@@ -208,7 +208,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_HungWindow_TimesOutAfterTheTimeout()
+        public void GT112_WindowSource_Capture_HungWindow_TimesOutAfterTheTimeout()
         {
             using var printer = new Printer();
             printer.Hold(1);
@@ -225,7 +225,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_WhileTheEarlierCallHangs_TimesOutAtOnce_WithoutCallingAgain()
+        public void GT112_WindowSource_Capture_WhileTheEarlierCallHangs_TimesOutAtOnce_WithoutCallingAgain()
         {
             using var printer = new Printer();
             printer.Hold(1);
@@ -245,7 +245,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_OtherWindow_IsCapturedWhileOneHangs()
+        public void GT112_WindowSource_Capture_OtherWindow_IsCapturedWhileOneHangs()
         {
             using var printer = new Printer();
             printer.Hold(1);
@@ -260,7 +260,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public async Task WindowSource_Trim_KeepsAHungCall_UntilItReturns()
+        public async Task GT112_WindowSource_Trim_KeepsAHungCall_UntilItReturns()
         {
             using var printer = new Printer();
             printer.Hold(1);
@@ -283,7 +283,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public async Task WindowSource_Capture_AfterTheHungCallReturned_CallsAgain()
+        public async Task GT112_WindowSource_Capture_AfterTheHungCallReturned_CallsAgain()
         {
             using var printer = new Printer();
             printer.Hold(1);
@@ -301,7 +301,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_CallThatThrows_IsUnavailable_AndTheNextCallRuns()
+        public void GT112_WindowSource_Capture_CallThatThrows_IsUnavailable_AndTheNextCallRuns()
         {
             // Decided behaviour: the window fails like one PrintWindow cannot read (the composer ends the capture with that
             // failure) instead of an AggregateException out of the whole capture, which skipped the caches' trimming.
@@ -320,7 +320,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WindowSource_Capture_CallThatThrows_ThroughTheComposer_FailsTheCapture()
+        public void GT112_WindowSource_Capture_CallThatThrows_ThroughTheComposer_FailsTheCapture()
         {
             using var printer = new Printer { Throw = new InvalidOperationException("boom") };
             var source = new Win32WindowSource(printer.Print);
@@ -351,7 +351,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.EnumWindows, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_Enumerate_ListsVisibleWindows()
+        public void GT113_WindowSource_Enumerate_ListsVisibleWindows()
         {
             var source = new Win32WindowSource();
 
@@ -370,7 +370,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.EnumWindows, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_Enumerate_IsInZOrder_TopmostFirst()
+        public void GT113_WindowSource_Enumerate_IsInZOrder_TopmostFirst()
         {
             // HWND_BOTTOM is always allowed (bringing a window up may be refused to a background process).
             const nint bottom = 1;
@@ -390,7 +390,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_Capture_EmptyWindow_IsUnavailable()
+        public void GT113_WindowSource_Capture_EmptyWindow_IsUnavailable()
         {
             // CreateDIBSection refuses a 0 x 0 bitmap.
             var source = new Win32WindowSource();
@@ -402,7 +402,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_Capture_GoneWindow_IsBlack_AndNotCached()
+        public void GT113_WindowSource_Capture_GoneWindow_IsBlack_AndNotCached()
         {
             var source = new Win32WindowSource();
 
@@ -414,7 +414,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_OwnWindow_IsListed_AndCopiedTopDownInBgra_ThenForgotten()
+        public void GT113_WindowSource_OwnWindow_IsListed_AndCopiedTopDownInBgra_ThenForgotten()
         {
             using var own = new TestWindow(40, 60);
             var source = new Win32WindowSource();
@@ -465,7 +465,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public void WindowSource_Capture_RealWindow_CopiesItsBitmap_AndTrimForgetsIt()
+        public void GT113_WindowSource_Capture_RealWindow_CopiesItsBitmap_AndTrimForgetsIt()
         {
             var source = new Win32WindowSource();
             var window = source.EnumerateTopDown().FirstOrDefault(_w => _w.WindowRect.Width is > 0 and < 4096 && _w.WindowRect.Height is > 0 and < 4096);
@@ -491,7 +491,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public async Task UnderlayCapture_ComposesTheDesktopCorner_AndKeepsOneBufferPerLiveArea()
+        public async Task GT111_UnderlayCapture_ComposesTheDesktopCorner_AndKeepsOneBufferPerLiveArea()
         {
             using var capture = new Win32UnderlayCapture();
             var rect = new PhysicalRect(0, 0, 64, 32);
@@ -513,7 +513,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public async Task UnderlayCapture_OwnWindow_IsComposedUnderAnArea()
+        public async Task GT111_UnderlayCapture_OwnWindow_IsComposedUnderAnArea()
         {
             // The whole Windows capture on a window the test owns: the area over its middle gets red over blue, opaque.
             using var own = new TestWindow(200, 150, true); // topmost: no other window of the runner covers it
@@ -533,7 +533,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact(Skip = OsOnly.PrintWindow, SkipUnless = nameof(IsWindows))]
-        public async Task UnderlayCapture_WithoutExcludedWindows_UsesOneSharedBuffer()
+        public async Task GT111_UnderlayCapture_WithoutExcludedWindows_UsesOneSharedBuffer()
         {
             using var capture = new Win32UnderlayCapture();
 

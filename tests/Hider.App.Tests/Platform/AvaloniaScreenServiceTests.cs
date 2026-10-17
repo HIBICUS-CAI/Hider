@@ -18,7 +18,7 @@ namespace Hider.App.Tests.Platform
         private static PhysicalRect Physical(PixelRect _rect) => new(_rect.X, _rect.Y, _rect.Width, _rect.Height);
 
         [AvaloniaFact]
-        public void Screens_ConvertsEveryScreenToPhysicalInfo_InOrder()
+        public void GT89_Screens_ConvertsEveryScreenToPhysicalInfo_InOrder()
         {
             var window = new Window();
             var service = new AvaloniaScreenService(() => window.Screens);
@@ -37,7 +37,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Screens_WithoutATopLevel_IsEmpty()
+        public void GT89_Screens_WithoutATopLevel_IsEmpty()
         {
             var service = new AvaloniaScreenService(() => null);
 
@@ -45,7 +45,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Screens_AsksTheSourceOnEveryRead()
+        public void GT89_Screens_AsksTheSourceOnEveryRead()
         {
             // A top level created later (or a monitor plugged in) shows up: nothing is cached.
             var window = new Window();
@@ -65,7 +65,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void CursorScreen_PointerOnAScreen_IsThatScreensBounds()
+        public void GT90_CursorScreen_PointerOnAScreen_IsThatScreensBounds()
         {
             var window = new Window();
             var all = window.Screens.All;
@@ -83,7 +83,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void CursorScreen_PointerOffEveryScreen_IsNull()
+        public void GT90_CursorScreen_PointerOffEveryScreen_IsNull()
         {
             var window = new Window();
             var service = new AvaloniaScreenService(() => window.Screens, () => new PixelPoint(-100000, -100000));
@@ -93,7 +93,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void CursorScreen_PointerNotKnownNow_IsNull_WithoutAskingTheScreens()
+        public void GT90_CursorScreen_PointerNotKnownNow_IsNull_WithoutAskingTheScreens()
         {
             // GetCursorPos can fail (a locked session): then the primary screen is used, as without a pointer.
             var window = new Window();
@@ -117,7 +117,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void CursorScreen_NoPointerSource_IsNull_WithoutAskingTheScreens()
+        public void GT90_CursorScreen_NoPointerSource_IsNull_WithoutAskingTheScreens()
         {
             // Linux: XWayland only knows the pointer over X11 windows, so none is asked and new areas go to the primary screen.
             var window = new Window();
@@ -134,7 +134,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void CursorScreen_PointerButNoTopLevel_IsNull()
+        public void GT90_CursorScreen_PointerButNoTopLevel_IsNull()
         {
             var service = new AvaloniaScreenService(() => null, () => new PixelPoint(10, 10));
 
@@ -142,7 +142,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact(Skip = OsOnly.NotWindowsCursor, SkipWhen = nameof(IsWindows))]
-        public void CursorScreen_NotWindows_AsksNoPointer()
+        public void GT90_CursorScreen_NotWindows_AsksNoPointer()
         {
             // The public constructor gives no pointer source off Windows.
             var window = new Window();
@@ -160,7 +160,7 @@ namespace Hider.App.Tests.Platform
 
         [AvaloniaFact(Skip = OsOnly.Cursor, SkipUnless = nameof(IsWindows))]
         [SupportedOSPlatform("windows")]
-        public void CursorScreen_Windows_IsTheBoundsOfTheScreenAtTheCursor()
+        public void GT90_CursorScreen_Windows_IsTheBoundsOfTheScreenAtTheCursor()
         {
             // The public constructor asks GetCursorPos (a desktop session always has a cursor; it does not move here).
             var window = new Window();
@@ -175,7 +175,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact(Skip = OsOnly.Cursor, SkipUnless = nameof(IsWindows))]
-        public void CursorScreen_Windows_WithoutATopLevel_IsNull()
+        public void GT90_CursorScreen_Windows_WithoutATopLevel_IsNull()
         {
             var service = new AvaloniaScreenService(() => null);
 

@@ -8,7 +8,7 @@ namespace Hider.App.Tests.Platform
     public sealed class PrivateBusTests
     {
         [DbusFact]
-        public void Start_ListensOnItsOwnSocket_AndDisposeRemovesTheDirectory()
+        public void GT105_Start_ListensOnItsOwnSocket_AndDisposeRemovesTheDirectory()
         {
             string dir = PrivateBus.NewDirectory();
             var bus = PrivateBus.Start(dir);
@@ -27,7 +27,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public void Start_DaemonCannotListen_ThrowsWithItsStandardError_AndRemovesTheDirectory()
+        public void GT105_Start_DaemonCannotListen_ThrowsWithItsStandardError_AndRemovesTheDirectory()
         {
             // A unix socket path is limited to 107 bytes: dbus-daemon exits at once, printing no address.
             string dir = PrivateBus.NewDirectory() + new string('x', 120);

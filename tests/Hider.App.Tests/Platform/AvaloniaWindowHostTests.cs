@@ -67,7 +67,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Handle_IsTheWindowsPlatformHandle()
+        public void GT91_Handle_IsTheWindowsPlatformHandle()
         {
             // Headless windows have a stub handle of 0 (Win32 / X11 give the HWND / window id).
             var window = new Window();
@@ -79,7 +79,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Handle_OfAClosedWindow_IsZero()
+        public void GT91_Handle_OfAClosedWindow_IsZero()
         {
             // A closed window has no platform window left (TryGetPlatformHandle is null): no HWND / window id to pass on.
             var window = new Window();
@@ -94,7 +94,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Scale_BeforePlace_IsTheScaleOfTheScreenAtTheWindowPosition()
+        public void GT92_Scale_BeforePlace_IsTheScaleOfTheScreenAtTheWindowPosition()
         {
             var window = new Window { Position = new PixelPoint(10, 10) };
             using var host = new AvaloniaWindowHost(window);
@@ -106,7 +106,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Scale_BeforePlace_OffEveryScreen_IsThePrimaryScale()
+        public void GT92_Scale_BeforePlace_OffEveryScreen_IsThePrimaryScale()
         {
             var window = new Window { Position = new PixelPoint(-100000, -100000) };
             using var host = new AvaloniaWindowHost(window);
@@ -117,7 +117,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void ScaleFor_Default_IsTheScreenAtTheTopLeftCorner_OrThePrimary()
+        public void GT92_ScaleFor_Default_IsTheScreenAtTheTopLeftCorner_OrThePrimary()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -128,7 +128,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Scale_AfterPlace_IsTheScaleItWasPlacedWith()
+        public void GT92_Scale_AfterPlace_IsTheScaleItWasPlacedWith()
         {
             var window = new Window();
             using var host = new ProbeHost(window, 2.0);
@@ -141,7 +141,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Place_PositionInPhysicalPixels_SizeInDipOfTheTargetScale()
+        public void GT36_Place_PositionInPhysicalPixels_SizeInDipOfTheTargetScale()
         {
             var window = new Window();
             using var host = new ProbeHost(window, 2.0);
@@ -157,7 +157,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Place_DefaultHost_KeepsTheExactLength()
+        public void GT36_Place_DefaultHost_KeepsTheExactLength()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -173,7 +173,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Place_LongerWindowLength_IsWhatTheNativeStepAndTheDipSizeGet()
+        public void GT36_Place_LongerWindowLength_IsWhatTheNativeStepAndTheDipSizeGet()
         {
             // A platform that cannot keep the exact length makes the window longer, never shorter.
             var window = new Window();
@@ -189,7 +189,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void SetTopmost_SetsTheWindowsTopmost()
+        public void GT14_SetTopmost_SetsTheWindowsTopmost()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -202,7 +202,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Window_IsTheHostedWindow()
+        public void GT91_Window_IsTheHostedWindow()
         {
             var window = new Window();
             using var host = new ProbeHost(window);
@@ -212,7 +212,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void ScalingChange_BeforeAnyPlacement_IsReported()
+        public void GT65_ScalingChange_BeforeAnyPlacement_IsReported()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -228,7 +228,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void ScalingChange_ToAnotherScaleThanThePlacedOne_IsReported()
+        public void GT65_ScalingChange_ToAnotherScaleThanThePlacedOne_IsReported()
         {
             var window = new Window();
             using var host = new ProbeHost(window, 2.0);
@@ -244,7 +244,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void ScreensChange_IsReportedEvenAtThePlacedScale()
+        public void GT65_ScreensChange_IsReportedEvenAtThePlacedScale()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -264,7 +264,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void DisplayChange_WithoutSubscribers_DoesNothing()
+        public void GT65_DisplayChange_WithoutSubscribers_DoesNothing()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -278,7 +278,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void WindowScalingChanged_QueuesADisplayChange()
+        public void GT65_WindowScalingChanged_QueuesADisplayChange()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -294,7 +294,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void ScreensChanged_QueuesADisplayChange()
+        public void GT65_ScreensChanged_QueuesADisplayChange()
         {
             var window = new Window();
             using var host = new AvaloniaWindowHost(window);
@@ -312,7 +312,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Dispose_StopsListening_AndDropsSubscribers()
+        public void GT65_Dispose_StopsListening_AndDropsSubscribers()
         {
             var window = new Window();
             var host = new AvaloniaWindowHost(window);

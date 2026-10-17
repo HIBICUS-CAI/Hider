@@ -37,7 +37,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public void Constants_MatchTheDesignCanvas()
+        public void GT57_Constants_MatchTheDesignCanvas()
         {
             Assert.Equal(8, AreaController.SideMarginDip);
             Assert.Equal(36, AreaController.ToolbarHeightDip);
@@ -46,7 +46,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ToolbarWidthDip_IsWiderOnlyWhileTheCaptureFailed()
+        public void GT57_ToolbarWidthDip_IsWiderOnlyWhileTheCaptureFailed()
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_capture: capture);
@@ -60,7 +60,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Time_IsTheServicesClock()
+        public void GT58_Time_IsTheServicesClock()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -68,7 +68,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Constructor_WiresModelWindowHostAndFrames()
+        public void GT58_Constructor_WiresModelWindowHostAndFrames()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -83,7 +83,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Mosaic, 1)]
         [InlineData(PatternKind.Fill, 0)]
         [InlineData(PatternKind.Generated, 0)]
-        public void Show_PlacesAndShowsTheWindowHidden_CapturingOnlyForMosaic(PatternKind _pattern, int _captures)
+        public void GT59_Show_PlacesAndShowsTheWindowHidden_CapturingOnlyForMosaic(PatternKind _pattern, int _captures)
         {
             using var f = new AreaHarness();
             AreasFile.Save(f.AreasPath, new AppState
@@ -114,7 +114,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(true)]
         [InlineData(false)]
-        public void Show_NewArea_StartsTheTimerAtTheOsDefaultInterval(bool _isWindows)
+        public void GT59_Show_NewArea_StartsTheTimerAtTheOsDefaultInterval(bool _isWindows)
         {
             // FR-51: the periodic refresh starts when the area is shown, without a settings change.
             using var f = new AreaHarness(_isWindows: _isWindows);
@@ -129,7 +129,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(true)]
         [InlineData(false)]
-        public void Show_RestoredMosaicArea_StartsTheTimerAtItsStoredInterval(bool _isWindows)
+        public void GT59_Show_RestoredMosaicArea_StartsTheTimerAtItsStoredInterval(bool _isWindows)
         {
             using var f = new AreaHarness(_isWindows: _isWindows);
             int interval = AreaDefaults.IntervalMs(_isWindows);
@@ -148,7 +148,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Mosaic, 1)]
         [InlineData(PatternKind.Fill, 0)]
         [InlineData(PatternKind.Generated, 0)]
-        public void Refresh_CapturesOnlyForMosaic(PatternKind _pattern, int _captures)
+        public void GT35_Refresh_CapturesOnlyForMosaic(PatternKind _pattern, int _captures)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, _pattern);
@@ -160,7 +160,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SettingsChanged_TakesTheNewIntervalFromNow_WithoutCapturing()
+        public void GT60_SettingsChanged_TakesTheNewIntervalFromNow_WithoutCapturing()
         {
             using var f = new AreaHarness();
             var area = QuietMosaic(f);
@@ -182,7 +182,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(PatternKind.Fill)]
         [InlineData(PatternKind.Generated)]
-        public void SettingsChanged_NonMosaic_HasNoTimer(PatternKind _pattern)
+        public void GT60_SettingsChanged_NonMosaic_HasNoTimer(PatternKind _pattern)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, _pattern);
@@ -194,7 +194,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SettingsChanged_RedrawsWithTheNewValues()
+        public void GT31_SettingsChanged_RedrawsWithTheNewValues()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Fill);
@@ -206,7 +206,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveSettings_NowWritesAtOnce_OtherwiseAfterTheDebounce()
+        public void GT31_SaveSettings_NowWritesAtOnce_OtherwiseAfterTheDebounce()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -223,7 +223,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EnterEdit_WhenAlreadyEditing_DoesNothing()
+        public void GT61_EnterEdit_WhenAlreadyEditing_DoesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -238,7 +238,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EnterEdit_FromHidden_LaysOutActivatesAndTellsTheOwner()
+        public void GT61_EnterEdit_FromHidden_LaysOutActivatesAndTellsTheOwner()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -259,7 +259,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EnterEdit_WindowNotVisible_IsNotActivated()
+        public void GT61_EnterEdit_WindowNotVisible_IsNotActivated()
         {
             using var f = new AreaHarness();
             AreasFile.Save(f.AreasPath, new AppState { Areas = { new AreaState { Id = "0f3b8d2e", X = 100, Y = 100, Width = 300, Height = 200, Pattern = PatternKind.Fill } } });
@@ -274,7 +274,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_WhenHidden_DoesNothing()
+        public void GT10_ExitEdit_WhenHidden_DoesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -289,7 +289,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_PlacesTheAreaItself_SavesAndTellsTheOwner()
+        public void GT10_ExitEdit_PlacesTheAreaItself_SavesAndTellsTheOwner()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -308,7 +308,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ExitEdit_WhileDragging_EndsTheDragFirst()
+        public void GT10_ExitEdit_WhileDragging_EndsTheDragFirst()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -324,7 +324,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Drag_WhenHidden_IsIgnored()
+        public void GT06_Drag_WhenHidden_IsIgnored()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -341,7 +341,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DragTo_AndEndDrag_WithoutABeginDrag_DoNothing()
+        public void GT06_DragTo_AndEndDrag_WithoutABeginDrag_DoNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -364,7 +364,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(ResizeHandle.TopRight, "begin-resize:TopRight")]
         [InlineData(ResizeHandle.BottomLeft, "begin-resize:BottomLeft")]
         [InlineData(ResizeHandle.BottomRight, "begin-resize:BottomRight")]
-        public void BeginDrag_NamesTheMoveOrTheHandle(ResizeHandle _handle, string _transition)
+        public void GT06_BeginDrag_NamesTheMoveOrTheHandle(ResizeHandle _handle, string _transition)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -375,7 +375,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DragTo_FollowsTheStartOfTheDrag_NotThePreviousPoint()
+        public void GT06_DragTo_FollowsTheStartOfTheDrag_NotThePreviousPoint()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -388,7 +388,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DragTo_SameRectangle_PlacesNothing()
+        public void GT06_DragTo_SameRectangle_PlacesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -411,7 +411,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.5, 36)]
         [InlineData(1.75, 42)]
         [InlineData(2.0, 48)]
-        public void Resize_StopsAtTheMinimumForTheWindowsScale(double _scale, int _min)
+        public void GT07_Resize_StopsAtTheMinimumForTheWindowsScale(double _scale, int _min)
         {
             using var f = new AreaHarness(_scale);
             var area = f.Add(areaRect);
@@ -431,7 +431,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25)]
         [InlineData(1.5)]
         [InlineData(2.0)]
-        public void Move_IsInPhysicalPixels_AtEveryScale(double _scale)
+        public void GT06_Move_IsInPhysicalPixels_AtEveryScale(double _scale)
         {
             using var f = new AreaHarness(_scale);
             var area = f.Add(areaRect);
@@ -443,7 +443,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EndDrag_SavesAndCapturesTheNewPlace()
+        public void GT62_EndDrag_SavesAndCapturesTheNewPlace()
         {
             using var f = new AreaHarness();
             var area = QuietMosaic(f);
@@ -462,7 +462,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Drag_PausesTimerCaptures_WhenTheCaptureIsNotLive()
+        public void GT63_Drag_PausesTimerCaptures_WhenTheCaptureIsNotLive()
         {
             // FR-38: a capture that cannot follow the drag (Linux) captures when the drag is committed only.
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.ExposureFree };
@@ -481,7 +481,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Drag_KeepsTimerCaptures_WhenTheCaptureIsLive()
+        public void GT63_Drag_KeepsTimerCaptures_WhenTheCaptureIsLive()
         {
             // FR-38: Windows keeps the mosaic following the content during the drag.
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.Live | CaptureTraits.ExposureFree };
@@ -505,7 +505,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1, 0, true, 10, 0)]
         [InlineData(0, -1, true, 0, -10)]
         [InlineData(0, 1, true, 0, 10)]
-        public void Nudge_OnePixel_OrTenWithShift(int _dx, int _dy, bool _shift, int _ex, int _ey)
+        public void GT08_Nudge_OnePixel_OrTenWithShift(int _dx, int _dy, bool _shift, int _ex, int _ey)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -515,7 +515,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Nudge_WhenHidden_IsIgnored()
+        public void GT08_Nudge_WhenHidden_IsIgnored()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -528,7 +528,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Nudge_SavesAndCapturesOnce_AfterTheLastKey()
+        public void GT08_Nudge_SavesAndCapturesOnce_AfterTheLastKey()
         {
             // FR-61 / P-7: 500 ms after the last key press.
             using var f = new AreaHarness();
@@ -551,7 +551,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Nudge_CommitAlreadyPostedWhenADragBegins_LeavesTheCaptureToTheDrag()
+        public void GT08_Nudge_CommitAlreadyPostedWhenADragBegins_LeavesTheCaptureToTheDrag()
         {
             using var f = new AreaHarness(_queuePosts: true);
             var area = QuietMosaic(f);
@@ -574,7 +574,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Fill)]
         [InlineData(PatternKind.Mosaic)]
         [InlineData(PatternKind.Generated)]
-        public void SetPattern_Same_DoesNothing(PatternKind _pattern)
+        public void GT64_SetPattern_Same_DoesNothing(PatternKind _pattern)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, _pattern);
@@ -596,7 +596,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Mosaic, PatternKind.Generated, 0)]
         [InlineData(PatternKind.Fill, PatternKind.Generated, 0)]
         [InlineData(PatternKind.Generated, PatternKind.Fill, 0)]
-        public void SetPattern_SavesRedrawsAndCapturesOnlyForMosaic(PatternKind _from, PatternKind _to, int _captures)
+        public void GT64_SetPattern_SavesRedrawsAndCapturesOnlyForMosaic(PatternKind _from, PatternKind _to, int _captures)
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, _from);
@@ -615,7 +615,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SetPattern_AwayFromMosaic_StopsTheTimer_AndBackStartsIt()
+        public void GT64_SetPattern_AwayFromMosaic_StopsTheTimer_AndBackStartsIt()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect, PatternKind.Mosaic);
@@ -632,7 +632,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Delete_RemovesTheArea_WithOrWithoutATransitionListener()
+        public void GT09_Delete_RemovesTheArea_WithOrWithoutATransitionListener()
         {
             using var f = new AreaHarness();
             var a = f.Add(areaRect);
@@ -647,7 +647,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Layout_Hidden_IsTheAreaItself_WithoutAskingForAScale()
+        public void GT13_Layout_Hidden_IsTheAreaItself_WithoutAskingForAScale()
         {
             using var f = new AreaHarness(1.5);
             var area = f.Add(areaRect);
@@ -669,7 +669,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.75, 14, 77, 763)]
         [InlineData(2.0, 16, 88, 872)]
         [InlineData(25.0 / 11, 19, 100, 991)] // 44 × 25/11 is 100.00000000000001 in doubles: still 100 px
-        public void Layout_Editing_MarginsAndToolbarAtTheScale(double _scale, int _side, int _band, int _toolbar)
+        public void GT13_Layout_Editing_MarginsAndToolbarAtTheScale(double _scale, int _side, int _band, int _toolbar)
         {
             using var f = new AreaHarness(_scale);
             var area = f.Add(areaRect);
@@ -696,7 +696,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25)]
         [InlineData(1.5)]
         [InlineData(2.0)]
-        public void Layout_NarrowArea_TheWindowStillHoldsTheToolbar(double _scale)
+        public void GT13_Layout_NarrowArea_TheWindowStillHoldsTheToolbar(double _scale)
         {
             var capture = new FakeUnderlayCapture();
             using var f = new AreaHarness(_scale, _capture: capture);
@@ -718,7 +718,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25, 54, true)]
         [InlineData(2.0, 88, false)]
         [InlineData(2.0, 87, true)]
-        public void Layout_ToolbarGoesInside_OnlyWhenTheBandAboveLeavesTheScreen(double _scale, int _y, bool _inside)
+        public void GT12_Layout_ToolbarGoesInside_OnlyWhenTheBandAboveLeavesTheScreen(double _scale, int _y, bool _inside)
         {
             using var f = new AreaHarness(_scale);
             var rect = new PhysicalRect(400, _y, 400, 240);
@@ -741,7 +741,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Layout_ToolbarInside_UsesTheTopOfTheAreasOwnScreen()
+        public void GT12_Layout_ToolbarInside_UsesTheTopOfTheAreasOwnScreen()
         {
             // A monitor above the primary one: the band above an area on it leaves that monitor's top, not y = 0.
             var upper = new ScreenInfo(new PhysicalRect(0, -1080, 1920, 1080), new PhysicalRect(0, -1080, 1920, 1040), 1.0, false);
@@ -753,7 +753,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Layout_NoScreens_KeepsTheToolbarAbove()
+        public void GT12_Layout_NoScreens_KeepsTheToolbarAbove()
         {
             var screens = new FakeScreenService();
             using var f = new AreaHarness(_screens: screens);
@@ -765,7 +765,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Layout_ScaleSearch_StopsAfterEightRounds()
+        public void GT13_Layout_ScaleSearch_StopsAfterEightRounds()
         {
             // A host whose scale keeps growing with the window cannot keep the layout going for ever.
             using var f = new AreaHarness();
@@ -782,7 +782,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Layout_ScaleSearch_StopsAtTheFirstScaleThatDoesNotGrow()
+        public void GT13_Layout_ScaleSearch_StopsAtTheFirstScaleThatDoesNotGrow()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -793,7 +793,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DisplayChanged_LaysOutAgainInEditMode()
+        public void GT65_DisplayChanged_LaysOutAgainInEditMode()
         {
             using var f = new AreaHarness(1.0);
             var area = f.Add(areaRect);
@@ -805,7 +805,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DisplayChanged_AfterTheAreaIsGone_DoesNothing()
+        public void GT65_DisplayChanged_AfterTheAreaIsGone_DoesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Add(areaRect);
@@ -817,7 +817,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Dispose_StopsTheArrowKeyCommit_ClosesTheWindowAndReleasesTheFrames()
+        public void GT66_Dispose_StopsTheArrowKeyCommit_ClosesTheWindowAndReleasesTheFrames()
         {
             using var f = new AreaHarness();
             var area = QuietMosaic(f);

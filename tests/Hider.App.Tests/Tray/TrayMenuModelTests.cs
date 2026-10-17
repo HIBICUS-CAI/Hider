@@ -16,7 +16,7 @@ namespace Hider.App.Tests.Tray
         [InlineData(1)]
         [InlineData(7)]
         [InlineData(int.MaxValue)]
-        public void Build_WithAreas_NotEditing_EverythingButTheVersionIsEnabled(int _count)
+        public void GT16_Build_WithAreas_NotEditing_EverythingButTheVersionIsEnabled(int _count)
         {
             var items = TrayMenuModel.Build(_count, false, "2.0.0");
 
@@ -25,7 +25,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
-        public void Build_WhileEditing_SecondItemEndsEditing()
+        public void GT17_Build_WhileEditing_SecondItemEndsEditing()
         {
             var items = TrayMenuModel.Build(2, true, "2.0.0");
 
@@ -35,7 +35,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
-        public void Build_EditingWithoutAreas_EndEditStaysEnabled_DeleteAllDoesNot()
+        public void GT17_Build_EditingWithoutAreas_EndEditStaysEnabled_DeleteAllDoesNot()
         {
             // "End editing" depends on the editing state only; "delete all" on there being areas.
             var items = TrayMenuModel.Build(0, true, "2.0.0");
@@ -47,7 +47,7 @@ namespace Hider.App.Tests.Tray
         [Theory]
         [InlineData(0)]
         [InlineData(-1)]
-        public void Build_NoAreas_EditAllAndDeleteAllAreDisabled(int _count)
+        public void GT16_Build_NoAreas_EditAllAndDeleteAllAreDisabled(int _count)
         {
             var items = TrayMenuModel.Build(_count, false, "2.0.0");
 
@@ -62,7 +62,7 @@ namespace Hider.App.Tests.Tray
         [InlineData("10.20.30", "バージョン 10.20.30")]
         [InlineData("", "バージョン ")]
         [InlineData(null, "バージョン 不明")]
-        public void Build_VersionRow_ShowsTheVersionOrUnknown(string? _version, string _label)
+        public void GT41_Build_VersionRow_ShowsTheVersionOrUnknown(string? _version, string _label)
         {
             var version = TrayMenuModel.Build(0, false, _version).Single(_i => _i.Command == TrayCommand.Version);
 
@@ -75,7 +75,7 @@ namespace Hider.App.Tests.Tray
         [InlineData(0, false)]
         [InlineData(3, false)]
         [InlineData(3, true)]
-        public void Build_OnlyTheVersionRowHasASeparatorBefore(int _count, bool _editing)
+        public void GT41_Build_OnlyTheVersionRowHasASeparatorBefore(int _count, bool _editing)
         {
             var items = TrayMenuModel.Build(_count, _editing, "2.0.0");
 
@@ -85,7 +85,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
-        public void Build_ReturnsANewListEachTime()
+        public void GT16_Build_ReturnsANewListEachTime()
         {
             var first = TrayMenuModel.Build(1, false, "2.0.0");
             var second = TrayMenuModel.Build(1, false, "2.0.0");
@@ -95,7 +95,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
-        public void TrayMenuItem_IsAValueRecord()
+        public void GT16_TrayMenuItem_IsAValueRecord()
         {
             var item = new TrayMenuItem(TrayCommand.Exit, "終了", true, false);
 
@@ -106,7 +106,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [Fact]
-        public void TrayCommand_HasEveryMenuCommand()
+        public void GT16_TrayCommand_HasEveryMenuCommand()
         {
             Assert.Equal(allCommands, Enum.GetValues<TrayCommand>());
         }

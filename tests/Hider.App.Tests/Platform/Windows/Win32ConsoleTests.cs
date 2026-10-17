@@ -41,7 +41,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void BothRedirected_KeepsBoth_WithoutAttaching()
+        public void GT114_BothRedirected_KeepsBoth_WithoutAttaching()
         {
             // A pipe or file for both (CI, `Hider --version | more`): the console is not even attached.
             var steps = new Steps();
@@ -57,7 +57,7 @@ namespace Hider.App.Tests.Platform.Windows
         [InlineData(false, false)]
         [InlineData(false, true)]
         [InlineData(true, false)]
-        public void NoParentConsole_KeepsBoth_WithoutOpening(bool _outputRedirected, bool _errorRedirected)
+        public void GT114_NoParentConsole_KeepsBoth_WithoutOpening(bool _outputRedirected, bool _errorRedirected)
         {
             // Started from Explorer or a shortcut: nothing to attach to.
             var steps = new Steps { AttachResult = false };
@@ -70,7 +70,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void NothingRedirected_BothGoToTheConsole_AfterAnEmptyLine()
+        public void GT114_NothingRedirected_BothGoToTheConsole_AfterAnEmptyLine()
         {
             var steps = new Steps();
 
@@ -84,7 +84,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void OutputRedirected_OnlyErrorGoesToTheConsole()
+        public void GT114_OutputRedirected_OnlyErrorGoesToTheConsole()
         {
             var steps = new Steps();
 
@@ -96,7 +96,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void ErrorRedirected_OnlyOutputGoesToTheConsole()
+        public void GT114_ErrorRedirected_OnlyOutputGoesToTheConsole()
         {
             var steps = new Steps();
 
@@ -115,7 +115,7 @@ namespace Hider.App.Tests.Platform.Windows
 
         [Theory]
         [MemberData(nameof(OpenFailures))]
-        public void ConsoleCannotBeOpened_KeepsBoth(Exception _failure)
+        public void GT114_ConsoleCannotBeOpened_KeepsBoth(Exception _failure)
         {
             // Then only the exit code tells the result.
             var steps = new Steps { OpenFailure = _failure };
@@ -127,7 +127,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void OtherFailures_AreNotSwallowed()
+        public void GT114_OtherFailures_AreNotSwallowed()
         {
             var steps = new Steps { OpenFailure = new InvalidOperationException("bug") };
 
@@ -137,7 +137,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [Fact]
-        public void WritingTheFirstLineFails_KeepsBoth()
+        public void GT114_WritingTheFirstLineFails_KeepsBoth()
         {
             var steps = new Steps();
             var broken = new BrokenWriter();

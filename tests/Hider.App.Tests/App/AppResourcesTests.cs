@@ -16,7 +16,7 @@ namespace Hider.App.Tests.App
         private static readonly string[] monoFamilies = { "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "monospace" };
 
         [Fact]
-        public void AppInfo_Version_IsTheInformationalVersionWithoutTheRevision()
+        public void GT41_AppInfo_Version_IsTheInformationalVersionWithoutTheRevision()
         {
             string informational = typeof(AppInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
@@ -25,7 +25,7 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public void AppInfo_Version_MatchesTheAssemblyVersion()
+        public void GT41_AppInfo_Version_MatchesTheAssemblyVersion()
         {
             // Both come from the one <Version> (Directory.Build.props, or build.py --version in CI).
             var version = typeof(AppInfo).Assembly.GetName().Version!;
@@ -34,13 +34,13 @@ namespace Hider.App.Tests.App
         }
 
         [Fact]
-        public void AppInfo_Version_IsReadOnce()
+        public void GT41_AppInfo_Version_IsReadOnce()
         {
             Assert.Same(AppInfo.Version, AppInfo.Version);
         }
 
         [AvaloniaFact]
-        public void AppIcons_Image_Is32PxAndShared()
+        public void GT42_AppIcons_Image_Is32PxAndShared()
         {
             var image = AppIcons.Image;
 
@@ -49,7 +49,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void AppIcons_WindowIconSources_AreTheMultiSizeIcoAndThe48PxPng()
+        public void GT42_AppIcons_WindowIconSources_AreTheMultiSizeIcoAndThe48PxPng()
         {
             // CreateWindowIcon takes the .ico on Windows and the PNG elsewhere (the headless icon keeps no pixels to check, so
             // the two sources are checked here).
@@ -67,7 +67,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void AppIcons_WindowIcon_IsNewEachTime()
+        public void GT42_AppIcons_WindowIcon_IsNewEachTime()
         {
             // Each tray icon / window owns its icon.
             Assert.NotSame(AppIcons.CreateWindowIcon(), AppIcons.CreateWindowIcon());
@@ -77,20 +77,20 @@ namespace Hider.App.Tests.App
         [InlineData("hider.ico")]
         [InlineData("hider-32.png")]
         [InlineData("hider-48.png")]
-        public void AppIcons_AssetsAreEmbedded(string _name)
+        public void GT42_AppIcons_AssetsAreEmbedded(string _name)
         {
             Assert.True(AssetLoader.Exists(new Uri($"avares://Hider/Assets/{_name}")));
         }
 
         [Fact]
-        public void UiFonts_Mono_IsMonospacedWithFallbacks_WindowsFirst()
+        public void GT43_UiFonts_Mono_IsMonospacedWithFallbacks_WindowsFirst()
         {
             Assert.Equal(monoFamilies, UiFonts.Mono.FamilyNames);
             Assert.Same(UiFonts.Mono, UiFonts.Mono);
         }
 
         [AvaloniaFact]
-        public void HiderApp_Initialize_LoadsFluentAndTheColorPickerTheme_Light()
+        public void GT43_HiderApp_Initialize_LoadsFluentAndTheColorPickerTheme_Light()
         {
             var app = new HiderApp();
 
@@ -106,7 +106,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void ColorPickerTheme_IsApplied()
+        public void GT43_ColorPickerTheme_IsApplied()
         {
             // Without the ColorPicker styles a ColorView has no template and the settings' colour flyout would be empty.
             var view = new ColorView();

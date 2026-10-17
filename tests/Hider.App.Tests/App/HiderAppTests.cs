@@ -132,7 +132,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_GivesTheAreasThePlatformServices()
+        public void GT44_Start_GivesTheAreasThePlatformServices()
         {
             using var dir = new TempDir();
             var capture = new FakeUnderlayCapture();
@@ -158,7 +158,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_UiPost_RunsOnTheDispatcherLater()
+        public void GT44_Start_UiPost_RunsOnTheDispatcherLater()
         {
             using var dir = new TempDir();
             var (app, _) = Start(dir, new FakeUnderlayCapture());
@@ -205,7 +205,7 @@ namespace Hider.App.Tests.App
         [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),
             SkipUnless = nameof(Hider.App.Tests.Platform.LinuxTestEnvironment.HasDbus))]
         [System.Runtime.Versioning.SupportedOSPlatform("linux")]
-        public async Task Start_LinuxPlatformCapture_TakesTheStripsThroughTheScreenshotPortal()
+        public async Task GT45_Start_LinuxPlatformCapture_TakesTheStripsThroughTheScreenshotPortal()
         {
             // The Linux capture built by Start, end to end on a private bus with the scriptable portal (stage 1: its
             // ScreenCast answers without a session). A new mosaic area's first capture goes through the strip host (the
@@ -247,7 +247,7 @@ namespace Hider.App.Tests.App
         [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),
             SkipUnless = nameof(Hider.App.Tests.Platform.LinuxTestEnvironment.HasDbus))]
         [System.Runtime.Versioning.SupportedOSPlatform("linux")]
-        public async Task Start_LinuxPlatformCapture_PortalWithoutAnImage_FallsBackToTheGeneratedPattern()
+        public async Task GT45_Start_LinuxPlatformCapture_PortalWithoutAnImage_FallsBackToTheGeneratedPattern()
         {
             // The portal answers every request without a result: no stage can deliver, the area shows a generated pattern
             // (FR-52) and no strip is left transparent.
@@ -266,7 +266,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_WithoutACapture_UsesThePlatformCapture()
+        public void GT44_Start_WithoutACapture_UsesThePlatformCapture()
         {
             // Windows: window capture. Linux: strips through ScreenCast / Screenshot (nothing connects until a capture runs).
             using var dir = new TempDir();
@@ -283,7 +283,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_RestoresTheSavedAreas_Hidden()
+        public void GT46_Start_RestoresTheSavedAreas_Hidden()
         {
             using var dir = new TempDir();
             AreasFile.Save(dir.AreasPath, new AppState
@@ -309,7 +309,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void ShutdownRequested_SavesNow()
+        public void GT47_ShutdownRequested_SavesNow()
         {
             // FR-06 / FR-61: a pending (debounced) change reaches areas.json when the session ends.
             using var dir = new TempDir();
@@ -334,7 +334,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Exit_StopsEverything()
+        public void GT47_Exit_StopsEverything()
         {
             using var dir = new TempDir();
             var capture = new OwnedCapture();
@@ -359,7 +359,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public async Task TrayExit_ShutsTheLifetimeDown()
+        public async Task GT47_TrayExit_ShutsTheLifetimeDown()
         {
             using var dir = new TempDir();
             var (app, lifetime) = Start(dir, new FakeUnderlayCapture());
@@ -376,7 +376,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Startup_IsNotNeeded()
+        public void GT44_Startup_IsNotNeeded()
         {
             // Everything is built in Start: the lifetime's Startup event carries nothing HiderApp waits for.
             using var dir = new TempDir();
@@ -394,7 +394,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Stop_Twice_AndDispose_AreHarmless()
+        public void GT47_Stop_Twice_AndDispose_AreHarmless()
         {
             using var dir = new TempDir();
             var (app, _) = Start(dir, new FakeUnderlayCapture());
@@ -409,7 +409,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Dispose_StopsLikeExit()
+        public void GT47_Dispose_StopsLikeExit()
         {
             using var dir = new TempDir();
             var capture = new OwnedCapture();
@@ -424,7 +424,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Stop_BeforeStart_DoesNothing()
+        public void GT47_Stop_BeforeStart_DoesNothing()
         {
             var app = new HiderApp();
 
@@ -435,7 +435,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_HandleSignals_RegistersSigtermOffWindowsOnly()
+        public void GT48_Start_HandleSignals_RegistersSigtermOffWindowsOnly()
         {
             using var dir = new TempDir();
             var (app, _) = Start(dir, new FakeUnderlayCapture(), true);
@@ -450,7 +450,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void Start_WithoutSignalHandling_RegistersNothing()
+        public void GT48_Start_WithoutSignalHandling_RegistersNothing()
         {
             using var dir = new TempDir();
             var (app, _) = Start(dir, new FakeUnderlayCapture(), false);
@@ -465,7 +465,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact(Skip = OsOnly.Sigterm, SkipUnless = nameof(IsLinux))]
-        public async Task Sigterm_ShutsDownCleanly_InsteadOfKillingTheProcess()
+        public async Task GT48_Sigterm_ShutsDownCleanly_InsteadOfKillingTheProcess()
         {
             // A logout or `kill` sends SIGTERM: the areas must be saved by the normal shutdown, not lost.
             using var dir = new TempDir();
@@ -491,7 +491,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public void FrameworkInitialized_WithoutADesktopLifetime_StartsNothing()
+        public void GT44_FrameworkInitialized_WithoutADesktopLifetime_StartsNothing()
         {
             // Headless tests (and the previewer) have no desktop lifetime: nothing is built.
             var app = new HiderApp();
@@ -503,7 +503,7 @@ namespace Hider.App.Tests.App
         }
 
         [AvaloniaFact]
-        public async Task FrameworkInitialized_WithADesktopLifetime_StartsWithThePlatformParts()
+        public async Task GT44_FrameworkInitialized_WithADesktopLifetime_StartsWithThePlatformParts()
         {
             // The real start: areas.json under the home directory, the platform's window host and capture, SIGTERM and (Linux)
             // the tray probe. The home directory and the session bus are pointed at temporary places for the duration of the

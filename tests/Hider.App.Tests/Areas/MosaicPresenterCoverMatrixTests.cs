@@ -92,7 +92,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(ScaleSizeFailure))]
-        public void EveryPhysicalPixel_IsCovered_AtEveryScaleAndSize(double _scale, int _w, int _h, Failure _failure)
+        public void GT80_EveryPhysicalPixel_IsCovered_AtEveryScaleAndSize(double _scale, int _w, int _h, Failure _failure)
         {
             // The DIP size truncates back to the same pixels (as the platform sizes the window): the cover must reach the last
             // row and column, or a line of the content shows.
@@ -117,7 +117,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.5)]
         [InlineData(1.75)]
         [InlineData(2.0)]
-        public void GeneratedPattern_CoveredAtEveryScale_WhenSkiaFails(double _scale)
+        public void GT80_GeneratedPattern_CoveredAtEveryScale_WhenSkiaFails(double _scale)
         {
             foreach (var failure in new[] { Failure.CanvasOnce, Failure.CanvasAlways, Failure.NoLease })
             {
@@ -141,7 +141,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(2000, 3)]
         [InlineData(3, 2000)]
         [InlineData(1280, 720)]
-        public void LargeAndExtremeAreas_AreCoveredCompletely(int _w, int _h)
+        public void GT80_LargeAndExtremeAreas_AreCoveredCompletely(int _w, int _h)
         {
             foreach (Failure failure in Enum.GetValues<Failure>())
             {
@@ -182,7 +182,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public void MethodLists_AreNotEmpty()
+        public void GT80_MethodLists_AreNotEmpty()
         {
             // The theories below run once per method: an empty list would test nothing.
             Assert.NotEmpty(MosaicMethods());
@@ -191,7 +191,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(MosaicMethods))]
-        public void EveryMosaicMethod_ThatCannotDrawTheFrame_IsCovered(string _method)
+        public void GT80_EveryMosaicMethod_ThatCannotDrawTheFrame_IsCovered(string _method)
         {
             var area = NewArea(PatternKind.Mosaic);
             area.Mosaic.Method = _method;
@@ -203,7 +203,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(MosaicMethods))]
-        public void EveryMosaicMethod_DrawsNormally_WhenItCan(string _method)
+        public void GT80_EveryMosaicMethod_DrawsNormally_WhenItCan(string _method)
         {
             // The other side: a good frame is drawn as the mosaic, not covered.
             var area = NewArea(PatternKind.Mosaic);
@@ -216,7 +216,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(MosaicMethods))]
-        public void EveryMosaicMethod_CanvasFailure_IsCovered(string _method)
+        public void GT80_EveryMosaicMethod_CanvasFailure_IsCovered(string _method)
         {
             foreach (var failure in new[] { Failure.CanvasOnce, Failure.CanvasAlways, Failure.NoLease })
             {
@@ -239,7 +239,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(GeneratedMethods))]
-        public void EveryGeneratedMethod_CanvasFailure_IsCovered(string _method)
+        public void GT80_EveryGeneratedMethod_CanvasFailure_IsCovered(string _method)
         {
             foreach (var failure in new[] { Failure.CanvasOnce, Failure.CanvasAlways, Failure.NoLease })
             {
@@ -262,7 +262,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(MosaicMethods))]
-        public void EveryMosaicMethod_UnderAGeneratedPattern_WhileTheFrameIsMissing_IsNotCovered(string _method)
+        public void GT80_EveryMosaicMethod_UnderAGeneratedPattern_WhileTheFrameIsMissing_IsNotCovered(string _method)
         {
             // Before the first frame a mosaic area shows its generated pattern (it covers by itself): no cover there.
             var area = NewArea(PatternKind.Mosaic);
@@ -295,7 +295,7 @@ namespace Hider.App.Tests.Areas
         [InlineData("#FEFDFC", "#FEFDFC")]
         [InlineData("#000000", "#000000")]
         [InlineData("#FFFFFF", "#FFFFFF")]
-        public void CoverColor_IsTheFillColor_AsTheFillPatternReadsIt(string? _fill, string _expected)
+        public void GT81_CoverColor_IsTheFillColor_AsTheFillPatternReadsIt(string? _fill, string _expected)
         {
             foreach (Failure failure in Enum.GetValues<Failure>())
             {
@@ -356,7 +356,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(ExceptionKinds))]
-        public void AnyExceptionFromTheCanvas_IsCaught_AndCovered(string _kind)
+        public void GT80_AnyExceptionFromTheCanvas_IsCaught_AndCovered(string _kind)
         {
             foreach (int failures in new[] { 1, -1 })
             {
@@ -381,7 +381,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void RepeatedFailures_CoverEveryTime_AndMakeNoImages()
+        public void GT82_RepeatedFailures_CoverEveryTime_AndMakeNoImages()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = BrokenFrame() };
             for (int i = 0; i < 10; i++)
@@ -394,7 +394,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void GoodThenBrokenThenGood_ShowsMosaicCoverMosaic_NeverAStaleImage()
+        public void GT82_GoodThenBrokenThenGood_ShowsMosaicCoverMosaic_NeverAStaleImage()
         {
             var frames = GoodFrame();
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = frames };
@@ -421,7 +421,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CachedMosaic_ThenSkiaGoesAway_IsCovered_ThenTheCacheIsUsedAgain()
+        public void GT82_CachedMosaic_ThenSkiaGoesAway_IsCovered_ThenTheCacheIsUsedAgain()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = GoodFrame() };
             var real = presenter.LeaseSkia;
@@ -443,7 +443,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SwitchingPatterns_AfterAFailure_DrawsEachPatternNormally()
+        public void GT82_SwitchingPatterns_AfterAFailure_DrawsEachPatternNormally()
         {
             var area = NewArea(PatternKind.Mosaic, "#123456");
             using var presenter = new MosaicPresenter { Model = area, Frames = BrokenFrame() };
@@ -469,7 +469,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(Failure.CanvasAlways)]
         [InlineData(Failure.CanvasOnce)]
         [InlineData(Failure.BrokenFrame)]
-        public void Disposed_AndFailing_IsStillCovered(Failure _failure)
+        public void GT83_Disposed_AndFailing_IsStillCovered(Failure _failure)
         {
             var (presenter, lease) = Failing(_failure, PatternKind.Mosaic, W, H);
             try
@@ -487,7 +487,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Disposed_WithAGoodLease_CoversThroughSkia()
+        public void GT83_Disposed_WithAGoodLease_CoversThroughSkia()
         {
             var lease = new FakeLease(0, SKColors.Red);
             try
@@ -507,7 +507,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Disposed_FillPattern_IsTheFillAsBefore()
+        public void GT83_Disposed_FillPattern_IsTheFillAsBefore()
         {
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Fill, "#C0FFEE") };
             presenter.Dispose();
@@ -516,7 +516,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void OneFailingArea_DoesNotAffectAnother()
+        public void GT80_OneFailingArea_DoesNotAffectAnother()
         {
             using var failing = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic, "#102030"), Frames = BrokenFrame() };
             using var good = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic, "#102030"), Frames = GoodFrame() };
@@ -538,7 +538,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(PatternKind.Generated, 0.1)]
         [InlineData(PatternKind.Generated, 0.5)]
         [InlineData(PatternKind.Generated, 1.0)]
-        public void Cover_IsOpaque_ForEveryPatternAndOpacity(PatternKind _pattern, double _opacity)
+        public void GT81_Cover_IsOpaque_ForEveryPatternAndOpacity(PatternKind _pattern, double _opacity)
         {
             foreach (var failure in new[] { Failure.CanvasOnce, Failure.CanvasAlways, Failure.NoLease })
             {
@@ -560,7 +560,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModelOfAnotherSize_TheCoverFollowsTheBounds()
+        public void GT80_ModelOfAnotherSize_TheCoverFollowsTheBounds()
         {
             // The model's rectangle (physical px) and the laid-out bounds can differ for a moment (a resize in flight): the
             // cover fills what is on screen, the bounds.
@@ -571,7 +571,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Logs_NamePath_AndNothingOnAGoodDraw()
+        public void GT82_Logs_NamePath_AndNothingOnAGoodDraw()
         {
             var lease = new FakeLease(-1, SKColors.Red);
             try
@@ -610,7 +610,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void TryDraw_NoLease_IsFalse()
+        public void GT83_TryDraw_NoLease_IsFalse()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             Assert.False(OpFor(presenter).TryDraw(null));
@@ -618,7 +618,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void TryDraw_GoodLease_IsTrue_DrawsThePattern_AndDisposesTheLease()
+        public void GT83_TryDraw_GoodLease_IsTrue_DrawsThePattern_AndDisposesTheLease()
         {
             var lease = new FakeLease(0, SKColors.Red);
             try
@@ -638,7 +638,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void TryDraw_CanvasFailsOnce_IsTrue_WithTheCover()
+        public void GT83_TryDraw_CanvasFailsOnce_IsTrue_WithTheCover()
         {
             var lease = new FakeLease(1, SKColors.Red);
             try
@@ -657,7 +657,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void TryDraw_CanvasAlwaysFails_IsFalse_AndTheLeaseIsStillDisposed()
+        public void GT83_TryDraw_CanvasAlwaysFails_IsFalse_AndTheLeaseIsStillDisposed()
         {
             var lease = new FakeLease(-1, SKColors.Red);
             try
@@ -676,7 +676,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DrawOp_KeepsTheCoverBrush_AndHitTestsItsBounds()
+        public void GT83_DrawOp_KeepsTheCoverBrush_AndHitTestsItsBounds()
         {
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             var op = OpFor(presenter, "#0F1E2D");
@@ -718,7 +718,7 @@ namespace Hider.App.Tests.Areas
 
         [AvaloniaTheory]
         [MemberData(nameof(WindowCases))]
-        public void AreaWindow_WhosePatternFails_ShowsOnlyTheFillColor(double _scale, PatternKind _pattern, Failure _failure)
+        public void GT80_AreaWindow_WhosePatternFails_ShowsOnlyTheFillColor(double _scale, PatternKind _pattern, Failure _failure)
         {
             // A real area window (out of edit mode: nothing but the pattern): every rendered pixel is the fill color.
             using var f = new AreaHarness(_scale);
@@ -743,7 +743,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.0)]
         [InlineData(1.5)]
         [InlineData(1.75)]
-        public void AreaWindow_InEditMode_WhosePatternFails_HasNoSeeThroughPixel(double _scale)
+        public void GT80_AreaWindow_InEditMode_WhosePatternFails_HasNoSeeThroughPixel(double _scale)
         {
             // In edit mode the window also holds the toolbar and margins outside the area (transparent by design); the frame
             // and handles are drawn over the pattern. Inside the area, under all of that, the cover still hides everything.

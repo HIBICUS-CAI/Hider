@@ -27,7 +27,7 @@ namespace Hider.App.Tests.Platform.Windows
         [InlineData(61, 1.0, 61)]
         [InlineData(1479, 263 / 96.0, 1516)] // the longest run of unstable lengths (37)
         [InlineData(115, 1.25, 115)]
-        public void WindowLength_IsTheShortestStableLength(int _px, double _scale, int _expected)
+        public void GT36_WindowLength_IsTheShortestStableLength(int _px, double _scale, int _expected)
         {
             // The override runs no native code, so it is checked on every OS (a 96 dpi runner cannot tell it from the base).
             var window = new Window();
@@ -43,7 +43,7 @@ namespace Hider.App.Tests.Platform.Windows
         [InlineData(62, 1.75)]
         [InlineData(61, 1.0)]
         [InlineData(1516, 263 / 96.0)]
-        public void DipLength_IsExactlyWhatWmSizeStores(int _px, double _scale)
+        public void GT36_DipLength_IsExactlyWhatWmSizeStores(int _px, double _scale)
         {
             // px / scale, not the base's (px + 0.25) / scale: Avalonia's WM_SIZE keeps px / scale, and the two must not differ.
             var window = new Window();
@@ -57,7 +57,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [AvaloniaFact(Skip = OsOnly.MonitorDpi, SkipUnless = nameof(IsWindows))]
-        public void ScaleFor_IsTheDpiOfTheMonitorWindowsPicks()
+        public void GT92_ScaleFor_IsTheDpiOfTheMonitorWindowsPicks()
         {
             var window = new Window();
             using var host = new Win32WindowHost(window);
@@ -70,7 +70,7 @@ namespace Hider.App.Tests.Platform.Windows
         }
 
         [AvaloniaFact(Skip = OsOnly.MonitorDpi, SkipUnless = nameof(IsWindows))]
-        public void Place_SizeSurvivesTheWin32RoundTrip()
+        public void GT36_Place_SizeSurvivesTheWin32RoundTrip()
         {
             // The window takes the shortest length not shorter than the area that Avalonia's WM_SIZE / Resize keep (px / scale).
             var window = new Window();

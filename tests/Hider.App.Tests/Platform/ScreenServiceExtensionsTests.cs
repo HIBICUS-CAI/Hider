@@ -18,13 +18,13 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Primary_IsTheScreenMarkedPrimary_WhereverItIsInTheList()
+        public void GT108_Primary_IsTheScreenMarkedPrimary_WhereverItIsInTheList()
         {
             Assert.Same(b, Service(a, b, c).Primary());
         }
 
         [Fact]
-        public void Primary_FirstMarkedScreenWins()
+        public void GT108_Primary_FirstMarkedScreenWins()
         {
             var alsoPrimary = c with { IsPrimary = true };
 
@@ -32,13 +32,13 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void Primary_NoneMarked_IsTheFirstScreen()
+        public void GT108_Primary_NoneMarked_IsTheFirstScreen()
         {
             Assert.Same(a, Service(a, c).Primary());
         }
 
         [Fact]
-        public void Primary_NoScreens_IsNull()
+        public void GT108_Primary_NoScreens_IsNull()
         {
             Assert.Null(Service().Primary());
         }
@@ -49,7 +49,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(1920, 0, 1)]       // first pixel of the second screen (right edges are exclusive)
         [InlineData(4479, 1439, 1)]
         [InlineData(-1, 500, 2)]       // left of the origin
-        public void ScreenAt_IsTheScreenHoldingThePoint(int _x, int _y, int _index)
+        public void GT90_ScreenAt_IsTheScreenHoldingThePoint(int _x, int _y, int _index)
         {
             var screens = new[] { a, b, c };
 
@@ -60,33 +60,33 @@ namespace Hider.App.Tests.Platform
         [InlineData(0, 1080)]          // below the first screen
         [InlineData(5000, 0)]          // right of every screen
         [InlineData(-1281, 0)]         // left of every screen
-        public void ScreenAt_OutsideEveryScreen_IsThePrimary(int _x, int _y)
+        public void GT90_ScreenAt_OutsideEveryScreen_IsThePrimary(int _x, int _y)
         {
             Assert.Same(b, Service(a, b, c).ScreenAt(_x, _y));
         }
 
         [Fact]
-        public void ScreenAt_NoScreens_IsNull()
+        public void GT90_ScreenAt_NoScreens_IsNull()
         {
             Assert.Null(Service().ScreenAt(0, 0));
         }
 
         [Fact]
-        public void PrimaryIndex_IsTheIndexOfThePrimary()
+        public void GT108_PrimaryIndex_IsTheIndexOfThePrimary()
         {
             Assert.Equal(1, Service(a, b, c).PrimaryIndex());
             Assert.Equal(0, Service(b, a).PrimaryIndex());
         }
 
         [Fact]
-        public void PrimaryIndex_NoneMarkedOrNoScreens_IsZero()
+        public void GT108_PrimaryIndex_NoneMarkedOrNoScreens_IsZero()
         {
             Assert.Equal(0, Service(a, c).PrimaryIndex());
             Assert.Equal(0, Service().PrimaryIndex());
         }
 
         [Fact]
-        public void ScreenInfo_IsAValueRecord()
+        public void GT89_ScreenInfo_IsAValueRecord()
         {
             var copy = new ScreenInfo(a.Bounds, a.WorkingArea, a.Scale, a.IsPrimary);
 
@@ -101,7 +101,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(2.0, 300, 150.0)]
         [InlineData(1.5, 100, 66.666666666666671)]
         [InlineData(1.25, 0, 0.0)]
-        public void PxToDip_DividesByTheHostScale(double _scale, int _px, double _dip)
+        public void GT36_PxToDip_DividesByTheHostScale(double _scale, int _px, double _dip)
         {
             var window = new Window();
             var host = new FakeAreaWindowHost(window, _scale);

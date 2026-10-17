@@ -28,7 +28,7 @@ namespace Hider.App.Tests.Tray
         private static string Label(Button _button) => ((StackPanel)_button.Content!).Children.OfType<TextBlock>().Single().Text!;
 
         [AvaloniaFact]
-        public void New_HasNoButtons_AndTheDesignSpacing()
+        public void GT130_New_HasNoButtons_AndTheDesignSpacing()
         {
             var panel = new TrayMenuPanel();
 
@@ -38,7 +38,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void SetItems_OneButtonPerItem_InOrder_WithTheCommandAsTag()
+        public void GT19_SetItems_OneButtonPerItem_InOrder_WithTheCommandAsTag()
         {
             var items = TrayMenuModel.Build(2, false, "2.0.0");
             var panel = new TrayMenuPanel();
@@ -51,7 +51,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void SetItems_SeparatorLineBeforeTheVersionRowOnly()
+        public void GT41_SetItems_SeparatorLineBeforeTheVersionRowOnly()
         {
             var panel = Panel();
 
@@ -66,7 +66,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void SetItems_CommandsWithAnIcon_HaveTheirPath_AndLessLeftPadding()
+        public void GT130_SetItems_CommandsWithAnIcon_HaveTheirPath_AndLessLeftPadding()
         {
             var panel = Panel(1, false);
             var editing = Panel(1, true);
@@ -98,7 +98,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void SetItems_ButtonsFollowTheDesign()
+        public void GT130_SetItems_ButtonsFollowTheDesign()
         {
             var panel = Panel();
 
@@ -118,7 +118,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void SetItems_Again_ReplacesTheButtons()
+        public void GT19_SetItems_Again_ReplacesTheButtons()
         {
             var panel = Panel(0, false);
             var before = panel.Buttons;
@@ -133,7 +133,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Click_RaisesCommandSelected_WithTheItemsCommand()
+        public void GT19_Click_RaisesCommandSelected_WithTheItemsCommand()
         {
             var panel = Panel(1, false);
             var selected = new List<TrayCommand>();
@@ -148,7 +148,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Click_WithoutSubscribers_DoesNothing()
+        public void GT19_Click_WithoutSubscribers_DoesNothing()
         {
             var panel = Panel();
 
@@ -158,7 +158,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Buttons_IsASnapshot()
+        public void GT19_Buttons_IsASnapshot()
         {
             var panel = Panel();
             var buttons = panel.Buttons;

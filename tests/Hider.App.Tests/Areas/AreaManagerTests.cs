@@ -19,13 +19,13 @@ namespace Hider.App.Tests.Areas
         }
 
         [Fact]
-        public void SaveDebounce_Is500Milliseconds()
+        public void GT67_SaveDebounce_Is500Milliseconds()
         {
             Assert.Equal(TimeSpan.FromMilliseconds(500), AreaManager.SaveDebounce);
         }
 
         [AvaloniaFact]
-        public void Services_AreThoseItWasMadeWith()
+        public void GT58_Services_AreThoseItWasMadeWith()
         {
             using var f = new AreaHarness();
             Assert.Same(f.Services, f.Manager.Services);
@@ -38,7 +38,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Restore_NoFile_IsMissing_EmptyAndStillSaves()
+        public void GT46_Restore_NoFile_IsMissing_EmptyAndStillSaves()
         {
             using var f = new AreaHarness();
             int changed = 0;
@@ -52,7 +52,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Restore_BrokenFile_IsMovedAside_AndSavingGoesOn()
+        public void GT46_Restore_BrokenFile_IsMovedAside_AndSavingGoesOn()
         {
             using var f = new AreaHarness();
             File.WriteAllText(f.AreasPath, "{ not json");
@@ -64,7 +64,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Restore_WithoutAChangedListener_StillRestores()
+        public void GT46_Restore_WithoutAChangedListener_StillRestores()
         {
             using var f = new AreaHarness();
             AreasFile.Save(f.AreasPath, new AppState { Areas = { Stored("0f3b8d2e", 100, 100, 300, 200) } });
@@ -77,7 +77,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25)]
         [InlineData(1.5)]
         [InlineData(2.0)]
-        public void Restore_SizeInDipIsTurnedIntoPixelsWithTheScreensScale(double _scale)
+        public void GT68_Restore_SizeInDipIsTurnedIntoPixelsWithTheScreensScale(double _scale)
         {
             using var f = new AreaHarness(_scale);
             AreasFile.Save(f.AreasPath, new AppState { Areas = { Stored("0f3b8d2e", 100, 120, 300, 200) } });
@@ -92,7 +92,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.0, 24)]
         [InlineData(1.5, 36)]
         [InlineData(2.0, 48)]
-        public void Restore_TooSmall_GrowsToTheMinimum(double _scale, int _min)
+        public void GT37_Restore_TooSmall_GrowsToTheMinimum(double _scale, int _min)
         {
             using var f = new AreaHarness(_scale);
             AreasFile.Save(f.AreasPath, new AppState { Areas = { Stored("0f3b8d2e", 100, 120, 1, 1) } });
@@ -102,7 +102,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Restore_OffEveryScreen_GoesToTheCentreOfThePrimary()
+        public void GT37_Restore_OffEveryScreen_GoesToTheCentreOfThePrimary()
         {
             var secondary = new ScreenInfo(new PhysicalRect(-1920, 0, 1920, 1080), new PhysicalRect(-1920, 0, 1920, 1040), 1.0, false);
             var primary = new ScreenInfo(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);
@@ -113,7 +113,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Restore_NoScreens_KeepsTheStoredPlaceAtScale1()
+        public void GT68_Restore_NoScreens_KeepsTheStoredPlaceAtScale1()
         {
             var screens = new FakeScreenService { Screens = Array.Empty<ScreenInfo>() };
             using var f = new AreaHarness(_screens: screens);
@@ -123,7 +123,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AddNew_CursorOnNoKnownScreen_UsesThePrimary()
+        public void GT15_AddNew_CursorOnNoKnownScreen_UsesThePrimary()
         {
             var screens = new FakeScreenService(FakeScreenService.OneScreen()) { CursorScreen = new PhysicalRect(5000, 0, 100, 100) };
             using var f = new AreaHarness(_screens: screens);
@@ -132,7 +132,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AddNew_CursorUnknown_UsesThePrimary()
+        public void GT15_AddNew_CursorUnknown_UsesThePrimary()
         {
             var other = new ScreenInfo(new PhysicalRect(1920, 0, 1920, 1080), new PhysicalRect(1920, 0, 1920, 1040), 1.0, false);
             var primary = new ScreenInfo(new PhysicalRect(0, 0, 1920, 1080), new PhysicalRect(0, 0, 1920, 1040), 1.0, true);
@@ -142,7 +142,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AddNew_NoScreens_UsesA1080pWorkAreaAtScale1()
+        public void GT15_AddNew_NoScreens_UsesA1080pWorkAreaAtScale1()
         {
             var screens = new FakeScreenService { Screens = Array.Empty<ScreenInfo>() };
             using var f = new AreaHarness(_screens: screens);
@@ -155,7 +155,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25, 500, 300)]
         [InlineData(1.5, 600, 360)]
         [InlineData(2.0, 800, 480)]
-        public void AddNew_400x240Dip_AtTheScreensScale(double _scale, int _w, int _h)
+        public void GT15_AddNew_400x240Dip_AtTheScreensScale(double _scale, int _w, int _h)
         {
             using var f = new AreaHarness(_scale);
             var area = f.Manager.AddNew();
@@ -165,7 +165,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaTheory]
         [InlineData(true, AreaDefaults.IntervalMsWindows)]
         [InlineData(false, AreaDefaults.IntervalMsLinux)]
-        public void AddNew_MosaicPixelateInEditMode_WithTheOsInterval_AndEveryDefault(bool _isWindows, int _interval)
+        public void GT15_AddNew_MosaicPixelateInEditMode_WithTheOsInterval_AndEveryDefault(bool _isWindows, int _interval)
         {
             using var f = new AreaHarness(_isWindows: _isWindows);
             int changed = 0;
@@ -188,7 +188,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AddNew_GivesEveryAreaItsOwnId()
+        public void GT15_AddNew_GivesEveryAreaItsOwnId()
         {
             using var f = new AreaHarness();
             var ids = Enumerable.Range(0, 20).Select(_ => f.Manager.AddNew().Model.Id).ToList();
@@ -196,7 +196,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EditAll_AndEndEditAll_SwitchEveryArea()
+        public void GT69_EditAll_AndEndEditAll_SwitchEveryArea()
         {
             using var f = new AreaHarness();
             var areas = new[] { f.Manager.AddNew(), f.Manager.AddNew(), f.Manager.AddNew() };
@@ -214,7 +214,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void EditAll_AndEndEditAll_WithoutAreas_DoNothing()
+        public void GT69_EditAll_AndEndEditAll_WithoutAreas_DoNothing()
         {
             using var f = new AreaHarness();
             f.Manager.EditAll();
@@ -223,7 +223,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DeleteAll_ClosesEveryWindow_AndSavesNothingLeft()
+        public void GT70_DeleteAll_ClosesEveryWindow_AndSavesNothingLeft()
         {
             using var f = new AreaHarness();
             var areas = new[] { f.Manager.AddNew(), f.Manager.AddNew() };
@@ -238,7 +238,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DeleteAll_DuringALinuxStripCapture_CancelsIt_WithoutFallingBack()
+        public void GT70_DeleteAll_DuringALinuxStripCapture_CancelsIt_WithoutFallingBack()
         {
             // FR-05 from the tray while area A's capture is in its strips: the capture is cancelled, and its finish, posted
             // to the UI thread after the controllers are gone, neither falls back (FR-52) nor saves nor captures again.
@@ -282,7 +282,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void DeleteAll_WithoutAreasOrListener_SavesAnEmptyList()
+        public void GT70_DeleteAll_WithoutAreasOrListener_SavesAnEmptyList()
         {
             using var f = new AreaHarness();
             f.Manager.DeleteAll();
@@ -292,7 +292,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Delete_AnAreaNotInTheList_DoesNothing()
+        public void GT70_Delete_AnAreaNotInTheList_DoesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Manager.AddNew();
@@ -306,7 +306,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Delete_OneArea_KeepsTheOthers()
+        public void GT70_Delete_OneArea_KeepsTheOthers()
         {
             using var f = new AreaHarness();
             var a = f.Manager.AddNew();
@@ -320,7 +320,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void HoldCapturesForDialog_CountsAsAPopupUntilDisposed_Once()
+        public void GT55_HoldCapturesForDialog_CountsAsAPopupUntilDisposed_Once()
         {
             using var f = new AreaHarness();
             var first = f.Manager.HoldCapturesForDialog();
@@ -334,7 +334,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void AnyPopupOpen_SeesEveryAreasPopups()
+        public void GT55_AnyPopupOpen_SeesEveryAreasPopups()
         {
             using var f = new AreaHarness();
             var a = f.Manager.AddNew();
@@ -350,7 +350,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void PopupClosed_WhileAnotherIsOpen_HeldCapturesStillWait()
+        public void GT55_PopupClosed_WhileAnotherIsOpen_HeldCapturesStillWait()
         {
             var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
             using var f = new AreaHarness(_capture: capture, _isWindows: false);
@@ -366,7 +366,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChanged_RaisesChanged()
+        public void GT17_ModeChanged_RaisesChanged()
         {
             using var f = new AreaHarness();
             var area = f.Manager.AddNew();
@@ -377,7 +377,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void ModeChanged_WithoutListener_DoesNothing()
+        public void GT17_ModeChanged_WithoutListener_DoesNothing()
         {
             using var f = new AreaHarness();
             var area = f.Manager.AddNew();
@@ -386,7 +386,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void OwnWindows_ListsNativeHandles_SkippingZero()
+        public void GT53_OwnWindows_ListsNativeHandles_SkippingZero()
         {
             using var f = new AreaHarness(_firstHandle: 0x10);
             f.Manager.AddNew();
@@ -398,7 +398,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void StripState_IsEmptyBeforeTheFirstCapture()
+        public void GT71_StripState_IsEmptyBeforeTheFirstCapture()
         {
             using var f = new AreaHarness(_isWindows: false);
             Assert.Empty(f.Manager.StripAreas);
@@ -407,7 +407,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureStarting_OnLinux_RecordsAreasAndTheMonitorUnion()
+        public void GT71_CaptureStarting_OnLinux_RecordsAreasAndTheMonitorUnion()
         {
             var left = new ScreenInfo(new PhysicalRect(-1280, 200, 1280, 1024), new PhysicalRect(-1280, 200, 1280, 1000), 1.0, false);
             var main = new ScreenInfo(new PhysicalRect(0, 0, 2560, 1440), new PhysicalRect(0, 0, 2560, 1400), 1.25, true);
@@ -421,7 +421,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureStarting_OnLinuxWithoutScreens_HasAnEmptyUnion()
+        public void GT71_CaptureStarting_OnLinuxWithoutScreens_HasAnEmptyUnion()
         {
             var screens = new FakeScreenService();
             using var f = new AreaHarness(_screens: screens, _isWindows: false);
@@ -434,7 +434,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureStarting_OnWindows_LeavesTheStripStateAndTheTooltips()
+        public void GT71_CaptureStarting_OnWindows_LeavesTheStripStateAndTheTooltips()
         {
             using var f = new AreaHarness(_isWindows: true);
             var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Fill);
@@ -447,7 +447,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void CaptureStarting_OnLinux_ClosesEveryAreasTooltips()
+        public void GT71_CaptureStarting_OnLinux_ClosesEveryAreasTooltips()
         {
             using var f = new AreaHarness(_isWindows: false);
             var a = f.Add(new PhysicalRect(100, 200, 400, 240));
@@ -464,7 +464,7 @@ namespace Hider.App.Tests.Areas
         [InlineData(1.25)]
         [InlineData(1.5)]
         [InlineData(2.0)]
-        public void SaveNow_StoresPositionInPixelsAndSizeInDip(double _scale)
+        public void GT68_SaveNow_StoresPositionInPixelsAndSizeInDip(double _scale)
         {
             using var f = new AreaHarness(_scale);
             var area = f.Add(new PhysicalRect(101, 203, 600, 300));
@@ -479,7 +479,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveNow_NoScreens_StoresAtScale1()
+        public void GT68_SaveNow_NoScreens_StoresAtScale1()
         {
             var screens = new FakeScreenService();
             using var f = new AreaHarness(_screens: screens);
@@ -491,7 +491,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveNow_WriteFails_KeepsRunning_AndTriesAgainNextTime()
+        public void GT67_SaveNow_WriteFails_KeepsRunning_AndTriesAgainNextTime()
         {
             using var f = new AreaHarness();
             f.Add(new PhysicalRect(100, 100, 300, 200));
@@ -507,7 +507,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveNow_CancelsAPendingDebouncedSave()
+        public void GT67_SaveNow_CancelsAPendingDebouncedSave()
         {
             using var f = new AreaHarness();
             f.Add(new PhysicalRect(100, 100, 300, 200));
@@ -519,7 +519,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveSoon_WaitsForQuiet_ThenSavesOnce()
+        public void GT67_SaveSoon_WaitsForQuiet_ThenSavesOnce()
         {
             using var f = new AreaHarness();
             f.Add(new PhysicalRect(100, 100, 300, 200));
@@ -536,7 +536,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void SaveSoon_RunsThroughTheUiThreadPost()
+        public void GT67_SaveSoon_RunsThroughTheUiThreadPost()
         {
             using var f = new AreaHarness(_queuePosts: true);
             f.Manager.SaveSoon();
@@ -547,7 +547,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Blocked_SavesNothing_NowOrLater()
+        public void GT72_Blocked_SavesNothing_NowOrLater()
         {
             using var f = new AreaHarness();
             File.WriteAllText(f.AreasPath, "{ \"version\": 1, \"areas\": [] }");
@@ -562,7 +562,7 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
-        public void Dispose_SavesClosesEveryWindow_AndIsDoneOnce()
+        public void GT47_Dispose_SavesClosesEveryWindow_AndIsDoneOnce()
         {
             using var f = new AreaHarness();
             var a = f.Add(new PhysicalRect(100, 100, 300, 200));

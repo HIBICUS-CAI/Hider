@@ -63,7 +63,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task GrabAfterAsync_BeforeAnyAnswer_IsNullWithoutAPortalCall()
+        public async Task GT102_GrabAfterAsync_BeforeAnyAnswer_IsNullWithoutAPortalCall()
         {
             using var env = await PortalEnv.StartAsync();
             using var grabber = Create(env.Address);
@@ -73,7 +73,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Prepare_ShootsOnce_ThenGrabsShootEachTime_AndNoFileStays()
+        public async Task GT102_Prepare_ShootsOnce_ThenGrabsShootEachTime_AndNoFileStays()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => Shoot();
@@ -108,7 +108,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_UriWithEscapedCharacters_IsReadAndDeleted()
+        public async Task GT102_Shot_UriWithEscapedCharacters_IsReadAndDeleted()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => Shoot(8, 4, 0, "Screenshot from 2026 #1 100%.png");
@@ -118,7 +118,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_OkWithoutUri_IsNull_AndNotPrepared()
+        public async Task GT103_Shot_OkWithoutUri_IsNull_AndNotPrepared()
         {
             using var env = await PortalEnv.StartAsync();
             using var grabber = Create(env.Address);
@@ -133,7 +133,7 @@ namespace Hider.App.Tests.Platform
         [InlineData("https://example.org/Screenshot.png")]
         [InlineData("FILE:///tmp/Screenshot.png")]
         [InlineData("")]
-        public async Task Shot_UriThatIsNotAFileUri_IsNull(string _uri)
+        public async Task GT103_Shot_UriThatIsNotAFileUri_IsNull(string _uri)
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => UriAnswer(_uri);
@@ -143,7 +143,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_UriOfAnotherType_IsNull_AndTheNextShotUsesANewConnection()
+        public async Task GT103_Shot_UriOfAnotherType_IsNull_AndTheNextShotUsesANewConnection()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => FakeDesktopPortal.Answer.Ok((ref MessageWriter _w) => FakeDesktopPortal.Entry(ref _w, "uri", 7u));
@@ -163,7 +163,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_UnreadablePng_IsNull_AndTheFileIsDeleted()
+        public async Task GT103_Shot_UnreadablePng_IsNull_AndTheFileIsDeleted()
         {
             using var env = await PortalEnv.StartAsync();
             string path = Path.Combine(dir, "broken.png");
@@ -179,7 +179,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_CancelledByTheUser_ThrowsDenied_AndDeletesAFileItGot()
+        public async Task GT103_Shot_CancelledByTheUser_ThrowsDenied_AndDeletesAFileItGot()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => Shoot(8, 8, 1);
@@ -197,7 +197,7 @@ namespace Hider.App.Tests.Platform
         [DbusTheory]
         [InlineData(2u)]
         [InlineData(3u)]
-        public async Task Shot_OtherResponse_IsNull_AndLogged(uint _code)
+        public async Task GT103_Shot_OtherResponse_IsNull_AndLogged(uint _code)
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => Shoot(8, 8, _code);
@@ -212,7 +212,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_NoPortalOnTheBus_IsNull_ThenWorksOnceThePortalIsThere()
+        public async Task GT103_Shot_NoPortalOnTheBus_IsNull_ThenWorksOnceThePortalIsThere()
         {
             using var env = await PortalEnv.StartAsync(false);
             using var grabber = Create(env.Address);
@@ -228,7 +228,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_Cancelled_PropagatesAndClosesTheRequest()
+        public async Task GT103_Shot_Cancelled_PropagatesAndClosesTheRequest()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => new FakeDesktopPortal.Answer.Silent();
@@ -240,7 +240,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Shot_FileCannotBeDeleted_IsLogged()
+        public async Task GT103_Shot_FileCannotBeDeleted_IsLogged()
         {
             using var env = await PortalEnv.StartAsync();
             // A path in a directory that does not exist (DirectoryNotFoundException) and a directory (UnauthorizedAccessException).
@@ -263,7 +263,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [DbusFact]
-        public async Task Dispose_ClosesTheConnection_LaterCallsFailQuietly()
+        public async Task GT102_Dispose_ClosesTheConnection_LaterCallsFailQuietly()
         {
             using var env = await PortalEnv.StartAsync();
             env.Portal.OnRequest = _ => Shoot();
@@ -276,13 +276,13 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void ReadPng_MissingFile_IsNull()
+        public void GT104_ReadPng_MissingFile_IsNull()
         {
             Assert.Null(PortalScreenshotGrabber.ReadPng(Path.Combine(dir, "none.png")));
         }
 
         [Fact]
-        public void ReadPng_NotAnImage_IsNull()
+        public void GT104_ReadPng_NotAnImage_IsNull()
         {
             string path = Path.Combine(dir, "text.png");
             File.WriteAllText(path, "hello");
@@ -290,7 +290,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void ReadPng_TruncatedPng_GivesWhatWasDecoded()
+        public void GT104_ReadPng_TruncatedPng_GivesWhatWasDecoded()
         {
             // A PNG cut off in its image data: Skia reports IncompleteInput and fills what it decoded (the top rows).
             string whole = Path.Combine(dir, "whole.png");
@@ -305,7 +305,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [Fact]
-        public void ReadPng_CorruptImageData_IsNull()
+        public void GT104_ReadPng_CorruptImageData_IsNull()
         {
             // Valid header and size, garbage compressed data: the decoder fails with an error other than IncompleteInput.
             string whole = Path.Combine(dir, "whole.png");

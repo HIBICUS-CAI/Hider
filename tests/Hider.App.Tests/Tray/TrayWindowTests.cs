@@ -27,7 +27,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_IsABorderlessTopmostWindowOutsideTheTaskbar()
+        public void GT127_Popup_IsABorderlessTopmostWindowOutsideTheTaskbar()
         {
             var popup = new TrayPopupWindow();
 
@@ -42,7 +42,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_SetItems_ShowsTheItems()
+        public void GT127_Popup_SetItems_ShowsTheItems()
         {
             var popup = new TrayPopupWindow();
 
@@ -54,7 +54,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_Click_ClosesFirst_ThenReportsTheCommand()
+        public void GT127_Popup_Click_ClosesFirst_ThenReportsTheCommand()
         {
             var popup = new TrayPopupWindow();
             popup.SetItems(Items());
@@ -75,7 +75,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_ClickWithoutSubscribers_StillCloses()
+        public void GT127_Popup_ClickWithoutSubscribers_StillCloses()
         {
             var popup = new TrayPopupWindow();
             popup.SetItems(Items());
@@ -87,7 +87,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Popup_LosingTheFocus_Closes()
+        public void GT127_Popup_LosingTheFocus_Closes()
         {
             // Like a menu: a click anywhere else dismisses it.
             var popup = new TrayPopupWindow();
@@ -103,7 +103,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Fallback_IsAnOrdinaryFixedSizeWindow_WithTheExplainingTitleAndTheIcon()
+        public void GT128_Fallback_IsAnOrdinaryFixedSizeWindow_WithTheExplainingTitleAndTheIcon()
         {
             var window = new TrayFallbackWindow();
 
@@ -119,7 +119,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Fallback_SetItems_ShowsTheItemsAndTheStatus()
+        public void GT128_Fallback_SetItems_ShowsTheItemsAndTheStatus()
         {
             var window = new TrayFallbackWindow();
 
@@ -134,7 +134,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Fallback_Click_ReportsTheCommand_AndStaysOpen()
+        public void GT128_Fallback_Click_ReportsTheCommand_AndStaysOpen()
         {
             var window = new TrayFallbackWindow();
             window.SetItems(Items(), "x");
@@ -151,7 +151,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Fallback_ClickWithoutSubscribers_DoesNothing()
+        public void GT128_Fallback_ClickWithoutSubscribers_DoesNothing()
         {
             var window = new TrayFallbackWindow();
             window.SetItems(Items(), "x");
@@ -165,7 +165,7 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void Fallback_UserClose_Minimises_CloseForExit_Closes()
+        public void GT128_Fallback_UserClose_Minimises_CloseForExit_Closes()
         {
             var window = new TrayFallbackWindow();
             window.Show();
@@ -199,7 +199,7 @@ namespace Hider.App.Tests.Tray
         [AvaloniaTheory]
         [InlineData(WindowCloseReason.OSShutdown)]
         [InlineData(WindowCloseReason.ApplicationShutdown)]
-        public void Fallback_SessionOrAppShutdown_IsNotHeldUp_NorMinimised(WindowCloseReason _reason)
+        public void GT128_Fallback_SessionOrAppShutdown_IsNotHeldUp_NorMinimised(WindowCloseReason _reason)
         {
             // Refusing a sign-out would make the desktop report Hider as blocking it (AreaWindow.KeepOpen).
             var window = new TrayFallbackWindow();
@@ -216,7 +216,7 @@ namespace Hider.App.Tests.Tray
         [InlineData(WindowCloseReason.WindowClosing)]
         [InlineData(WindowCloseReason.OwnerWindowClosing)]
         [InlineData(WindowCloseReason.Undefined)]
-        public void Fallback_OtherCloses_AreRefused_AndMinimise(WindowCloseReason _reason)
+        public void GT128_Fallback_OtherCloses_AreRefused_AndMinimise(WindowCloseReason _reason)
         {
             var window = new TrayFallbackWindow();
             window.Show();

@@ -104,7 +104,7 @@ namespace Hider.App.Tests.Platform
         [InlineData("BGRA")]
         [InlineData("RGBx")]
         [InlineData("RGBA")]
-        public async Task Grab_EveryFormat_GivesOpaqueBgra(string _format)
+        public async Task GT98_Grab_EveryFormat_GivesOpaqueBgra(string _format)
         {
             await StartAsync(_format);
             var buffer = new byte[FrameBytes];
@@ -189,7 +189,7 @@ namespace Hider.App.Tests.Platform
         [InlineData("BGRA")]
         [InlineData("RGBx")]
         [InlineData("RGBA")]
-        public async Task Grab_Checkers_EveryFormat_CopiesTheRowsInPlace(string _format)
+        public async Task GT98_Grab_Checkers_EveryFormat_CopiesTheRowsInPlace(string _format)
         {
             // The solid-colour tests show the channel order; this shows that each row comes from its own place.
             await StartCheckersAsync(_format);
@@ -201,7 +201,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task Grab_Checkers_PartOfTheRows_KeepsTheCellBorder()
+        public async Task GT98_Grab_Checkers_PartOfTheRows_KeepsTheCellBorder()
         {
             // Rows [10, 20) cross the cell border at y = 16: rows 10-15 alike, 16 the other colour, 16-19 alike; the rest of
             // the buffer untouched. The same rows of a whole frame match.
@@ -217,7 +217,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task Grab_BufferTooSmall_GivesTheSizeAndCopiesNothing()
+        public async Task GT98_Grab_BufferTooSmall_GivesTheSizeAndCopiesNothing()
         {
             await StartAsync();
             Assert.Equal(Hidercap.BufferTooSmall, helper.GrabAfter(0, 20000, 0, int.MaxValue, Span<byte>.Empty, out var frame));
@@ -239,7 +239,7 @@ namespace Hider.App.Tests.Platform
         [InlineData(30, 10, 30, 30)]        // row1 before row0: nothing
         [InlineData(100, 200, 0, 0)]        // below the frame: nothing
         [InlineData(0, int.MaxValue, 0, Height)]
-        public async Task Grab_CopiesOnlyTheRowsAskedFor(int _row0, int _row1, int _from, int _to)
+        public async Task GT98_Grab_CopiesOnlyTheRowsAskedFor(int _row0, int _row1, int _from, int _to)
         {
             await StartAsync();
             var buffer = new byte[FrameBytes];
@@ -249,7 +249,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task Grab_NotBeforeLaterThanAnyFrame_TimesOut_WithTheLastSequence()
+        public async Task CT90_Grab_NotBeforeLaterThanAnyFrame_TimesOut_WithTheLastSequence()
         {
             await StartAsync();
             Assert.Equal(Hidercap.Ok, First(new byte[FrameBytes]).Code);
@@ -263,7 +263,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task Grab_WaitsForAFrameShownAfterNotBefore()
+        public async Task CT90_Grab_WaitsForAFrameShownAfterNotBefore()
         {
             // CT-90 end to end: a frame received less than RECEIVE_MARGIN after not_before may predate it; the grab waits
             // for one received later.
@@ -279,7 +279,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task StopAndStartAgain_FramesComeAgain()
+        public async Task CT89_StopAndStartAgain_FramesComeAgain()
         {
             uint node = await StartAsync();
             Assert.Equal(Hidercap.Ok, First(new byte[FrameBytes]).Code);
@@ -295,7 +295,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task StartTwice_SecondIsRefused_TheStreamGoesOn()
+        public async Task CT89_StartTwice_SecondIsRefused_TheStreamGoesOn()
         {
             uint node = await StartAsync();
             var socket = pw!.Connect();
@@ -306,7 +306,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [PipeWireFact]
-        public async Task PipeWireGrabber_WithScreenCastPortalAndTheRealHelper_GrabsTheStream()
+        public async Task GT98_PipeWireGrabber_WithScreenCastPortalAndTheRealHelper_GrabsTheStream()
         {
             // Stage 2 as the app runs it: the portal hands out the stream (node, monitor rectangle, restore token) and a
             // connection to PipeWire; the grabber starts the helper on it and returns frames newer than each strip.

@@ -14,7 +14,7 @@ namespace Hider.App.Tests.Platform
     public sealed class X11WindowHostTests
     {
         [AvaloniaFact]
-        public void IsAnAvaloniaWindowHost()
+        public void GT91_IsAnAvaloniaWindowHost()
         {
             var window = new Window();
             using var host = new X11WindowHost(window);
@@ -24,7 +24,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Place_PositionInPhysicalPixels_SizeInDip()
+        public void GT36_Place_PositionInPhysicalPixels_SizeInDip()
         {
             var window = new Window();
             using var host = new X11WindowHost(window);
@@ -38,7 +38,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void SetTopmost_SetsTheWindowsTopmost()
+        public void GT14_SetTopmost_SetsTheWindowsTopmost()
         {
             var window = new Window();
             using var host = new X11WindowHost(window);
@@ -50,7 +50,7 @@ namespace Hider.App.Tests.Platform
         }
 
         [AvaloniaFact]
-        public void Dispose_StopsDisplayChanges()
+        public void GT65_Dispose_StopsDisplayChanges()
         {
             var window = new Window();
             var host = new X11WindowHost(window);
