@@ -17,18 +17,26 @@ namespace Hider.App.Tests.Areas
     [Collection(nameof(LocalApplicationDataGroup))]
     public class AreaManagerV1SettingTests
     {
-        [AvaloniaFact]
-        public void GT133_AV1SettingTxt_IsNeverRead_TheAppStartsWithNoAreas_AndLeavesTheFileAsItWas()
+        /// <summary>
+        /// Once with the files free (an import, move or write shows; a read that swallows the lock's IOException would hide it
+        /// otherwise) and once held without sharing (a read of either file by the app throws instead of passing unseen).
+        /// </summary>
+        [AvaloniaTheory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void GT133_AV1SettingTxt_IsNeverRead_TheAppStartsWithNoAreas_AndLeavesTheFileAsItWas(bool _hold)
         {
             using var v1 = new V1SettingFile();
             using var f = new AreaHarness();
             string beside = Path.Combine(f.Dir, "setting.txt");
             V1SettingFile.Write(beside);
-            // Held without sharing: a read of either file by the app would throw instead of passing unseen.
-            using (v1.Hold())
-            using (V1SettingFile.Hold(beside))
+            using (v1.HoldIf(_hold))
+            using (_hold ? V1SettingFile.Hold(beside) : null)
             {
-                Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(v1.FilePath));
+                if (_hold)
+                {
+                    Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(v1.FilePath));
+                }
                 Assert.Equal(LoadStatus.Missing, f.Manager.Restore());
                 Assert.Empty(f.Manager.Areas);
                 Assert.Empty(f.Hosts);

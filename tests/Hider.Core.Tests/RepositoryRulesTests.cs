@@ -604,8 +604,14 @@ namespace Hider.Core.Tests
     [Collection(ProcessWideState.Name)]
     public class V1SettingPlaceTests
     {
-        [Fact]
-        public void CT149_TheV1FileAtItsPlace_IsNeverRead_NorImported()
+        /// <summary>
+        /// Once with the file free (an import, move or write shows; a read that swallows the lock's IOException would hide it
+        /// otherwise) and once held without sharing (a read throws).
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void CT149_TheV1FileAtItsPlace_IsNeverRead_NorImported(bool _hold)
         {
             using var v1 = new V1SettingFile();
             string dir = Path.Combine(Path.GetTempPath(), "hider-fr65-" + Guid.NewGuid().ToString("N"));
@@ -613,10 +619,13 @@ namespace Hider.Core.Tests
             try
             {
                 string path = Path.Combine(dir, "areas.json");
-                using (v1.Hold())
+                using (v1.HoldIf(_hold))
                 {
-                    // The lock works on this OS: a read of the v1 file while it is held throws.
-                    Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(v1.FilePath));
+                    if (_hold)
+                    {
+                        // The lock works on this OS: a read of the v1 file while it is held throws.
+                        Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(v1.FilePath));
+                    }
                     var state = AreasFile.Load(path, out var status);
                     Assert.Equal(LoadStatus.Missing, status);
                     Assert.Empty(state.Areas);
@@ -626,6 +635,68 @@ namespace Hider.Core.Tests
                 }
                 v1.AssertUntouched();
                 Assert.Equal("areas.json", Path.GetFileName(Assert.Single(Directory.GetFileSystemEntries(dir))));
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
+        [Fact]
+        public void CT149_ThePlace_IsUsedByOneTestAtATime()
+        {
+            // The named mutex, the same one the other test assembly takes: a second user waits until the first is done.
+            using var first = new V1SettingFile(); // disposed again at the end if an assert throws first: a no-op
+            using var secondStarted = new ManualResetEventSlim();
+            using var secondDone = new ManualResetEventSlim();
+            string? secondPath = null;
+            // A thread of its own: the mutex belongs to the thread that took it, and is let go on that same thread.
+            var second = new Thread(() =>
+            {
+                secondStarted.Set();
+                using (var v1 = new V1SettingFile())
+                {
+                    secondPath = v1.FilePath;
+                }
+                secondDone.Set();
+            })
+            { IsBackground = true };
+            second.Start();
+            Assert.True(secondStarted.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
+            Assert.False(secondDone.Wait(300, TestContext.Current.CancellationToken));
+            string firstPath = first.FilePath;
+            first.Dispose();
+            Assert.True(secondDone.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
+            Assert.True(second.Join(TimeSpan.FromSeconds(30)));
+            Assert.NotNull(secondPath);
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.NotEqual(firstPath, secondPath); // each its own temporary XDG_DATA_HOME
+                Assert.False(File.Exists(firstPath));
+            }
+        }
+
+        [Fact]
+        public void CT149_OnlyAFileWithTheTestsBytesAndTime_IsTheTests()
+        {
+            // What the helper removes, and what it takes for a leftover of an interrupted run; anything else is the user's.
+            string dir = Path.Combine(Path.GetTempPath(), "hider-fr65-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "setting.txt");
+                Assert.False(V1SettingFile.IsTheTestsFile(path));
+                V1SettingFile.Write(path);
+                Assert.True(V1SettingFile.IsTheTestsFile(path));
+                using (V1SettingFile.Hold(path))
+                {
+                    Assert.False(V1SettingFile.IsTheTestsFile(path)); // unreadable: not known to be the test's, kept
+                }
+                File.SetLastWriteTimeUtc(path, V1SettingFile.OldTime.AddSeconds(1));
+                Assert.False(V1SettingFile.IsTheTestsFile(path)); // saved again by v1
+                File.WriteAllText(path, V1SettingFile.Content + "2\n");
+                File.SetLastWriteTimeUtc(path, V1SettingFile.OldTime);
+                Assert.False(V1SettingFile.IsTheTestsFile(path)); // other content at the same time
             }
             finally
             {
