@@ -24,6 +24,9 @@ $version = '@HIDER_VERSION@'
 $baseUrl = '@HIDER_BASE_URL@'
 $sha256 = '@HIDER_SHA256_WIN_X64@'
 $work = $null
+# .NET instead of Get-FileHash / Expand-Archive / Invoke-WebRequest: those come from modules that Windows PowerShell 5.1
+# fails to load when started from PowerShell 7 (its PSModulePath leaks into the child), e.g. on a CI runner.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 try {
     if (-not [Environment]::Is64BitOperatingSystem) { throw 'Hider needs 64-bit Windows.' }
     if ($env:HIDER_DEST) {
@@ -51,13 +54,18 @@ try {
         Write-Output "Downloading $url"
         # Windows PowerShell 5.1 may not offer TLS 1.2 by default.
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+        (New-Object Net.WebClient).DownloadFile($url, $zip)
     }
-    $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+    $stream = [IO.File]::OpenRead($zip)
+    try {
+        $actual = -join ([Security.Cryptography.SHA256]::Create().ComputeHash($stream) | ForEach-Object { $_.ToString('x2') })
+    } finally {
+        $stream.Dispose()
+    }
     if ($actual -ne $sha256) { throw "SHA-256 mismatch for $archive (expected $sha256, got $actual)." }
 
     $unpacked = Join-Path $work 'unpacked'
-    Expand-Archive -LiteralPath $zip -DestinationPath $unpacked
+    [IO.Compression.ZipFile]::ExtractToDirectory($zip, $unpacked)
     $src = Join-Path $unpacked $name
     if (-not (Test-Path -LiteralPath (Join-Path $src 'Hider.exe') -PathType Leaf)) { throw "$archive does not contain $name\Hider.exe." }
 
