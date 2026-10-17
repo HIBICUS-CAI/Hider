@@ -167,7 +167,8 @@ namespace Hider.Tray
             return new PixelPoint(x, y);
         }
 
-        private void OnClicked()
+        /// <summary>The tray icon's click (internal for tests: a headless platform has no tray icon to click).</summary>
+        internal void OnClicked()
         {
             // Linux AppIndicator opens the native menu for both buttons; only Windows needs the custom popup.
             if (!OperatingSystem.IsWindows())
