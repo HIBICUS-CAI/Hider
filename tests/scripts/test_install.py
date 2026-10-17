@@ -9,7 +9,6 @@ import base64
 import contextlib
 import importlib.util
 import os
-import platform
 import shutil
 import stat
 import subprocess
@@ -70,9 +69,12 @@ class ModuleTest(unittest.TestCase):
     def test_other_systems_are_treated_as_linux(self) -> None:
         self.assertEqual(self.load_on('Darwin'), (False, 'Hider'))
 
-    def test_this_machine(self) -> None:
-        self.assertEqual(install.IS_WINDOWS, platform.system() == 'Windows')
-        self.assertEqual(install.EXE_NAME, 'Hider.exe' if install.IS_WINDOWS else 'Hider')
+    def test_this_machine_on_a_ci_runner(self) -> None:
+        # Expected from the runner's RUNNER_OS, not from platform.system() again (test_common's counterpart).
+        if os.environ.get('GITHUB_ACTIONS') != 'true':
+            self.skipTest('the expected value comes from the GitHub Actions runner (RUNNER_OS)')
+        on_windows = os.environ['RUNNER_OS'] == 'Windows'
+        self.assertEqual((install.IS_WINDOWS, install.EXE_NAME), (on_windows, 'Hider.exe' if on_windows else 'Hider'))
 
 
 class CopyFilesTest(unittest.TestCase):

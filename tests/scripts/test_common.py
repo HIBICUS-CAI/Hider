@@ -83,9 +83,14 @@ class HostTargetTest(unittest.TestCase):
                 target = common.host_target()
             self.assertTrue(target is None or target in common.TARGETS)
 
-    def test_this_machine(self) -> None:
-        # The test runners are Linux x64 / arm64 or Windows x64.
-        self.assertIn(common.host_target(), common.TARGETS)
+    def test_this_machine_on_a_ci_runner(self) -> None:
+        # Expected from what GitHub Actions says about the runner (RUNNER_OS, RUNNER_ARCH), not from platform again. A
+        # development machine can be anything (macOS, 32-bit, ...), so it has no fixed expectation.
+        if os.environ.get('GITHUB_ACTIONS') != 'true':
+            self.skipTest('the expected target comes from the GitHub Actions runner (RUNNER_OS / RUNNER_ARCH)')
+        runner_os = {'Linux': 'linux', 'Windows': 'win'}[os.environ['RUNNER_OS']]
+        runner_arch = {'X64': 'x64', 'ARM64': 'arm64'}[os.environ['RUNNER_ARCH']]
+        self.assertEqual(common.host_target(), f'{runner_os}-{runner_arch}')
 
 
 class ScriptFilesTest(unittest.TestCase):
