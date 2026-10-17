@@ -34,6 +34,14 @@ namespace Hider.Tools.FakePortal
                     _context.Reply(_context.CreateReplyWriter(null).CreateMessage());
                     break;
                 default:
+                    // Logged so that the smoke test notices Hider calling something this fake does not offer.
+                    string args = "";
+                    if (request.SignatureAsString == "ss")
+                    {
+                        var reader = request.GetBodyReader();
+                        args = $"({reader.ReadString()}, {reader.ReadString()})";
+                    }
+                    Console.WriteLine($"unknown method {request.InterfaceAsString}.{member}{args}");
                     _context.ReplyUnknownMethodError();
                     break;
             }
@@ -111,10 +119,6 @@ namespace Hider.Tools.FakePortal
                     string path = ReplyRequest(_context, ReadOptions(ref reader));
                     int n = Interlocked.Increment(ref starts);
                     Console.WriteLine($"screencast start {n}");
-                    if (_mode == "hang")
-                    {
-                        break; // the dialog stays open: no Response until the client closes the request
-                    }
                     Respond(sender, path, 0, (ref MessageWriter _w) =>
                     {
                         _w.WriteDictionaryEntryStart();
@@ -155,6 +159,7 @@ namespace Hider.Tools.FakePortal
                     break;
                 }
                 default:
+                    Console.WriteLine($"unknown method org.freedesktop.portal.ScreenCast.{_member}");
                     _context.ReplyUnknownMethodError();
                     break;
             }

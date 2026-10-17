@@ -114,6 +114,8 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
       - run: dotnet format Hider.slnx --verify-no-changes --no-restore
+      # tools/fakeportal is not in the solution (a development tool for scripts/xvfb-strip-smoke.sh).
+      - run: dotnet format tools/fakeportal/FakePortal.csproj --verify-no-changes
 
   # scripts/*.py: strict type checks (mypy, pyright) and lint (ruff), as configured in pyproject.toml.
   python-lint:
@@ -221,11 +223,16 @@ jobs:
       - run: dotnet build -c Release --no-restore -warnaserror
       - run: dotnet test tests/Hider.App.Tests -c Release --no-build --blame-hang-timeout 5m --logger "trx;LogFileName=gui-${{ matrix.rid }}.trx" --results-directory TestResults
       # Linux strip capture end to end on Xvfb with a fake portal (scripts/xvfb-strip-smoke.sh): stage 1 (Screenshot), then
-      # stage 2 (ScreenCast through a private PipeWire and libhidercap).
+      # stage 2 (ScreenCast through a private PipeWire and libhidercap), then both with the portal refusing (FR-52).
+      # Each run ends with SIGTERM: exit code 0 and areas.json written again (FR-06, FR-61).
       - if: runner.os == 'Linux'
         run: scripts/xvfb-strip-smoke.sh
       - if: runner.os == 'Linux'
         run: scripts/xvfb-strip-smoke.sh --screencast
+      - if: runner.os == 'Linux'
+        run: scripts/xvfb-strip-smoke.sh --deny
+      - if: runner.os == 'Linux'
+        run: scripts/xvfb-strip-smoke.sh --screencast --deny
       - if: always()
         uses: actions/upload-artifact@v7
         with:

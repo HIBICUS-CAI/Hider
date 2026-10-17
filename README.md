@@ -99,7 +99,7 @@ dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests            # Linux: make -C native/hidercap を先に（実ヘルパ・私的な dbus / PipeWire のテスト）
 make -C native/hidercap test                  # libhidercap の単体テスト（libpipewire が要る。デーモンは不要）
 python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト
-scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
+scripts/xvfb-strip-smoke.sh [--screencast] [--deny]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認（SIGTERM での終了と保存も）
 ```
 
 設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`、リリースは `.github/workflows/release.yml` を参照してください。
