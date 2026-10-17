@@ -103,7 +103,14 @@ namespace Hider.Core.Tests.Mosaic
         [Fact]
         public void CurrentPlatform_IsTheRunningOs()
         {
-            Assert.Equal(OperatingSystem.IsWindows() ? PlatformSupport.Windows : PlatformSupport.Linux, MethodRegistry.CurrentPlatform);
+            // Independent of the implementation's OperatingSystem check: the runtime's own OS identification.
+            var expected = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                ? PlatformSupport.Windows
+                : PlatformSupport.Linux;
+            Assert.Equal(expected, MethodRegistry.CurrentPlatform);
+            // One platform, never both: ForPlatform(All) would leave out methods of one OS only.
+            Assert.NotEqual(PlatformSupport.All, MethodRegistry.CurrentPlatform);
+            Assert.True(MethodRegistry.CurrentPlatform is PlatformSupport.Windows or PlatformSupport.Linux);
             Assert.NotEmpty(MethodRegistry.ForPlatform(MethodRegistry.CurrentPlatform));
         }
 
