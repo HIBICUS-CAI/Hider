@@ -127,12 +127,16 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaTheory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void GT59_Show_RestoredMosaicArea_StartsTheTimerAtItsStoredInterval(bool _isWindows)
+        [InlineData(true, 45000)]
+        [InlineData(false, 45000)]
+        [InlineData(true, 250)]
+        [InlineData(false, 250)]
+        public void GT59_Show_RestoredMosaicArea_StartsTheTimerAtItsStoredInterval(bool _isWindows, int _interval)
         {
+            // Not the OS default: the timer has to come from the stored value, not from AreaDefaults.
             using var f = new AreaHarness(_isWindows: _isWindows);
-            int interval = AreaDefaults.IntervalMs(_isWindows);
+            int interval = _interval;
+            Assert.NotEqual(AreaDefaults.IntervalMs(_isWindows), interval);
             var stored = new AreaState { Id = "0f3b8d2e", X = 100, Y = 120, Width = 300, Height = 200, Pattern = PatternKind.Mosaic };
             stored.Mosaic.Common.IntervalMs = interval;
             AreasFile.Save(f.AreasPath, new AppState { Areas = { stored } });
