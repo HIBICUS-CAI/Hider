@@ -13,10 +13,12 @@ import unittest
 from pathlib import Path
 
 WINDOWS = sys.platform == 'win32'
-# The processes named Hider whose executable lies under $env:HIDER_TEST_ROOT.
+# The processes named Hider whose executable lies under $env:HIDER_TEST_ROOT. Filtered by name rather than with
+# `Get-Process -Name Hider -ErrorAction SilentlyContinue`: when none runs, that records an error, and Windows PowerShell
+# -Command then exits 1 although nothing failed.
 HIDER_UNDER_ROOT = (
-    'Get-Process -Name Hider -ErrorAction SilentlyContinue | Where-Object '
-    '{ $_.Path -and $_.Path.StartsWith($env:HIDER_TEST_ROOT, [StringComparison]::OrdinalIgnoreCase) }'
+    "Get-Process | Where-Object { $_.ProcessName -eq 'Hider' -and $_.Path -and "
+    '$_.Path.StartsWith($env:HIDER_TEST_ROOT, [StringComparison]::OrdinalIgnoreCase) }'
 )
 SKIP_REASON = 'Windows only: runs install.bat / Windows PowerShell (CI: the installer-windows job)'
 
