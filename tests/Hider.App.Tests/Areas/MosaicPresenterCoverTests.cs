@@ -83,6 +83,30 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(255, bitmap.GetPixel(W / 2, H / 2).Alpha);
         }
 
+        [AvaloniaTheory]
+        [InlineData(PatternKind.Mosaic)]
+        [InlineData(PatternKind.Generated)]
+        public void DeletedArea_ItsPresenterIsDisposed_LastFramesAreTheCover(PatternKind _pattern)
+        {
+            // AreaWindow.CloseFromController disposes the presenter: a frame the closing window still renders makes no new
+            // image (it would outlive the retire list) and covers the area with its fill color.
+            using var f = new AreaHarness();
+            var area = f.Add(new PhysicalRect(100, 100, W, H), _pattern);
+            area.ExitEdit();
+            var presenter = area.Window.PatternView;
+            using (var before = Draw(presenter))
+            {
+                Assert.False(AllCovered(before, DefaultFill));
+            }
+            int mosaics = presenter.MosaicRenderCount, patterns = presenter.GeneratedRenderCount;
+            Assert.Equal(1, mosaics + patterns);
+            area.Delete();
+            using var after = Draw(presenter);
+            Assert.True(AllCovered(after, DefaultFill));
+            Assert.Equal(mosaics, presenter.MosaicRenderCount);
+            Assert.Equal(patterns, presenter.GeneratedRenderCount);
+        }
+
         [AvaloniaFact]
         public void DrawFailure_IsLogged()
         {
