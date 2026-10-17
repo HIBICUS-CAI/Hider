@@ -56,6 +56,26 @@ namespace Hider.Core.Tests.Model
         }
 
         [Theory]
+        [InlineData(0L, "00000000")]
+        [InlineData(0x7FFF_FFFFL, "7fffffff")]
+        [InlineData(0x8000_0000L, "80000000")] // above int.MaxValue: the uint cast keeps it positive
+        [InlineData(0xFFFF_FFFFL, "ffffffff")] // the largest value NextInt64(0, 2^32) gives (the upper bound is exclusive)
+        public void AreaId_New_WholeRangeOfEightDigits(long _value, string _id)
+        {
+            string id = AreaId.New(_ => false, new FixedRandom(_value));
+            Assert.Equal(_id, id);
+            Assert.True(AreaId.IsValid(id));
+        }
+
+        [Fact]
+        public void AreaId_New_AsksForZeroUpToTwoToTheThirtySecond()
+        {
+            var random = new RangeRecorder();
+            AreaId.New(_ => false, random);
+            Assert.Equal((0L, 1L << 32), random.Range);
+        }
+
+        [Theory]
         [InlineData("#68768A", true)]
         [InlineData("#68768a", true)]
         [InlineData("#000000", true)]
@@ -110,6 +130,17 @@ namespace Hider.Core.Tests.Model
         }
 
         /// <summary>A random source whose 64-bit draws are always the same value.</summary>
+        private sealed class RangeRecorder : Random
+        {
+            public (long Min, long Max) Range { get; private set; }
+
+            public override long NextInt64(long _minValue, long _maxValue)
+            {
+                Range = (_minValue, _maxValue);
+                return 5;
+            }
+        }
+
         private sealed class FixedRandom(long _value) : Random
         {
             public override long NextInt64(long _minValue, long _maxValue)

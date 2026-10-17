@@ -242,6 +242,63 @@ namespace Hider.Core.Tests.Persistence
             Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
         }
 
+        [Theory]
+        [InlineData("\"Fill\"")]
+        [InlineData("\"FILL\"")]
+        [InlineData("\"MOSAIC\"")]
+        [InlineData("\"Mosaic\"")]
+        [InlineData("\"Pattern\"")]
+        [InlineData("\"generated\"")] // the C# name, not the file's
+        [InlineData("\"image\"")]
+        [InlineData("\"\"")]
+        public void Load_Pattern_OtherCaseOrUnknownName_TheFileIsBroken(string _value)
+        {
+            // The names are the spec's lower case ones (§4.7), matched exactly: with JsonStringEnumMemberName the converter
+            // does not ignore case. Any other string is no PatternKind, so the file is not a valid state (FR-64), unlike an
+            // unknown number, which Normalize turns into mosaic.
+            File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""");
+            var state = AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Broken, status);
+            Assert.Empty(state.Areas);
+            Assert.True(File.Exists(FilePath + ".broken"));
+        }
+
+        [Theory]
+        [InlineData("\" fill\"", PatternKind.Fill)]
+        [InlineData("\"mosaic \"", PatternKind.Mosaic)]
+        [InlineData("\" pattern \"", PatternKind.Generated)]
+        public void Load_Pattern_SurroundingSpaces_AreIgnored(string _value, PatternKind _expected)
+        {
+            // The converter trims the name before matching it.
+            Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
+        }
+
+        [Fact]
+        public void Load_Utf8WithByteOrderMark_IsLoaded()
+        {
+            // Notepad and other editors may save with a BOM.
+            File.WriteAllText(FilePath, """{ "version": 1, "areas": [ { "id": "0f3b8d2e", "fill": { "color": "#123456" } } ] }""", new System.Text.UTF8Encoding(true));
+            Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, File.ReadAllBytes(FilePath)[..3]);
+            var state = AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Loaded, status);
+            Assert.Equal("#123456", Assert.Single(state.Areas).Fill.Color);
+        }
+
+        [Fact]
+        public void Save_LeftOverLongerTempFile_IsReplacedWhole()
+        {
+            // A crash may leave areas.json.tmp behind, longer than the next save: the save truncates it, so the renamed file
+            // is exactly the new JSON with nothing of the old one after it.
+            File.WriteAllText(FilePath + ".tmp", new string('x', 100_000));
+            var state = StateWith(new AreaState { Id = "0f3b8d2e" });
+            AreasFile.Save(FilePath, state);
+            Assert.False(File.Exists(FilePath + ".tmp"));
+            Assert.Equal(AreasFile.ToJson(state), File.ReadAllText(FilePath));
+            var loaded = AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Loaded, status);
+            Assert.Equal("0f3b8d2e", Assert.Single(loaded.Areas).Id);
+        }
+
         [Fact]
         public void Normalize_Ids_BadOrDuplicateReplaced_FirstOfADuplicateKept()
         {
