@@ -389,7 +389,7 @@
 
 | FR・NFR | 内容 | 現状 |
 |---|---|---|
-| FR-41 | Voronoi（Worley 方式、3×3 近傍） | なし。組み込み手法は pixelate / hexcell / blur / block / noise で、Voronoi の手法そのものが未実装（CT-13 の既知集合にもない）。テストではなく実装の欠けなので、ユーザーの判断を待つ |
+| FR-41 | Voronoi（Worley 方式、3×3 近傍） | 対象外。Voronoi の生成パターンは実装しない（ユーザー決定 2026-10-17。設計書 D-5 では v2.1 に先送りしていた）。組み込み手法は pixelate / hexcell / blur / block / noise |
 | NFR-01 | 録画・画面共有に映る（除外 API を使わない） | 映ることそのものは PT-10 / PT-26（実機）。除外 API を使わないことは CT150 でソースを検査 |
 
 以前この表にあった FR-10（GT131）、FR-12（GT132）、FR-65（CT149、CT150）はテストを足した。
