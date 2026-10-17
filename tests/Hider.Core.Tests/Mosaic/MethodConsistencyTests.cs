@@ -76,6 +76,57 @@ namespace Hider.Core.Tests.Mosaic
             AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0);
         }
 
+        [Theory]
+        [InlineData(1, 1)]
+        [InlineData(1, 300)]
+        [InlineData(300, 1)]
+        [InlineData(2, 2)]
+        [InlineData(3, 5)]
+        public void Mosaic_HexcellTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
+        {
+            // Where the clamp of the hexagon centre (maxX = w - 0.5, 0.5 for one pixel) and a pyramid of a single level or
+            // a few take effect.
+            var method = MethodRegistry.Find("hexcell")!;
+            foreach (double radius in new[] { 10.0, 2.0 })
+            {
+                var settings = new MethodSettings<MosaicCommon> { Method = "hexcell" };
+                settings.ParamsFor("hexcell")["radius"] = radius;
+                var p = ParamValues.ForMosaic(method, settings, 1.0);
+                using var source = SyntheticImage.CreateImage(_w, _h);
+                var inputs = MosaicPipeline.Prepare(source, default, p, null, method);
+                try
+                {
+                    AssertClose(method, inputs, p, 0);
+                }
+                finally
+                {
+                    MosaicPipeline.Release(inputs, source);
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(1, 1)]
+        [InlineData(1, 300)]
+        [InlineData(300, 1)]
+        [InlineData(2, 2)]
+        [InlineData(3, 5)]
+        public void Generated_NoiseTinyAndThinAreas_CpuPathIsTheShader(int _w, int _h)
+        {
+            // Smaller than one lattice step: cols = floor(w / step) + 2 and the Math.Min(.., cols - 2) of the CPU path.
+            var method = MethodRegistry.Find("noise")!;
+            foreach (double? scale in new double?[] { null, 64 })
+            {
+                var settings = new MethodSettings<GeneratedCommon> { Method = "noise" };
+                if (scale is { } value)
+                {
+                    settings.ParamsFor("noise")["scale"] = value;
+                }
+                var p = ParamValues.ForGenerated(method, settings);
+                AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(_w, _h) }, p, 0);
+            }
+        }
+
         internal static void AssertClose(IMosaicMethod _method, MosaicInputs _inputs, ParamValues _p, double _maxShare)
         {
             int w = _inputs.AreaSize.Width, h = _inputs.AreaSize.Height;
