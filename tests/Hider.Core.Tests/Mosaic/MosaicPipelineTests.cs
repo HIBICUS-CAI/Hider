@@ -40,14 +40,15 @@ namespace Hider.Core.Tests.Mosaic
         }
 
         /// <summary>
-        /// A mosaic method with a CPU path that records the pixmap it is handed and fills it with one color. The shader
-        /// path passes the capture through.
+        /// A mosaic method with a CPU path that records the pixmap it is handed and fills it with one color, or with
+        /// <see cref="Coordinate"/> of each pixel. The shader path passes the capture through.
         /// </summary>
         private sealed class CpuProbe : IMosaicMethod, ICpuRenderer
         {
             private readonly DummyMethod shader = new("cpuprobe", MethodKind.Mosaic, PlatformSupport.All);
 
             public SKColor Color { get; init; } = new(100, 150, 200);
+            public bool Coordinates { get; init; }
             public List<(int Width, int Height, int RowBytes, SKColorType ColorType, SKAlphaType AlphaType)> Targets { get; } = new();
             public string Id => shader.Id;
             public string LabelKey => shader.LabelKey;
@@ -63,7 +64,28 @@ namespace Hider.Core.Tests.Mosaic
             public bool TryRender(SKPixmap _dst, MosaicInputs _inputs, ParamValues _p)
             {
                 Targets.Add((_dst.Width, _dst.Height, _dst.RowBytes, _dst.ColorType, _dst.AlphaType));
-                return _dst.Erase(Color);
+                if (!Coordinates)
+                {
+                    return _dst.Erase(Color);
+                }
+                var pixels = _dst.GetPixelSpan<uint>();
+                for (int y = 0; y < _dst.Height; y++)
+                {
+                    for (int x = 0; x < _dst.Width; x++)
+                    {
+                        pixels[y * _dst.RowBytes / 4 + x] = (uint)Coordinate(x, y); // BGRA8888: the uint is ARGB
+                    }
+                }
+                return true;
+            }
+
+            /// <summary>
+            /// The color <see cref="Coordinates"/> writes at (x, y): B = 12x, G = 25y, R = 200, opaque. Neighbours differ by
+            /// 12 or more, so linear sampling between them would show (areas up to 21 x 10).
+            /// </summary>
+            public static SKColor Coordinate(int _x, int _y)
+            {
+                return new SKColor(200, (byte)(_y * 25), (byte)(_x * 12), 255);
             }
         }
 
@@ -499,7 +521,9 @@ namespace Hider.Core.Tests.Mosaic
         [Fact]
         public void CT126_Draw_CpuPath_IntoAnOffsetScaledRect_ClippedToIt()
         {
-            var method = new CpuProbe();
+            // Each area pixel (x, y) is a 2 x 2 block at (10 + 2x, 5 + 2y): orientation, scale and nearest sampling,
+            // and nothing outside the destination.
+            var method = new CpuProbe { Coordinates = true };
             using var source = SyntheticImage.CreateImage(20, 10);
             var inputs = new MosaicInputs { Source = source, Pyramid = new[] { source }, AreaSize = new SKSizeI(20, 10) };
             using var result = Render.Draw(60, 40, _c =>
@@ -512,9 +536,11 @@ namespace Hider.Core.Tests.Mosaic
                 for (int x = 0; x < 60; x++)
                 {
                     bool inside = x >= 10 && x < 50 && y >= 5 && y < 25;
-                    Assert.Equal(inside ? method.Color : SKColors.Red, result.GetPixel(x, y));
+                    var expected = inside ? CpuProbe.Coordinate((x - 10) / 2, (y - 5) / 2) : SKColors.Red;
+                    Assert.True(expected == result.GetPixel(x, y), $"({x},{y}): {result.GetPixel(x, y)} instead of {expected}");
                 }
             }
+            Assert.Equal((20, 10), (method.Targets[0].Width, method.Targets[0].Height));
         }
 
         [Theory]
