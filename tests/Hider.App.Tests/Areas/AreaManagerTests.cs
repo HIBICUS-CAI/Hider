@@ -238,6 +238,50 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void DeleteAll_DuringALinuxStripCapture_CancelsIt_WithoutFallingBack()
+        {
+            // FR-05 from the tray while area A's capture is in its strips: the capture is cancelled, and its finish, posted
+            // to the UI thread after the controllers are gone, neither falls back (FR-52) nor saves nor captures again.
+            var capture = new ScriptedCapture { Traits = CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaHarness(_capture: capture, _isWindows: false, _queuePosts: true);
+            var a = f.Add(new PhysicalRect(100, 200, 400, 240), PatternKind.Mosaic);
+            var b = f.Add(new PhysicalRect(600, 200, 400, 240), PatternKind.Mosaic);
+            f.RunPosts(); // the creation captures
+            var log = new List<string>();
+            a.Transition += log.Add;
+            b.Transition += log.Add;
+            capture.Next = null;
+            a.Refresh();
+            f.RunPosts();
+            Assert.True(capture.IsWaiting);
+            var token = capture.Tokens[^1];
+            var strip = a.Window.SetTransparentRowsAsync(0, 8, token);
+            Assert.Equal((0, 8), a.Window.TransparentRows);
+            int calls = capture.Calls;
+            int saves = f.Manager.SaveCount;
+
+            f.Manager.DeleteAll();
+            Assert.True(token.IsCancellationRequested);
+            Assert.Empty(f.Manager.Areas);
+            Assert.All(f.Hosts, _h => Assert.True(_h.Disposed));
+            Assert.Equal(saves + 1, f.Manager.SaveCount);
+            Assert.Empty(AreasFile.Load(f.AreasPath, out _).Areas);
+            Assert.Equal(1, f.PendingPosts); // the cancelled capture's finish
+
+            f.RunPosts();
+            Assert.Empty(log);
+            Assert.Equal(saves + 1, f.Manager.SaveCount);
+            Assert.Equal(calls, capture.Calls);
+            Assert.All(new[] { a, b }, _a =>
+            {
+                Assert.Equal(PatternKind.Mosaic, _a.Model.Pattern);
+                Assert.False(_a.CaptureFailed);
+            });
+            UiJobs.Complete(strip);
+            Assert.True(strip.IsCanceled);
+        }
+
+        [AvaloniaFact]
         public void DeleteAll_WithoutAreasOrListener_SavesAnEmptyList()
         {
             using var f = new AreaHarness();
