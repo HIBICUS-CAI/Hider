@@ -10,14 +10,14 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT150（52）、GT41〜GT132（92）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
 
 ## 新しい ID（CT / GT）
 
 | ID | 種別 | 内容 | 対応 FR・NFR・決定 | ファイル / クラス |
 |---|---|---|---|---|
 | CT99 | CT | 取得の型（CaptureFailure / CaptureTraits / CaptureRequest / CaptureResult、帯撮影の ScreenFrame / StripArea / CaptureDeniedException）の値・既定値・等価性 | FR-52 | Hider.Core.Tests/Capture/CaptureTypesTests.cs（CaptureTypesTests、5 件）<br>Hider.Core.Tests/Capture/StripTypesTests.cs（StripTypesTests、3 件） |
-| CT100 | CT | FrameBuffer の確保と再利用（詰めた行・ゼロ埋め、大きくなるときだけ確保し直す、桁あふれは例外でフレームを保つ） | NFR-04 | Hider.Core.Tests/Capture/CaptureTypesTests.cs（CaptureTypesTests、8 件） |
+| CT100 | CT | FrameBuffer の確保と再利用（詰めた行・ゼロ埋め、大きくなるときだけ確保し直す、桁あふれ・負の大きさは例外でフレームを保つ） | NFR-04 | Hider.Core.Tests/Capture/CaptureTypesTests.cs（CaptureTypesTests、10 件） |
 | CT101 | CT | 取得手段がないときの UnavailableCapture は常に Unavailable を返し、露出しない（キャンセル・空の矩形・二重 Dispose でも） | FR-52, NFR-05 | Hider.Core.Tests/Capture/CaptureTypesTests.cs（CaptureTypesTests、2 件） |
 | CT102 | CT | FallbackGrabber の準備（Prepare）と破棄: 準備できた最初の手段を選ぶ、拒否はどれも準備できないときだけ投げる、キャンセルで終わる、拒否の後は前の選択を忘れる、Dispose は全手段を順に。IScreenGrabber の既定メンバー | D-6 | Hider.Core.Tests/Capture/FallbackGrabberEdgeTests.cs（FallbackGrabberEdgeTests、6 件）<br>Hider.Core.Tests/Capture/StripTypesTests.cs（StripTypesTests、3 件） |
 | CT103 | CT | FrameExchange（取得スレッドと UI の間の 2 枚のバッファ）: Publish で入れ替え、Clear で表を捨てる、Release で両方を手放す | FR-38 | Hider.Core.Tests/Capture/FrameExchangeTests.cs（FrameExchangeTests、6 件） |
@@ -66,8 +66,8 @@
 | CT146 | CT | ロックが取れない理由の判定: OS ごとのエラーコードで「他のインスタンスが保持」を判定し、名前が長すぎる・作るフォルダがないなどはエラーとして他インスタンス扱いにしない | FR-08 | Hider.Core.Tests/Persistence/StoragePathsSingleInstanceTests.cs（StoragePathsSingleInstanceTests、3 件） |
 | CT147 | CT | タイマーのスレッドと呼び出し側のスレッドが同時に tick と要求を出しても、実行が重ならない | D-10 | Hider.Core.Tests/Scheduling/RefreshSchedulerCasesTests.cs（RefreshSchedulerCasesTests、1 件） |
 | CT148 | CT | 投げっぱなしのタスク（Forget）: 失敗はちょうど 1 行でログへ、キャンセルは失敗としない、後で成功・未完了なら何も書かない、内側の原因ではなく最初の本当の例外を、複数の例外は集約として | — | Hider.Core.Tests/TaskExtensionsTests.cs（TaskExtensionsTests、6 件） |
-| CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない。areas.json と並んでいても無視される | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件） |
-| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt、HiderJsonContext を通らない JSON。走査がソースを見ていることとコメントを除くことも確認 | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、9 件） |
+| CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない（バイトと更新時刻が不変）。areas.json と並んでいても、v1 の場所（LocalApplicationData/hider_setting/setting.txt、FileShare.None で開いたまま）にあっても無視される | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件。V1SettingPlaceTests、1 件） |
+| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt / hider_setting、HiderJsonContext を通らない JSON、許可リスト外の NuGet（Avalonia は 12.1.x、SkiaSharp・Tmds.DBus.Protocol は Avalonia の依存と同じ版、テスト専用は tests/ だけ）。各パターンを当たる行・当たらない行で検査、走査の対象（src の .cs / .csproj / .axaml / .props / .targets / packages.lock.json と直下のビルドファイル）、C# と XML のコメント除去（文字列は残す）も確認 | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、10 件） |
 | GT41 | GT | 版の表示: 版は InformationalVersion からリビジョンを除いたもの・アセンブリの版と一致・一度だけ読む。--version の出力とトレイメニューの版の行（区切り線はその前だけ） | P-10 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件）<br>Hider.App.Tests/Tray/TrayMenuModelTests.cs（TrayMenuModelTests、2 件）<br>Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、1 件） |
 | GT42 | GT | アイコン: トレイ用は 32 px で共有、窓のアイコンは多サイズの .ico と 48 px の PNG で毎回新しく、資産は埋め込み | FR-71 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、4 件） |
 | GT43 | GT | アプリの資源: Fluent と ColorPicker のテーマを Light で読み込む、等幅フォントは Windows 用を先頭にした代替つき | UI デザインキャンバス | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件） |
@@ -159,7 +159,8 @@
 | GT129 | GT | トレイの破棄: 全窓を閉じエリアへの追従をやめる、何も開いていなくても投げない | FR-06 | Hider.App.Tests/Tray/TrayControllerTests.cs（TrayControllerTests、2 件） |
 | GT130 | GT | メニュー窓のデザイン: ボタンなしで始まり間隔はデザインどおり、アイコンのあるコマンドはパスを持ち左の余白が少ない、ボタンの体裁 | UI デザインキャンバス | Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、3 件） |
 | GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
-| GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す）、すべての窓が最前面 | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、2 件） |
+| GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す） | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
+| GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣、FileShare.None で開いたまま）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変 | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
 
 ## 既存 ID の細分化
 
@@ -280,6 +281,7 @@
 | GT14 | GT | ユーザーによる Close は拒み、コントローラーの Close は通す | FR-11 | Hider.App.Tests/Areas/AreaWindowInputTests.cs（AreaWindowInputTests、1 件） |
 | GT14 | GT | SetTopmost で窓を最前面に | FR-11 | Hider.App.Tests/Platform/AvaloniaWindowHostTests.cs（AvaloniaWindowHostTests、1 件） |
 | GT14 | GT | SetTopmost | FR-11 | Hider.App.Tests/Platform/X11WindowHostTests.cs（X11WindowHostTests、1 件） |
+| GT14 | GT | エリアの窓はどのモードでも最前面: 編集中、ExitEdit 後、EnterEdit → ExitEdit の往復後、Restore 直後 | FR-11 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT15 | GT | カーソルが既知の画面にない・不明なら主画面、画面がなければ 1080p の作業領域で倍率 1、画面の倍率で 400×240 DIP、モザイク / pixelate・編集モード・OS の更新間隔・各既定値、エリアごとに別の Id | FR-14 | Hider.App.Tests/Areas/AreaManagerTests.cs（AreaManagerTests、6 件） |
 | GT16 | GT | 項目は今のエリアから作るモデル | FR-03, FR-04 | Hider.App.Tests/Tray/TrayControllerTests.cs（TrayControllerTests、1 件） |
 | GT16 | GT | エリアがあり編集中でなければ版の行以外すべて有効、エリアがなければ「すべて編集」「すべて削除…」が無効、毎回新しい一覧、項目は値のレコード、全コマンドがある | FR-03, FR-04 | Hider.App.Tests/Tray/TrayMenuModelTests.cs（TrayMenuModelTests、5 件） |
@@ -338,7 +340,7 @@
 | ST18 | ST | install.py のインストール先: Linux は XDG_DATA_HOME（なし・空なら ~/.local/share）、--dest（相対は絶対に）、Windows は LOCALAPPDATA（なければ終了）か --dest、空の --dest は既定 | FR-72 | scripts/test_install.py（MainTest、9 件） |
 | ST19 | ST | install.py のコマンドライン: 未知の引数、ヘルプ、スクリプトとして直接実行 | FR-72 | scripts/test_install.py（MainTest、2 件）<br>scripts/test_install.py（ScriptTest、1 件） |
 | ST20 | ST | install.bat の検査で止まる: 改ざんされたアーカイブ、実行ファイルのないアーカイブ、Hider の実行中、フォルダの指定も LOCALAPPDATA もない、コピーの失敗。ダブルクリック時の失敗は一時停止して終了コードを保つ、フォルダ指定時は止めない | P-9 | scripts/test_install_bat.py（InstallBatTest、7 件） |
-| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き | P-9 | scripts/test_install_bat.py（InstallBatTest、5 件） |
+| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き、空白・記号（& % !）・非 ASCII を含むパス（インストーラの置き場所・インストール先・LOCALAPPDATA） | P-9 | scripts/test_install_bat.py（InstallBatTest、7 件） |
 | ST22 | ST | install.bat の取得と起動: 隣にアーカイブがなければダウンロード（見つからなければ失敗）、指定がなければ Hider を起動・HIDER_NO_LAUNCH なら起動しない | P-9 | scripts/test_install_bat.py（InstallBatTest、4 件） |
 | ST23 | ST | install.sh の引数: ヘルプ、未知の引数、-d はフォルダが必要、-d（相対は絶対に、空は既定）、--dest=x は未知の引数、-d の後のヘルプ、最後の -d が勝つ | P-9 | scripts/test_install_sh.py（OptionsTest、9 件） |
 | ST24 | ST | install.sh の既定の場所: XDG_DATA_HOME、なければ HOME の下、HOME がなくても XDG_DATA_HOME、どちらもなければ理由を示して終了 | P-9 | scripts/test_install_sh.py（DefaultFolderTest、4 件） |
@@ -392,6 +394,6 @@
 | FR-41 | Voronoi（Worley 方式、3×3 近傍） | 本 PR の対象外。Voronoi の生成パターンは v2.0 では実装せず、別途対応（オーナー指示 2026-10-17。設計書 D-5）。組み込み手法は pixelate / hexcell / blur / block / noise |
 | NFR-01 | 録画・画面共有に映る（除外 API を使わない） | 映ることそのものは PT-10 / PT-26（実機）。除外 API を使わないことは CT150 でソースを検査 |
 
-以前この表にあった FR-10（GT131）、FR-12（GT132）、FR-65（CT149、CT150）はテストを足した。
+以前この表にあった FR-10（GT131）、FR-12（GT132）、FR-65（CT149、CT150、GT133）はテストを足した。
 
 FR-71（アイコン）と FR-72（build.py / install.py）は GT42 / GT52 のほか ST で検証している。FR-02 と FR-06 はタブでは PT だけだったが、GT46 / GT47 で CT / GT が付いた。
