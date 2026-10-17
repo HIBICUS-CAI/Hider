@@ -5,13 +5,16 @@ namespace Hider.Core.Tests
     /// <summary>
     /// Leaves the comments out of source text, for the checks of the repository rules (CT150): every character of a comment
     /// becomes a space, line breaks stay, so line numbers and columns are kept. Strings stay (a forbidden file name or
-    /// assembly name is in a string), and a comment marker inside a string is not a comment.
+    /// assembly name is in a string), and a comment marker inside a string is not a comment. Preprocessor directive lines
+    /// (#region, #error, #pragma, ...) hold no code: they are blanked like comments, so a comment marker in their text opens
+    /// nothing.
     /// </summary>
     internal static class SourceText
     {
         /// <summary>
-        /// C#: line comments, block comments (also over several lines), outside regular, verbatim, interpolated (with code in
-        /// the holes, which may hold strings and comments again) and raw strings, and character literals.
+        /// C#: line comments, block comments (also over several lines) and directive lines, outside regular, verbatim,
+        /// interpolated (with code in the holes, which may hold strings and comments again, and a format after the hole's
+        /// top-level ':', which is text) and raw strings, and character literals.
         /// </summary>
         public static string StripCSharp(string _text)
         {
@@ -21,13 +24,19 @@ namespace Hider.Core.Tests
             return output.ToString();
         }
 
-        /// <summary>XML (project files, axaml): &lt;!-- --&gt; comments, also over several lines.</summary>
+        /// <summary>XML (project files, axaml): &lt;!-- --&gt; comments, also over several lines; CDATA sections are text.</summary>
         public static string StripXml(string _text)
         {
             var output = new StringBuilder(_text);
             int i = 0;
             while (i < _text.Length)
             {
+                if (string.CompareOrdinal(_text, i, "<![CDATA[", 0, 9) == 0)
+                {
+                    int end = _text.IndexOf("]]>", i + 9, StringComparison.Ordinal);
+                    i = end < 0 ? _text.Length : end + 3;
+                    continue;
+                }
                 if (string.CompareOrdinal(_text, i, "<!--", 0, 4) == 0)
                 {
                     int end = _text.IndexOf("-->", i + 4, StringComparison.Ordinal);
@@ -54,20 +63,39 @@ namespace Hider.Core.Tests
 
         private static char At(string _text, int _i) => _i < _text.Length ? _text[_i] : '\0';
 
+        /// <summary>Whether only spaces and tabs come before <paramref name="_i"/> on its line.</summary>
+        private static bool StartsLine(string _text, int _i)
+        {
+            for (int k = _i - 1; k >= 0 && _text[k] is not ('\n' or '\r'); k--)
+            {
+                if (_text[k] is not (' ' or '\t'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static int EndOfLine(string _text, int _i)
+        {
+            while (_i < _text.Length && _text[_i] is not ('\n' or '\r'))
+            {
+                _i++;
+            }
+            return _i;
+        }
+
         /// <summary>Code up to the end, or (in a hole of an interpolated string) up to and past its closing brace.</summary>
         private static void Code(string _text, StringBuilder _output, ref int _i, bool _hole)
         {
+            // In a hole: the nesting of braces, parentheses and brackets (a ':' nested in them, e.g. a named argument, is code).
             int depth = 0;
             while (_i < _text.Length)
             {
                 char c = _text[_i];
-                if (c == '/' && At(_text, _i + 1) == '/')
+                if ((c == '/' && At(_text, _i + 1) == '/') || (c == '#' && !_hole && StartsLine(_text, _i)))
                 {
-                    int end = _i;
-                    while (end < _text.Length && _text[end] is not ('\n' or '\r'))
-                    {
-                        end++;
-                    }
+                    int end = EndOfLine(_text, _i);
                     Blank(_text, _output, _i, end);
                     _i = end;
                     continue;
@@ -96,9 +124,13 @@ namespace Hider.Core.Tests
                 }
                 if (_hole)
                 {
-                    if (c == '{')
+                    if (c is '{' or '(' or '[')
                     {
                         depth++;
+                    }
+                    else if (c is ')' or ']')
+                    {
+                        depth--;
                     }
                     else if (c == '}')
                     {
@@ -108,6 +140,15 @@ namespace Hider.Core.Tests
                             return;
                         }
                         depth--;
+                    }
+                    else if (c == ':' && depth == 0 && At(_text, _i + 1) != ':' && At(_text, _i - 1) != ':')
+                    {
+                        // The format of the hole ("{d:yyyy//MM}"): text up to the closing brace.
+                        while (_i < _text.Length && _text[_i] is not ('}' or '\n'))
+                        {
+                            _i++;
+                        }
+                        continue;
                     }
                 }
                 _i++;

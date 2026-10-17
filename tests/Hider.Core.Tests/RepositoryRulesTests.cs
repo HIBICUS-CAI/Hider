@@ -90,13 +90,36 @@ namespace Hider.Core.Tests
             return _relative.EndsWith(".json", StringComparison.Ordinal) ? _text : SourceText.StripXml(_text);
         }
 
-        /// <summary>The lines (comments left out) of every file of the product.</summary>
-        private static IEnumerable<(string File, int Line, string Text)> SourceLines()
+        /// <summary>Every file of the product with its comments left out.</summary>
+        private static IEnumerable<(string File, string Code)> SourceFiles()
         {
             string root = RepositoryRoot();
             foreach (string relative in ProductFiles(root))
             {
-                string code = CodeOf(relative, File.ReadAllText(Path.Combine(root, relative)));
+                yield return (relative, CodeOf(relative, File.ReadAllText(Path.Combine(root, relative))));
+            }
+        }
+
+        /// <summary>
+        /// Where <paramref name="_pattern"/> matches <paramref name="_code"/> ("line: text of that line"). The whole text is
+        /// matched, so a call split over lines is found too; the line is that of the start of the match.
+        /// </summary>
+        internal static IEnumerable<string> Hits(Regex _pattern, string _code)
+        {
+            foreach (Match match in _pattern.Matches(_code))
+            {
+                int start = match.Index == 0 ? 0 : _code.LastIndexOf('\n', match.Index - 1) + 1;
+                int end = _code.IndexOf('\n', match.Index);
+                int line = 1 + _code.AsSpan(0, match.Index).Count('\n');
+                yield return $"{line}: {_code[start..(end < 0 ? _code.Length : end)].Trim()}";
+            }
+        }
+
+        /// <summary>The lines (comments left out) of every file of the product.</summary>
+        private static IEnumerable<(string File, int Line, string Text)> SourceLines()
+        {
+            foreach (var (relative, code) in SourceFiles())
+            {
                 int n = 0;
                 foreach (string line in code.Split('\n'))
                 {
@@ -116,15 +139,19 @@ namespace Hider.Core.Tests
             ["D-1"] = ("D-1: XWayland only", @"Avalonia\.Wayland|\bUseWayland\b"),
             ["drag"] = ("drags are Hider's own (work instructions §2.2)", @"\bBegin(Move|Resize)Drag\b"),
             ["DllImport"] = ("P/Invoke is LibraryImport", @"\bDllImport(Attribute)?\b"),
+            // The ways in are banned as names, not as call shapes: a call through a variable, over two lines or with named
+            // arguments has the same name. AppDomain stays usable for its events only; Activator for a type the code names;
+            // Type.GetType not at all (typeof names a type; a string may name another assembly).
             ["D-12"] = ("D-12: no assemblies loaded at run time", string.Join('|',
                 @"\bAssembly\s*\.\s*\w*Load\w*\s*\(",
                 @"\bAssemblyLoadContext\b",
                 @"\bLoadFrom(AssemblyPath|AssemblyName|Stream|NativeImagePath)\b",
-                @"\bAppDomain\b.*\.\s*(Load|ExecuteAssembly\w*|CreateInstance\w*)\s*\(",
+                @"\bAppDomain\b(?!\s*\.\s*CurrentDomain\s*\.\s*(UnhandledException|ProcessExit|FirstChanceException)\b)",
                 @"\.\s*ExecuteAssembly\w*\s*\(",
-                @"\bActivator\s*\.\s*CreateInstanceFrom\b",
-                @"\bActivator\s*\.\s*CreateInstance\s*\(\s*\$?@?""",
-                @"\bType\s*\.\s*GetType\s*\(\s*\$?@?""[^""]*,")),
+                @"\bActivator\b(?!\s*\.\s*CreateInstance\s*(<|\(\s*typeof\s*\())",
+                @"\bType\s*\.\s*GetType\s*\(\s*[^\s)]",
+                @"\busing\s+static\s+System\s*\.\s*(Reflection|Runtime\s*\.\s*Loader|Activator|AppDomain|Type)\b",
+                @"\busing\s+\w+\s*=\s*System\s*\.\s*(Reflection\s*\.\s*Assembly|Activator|AppDomain)\b")),
             ["FR-65"] = ("FR-65: the old setting.txt is never read", @"setting\.txt|hider_setting"),
         };
 
@@ -136,7 +163,7 @@ namespace Hider.Core.Tests
         {
             var (rule, pattern) = Rules[_id];
             var regex = new Regex(pattern);
-            var hits = SourceLines().Where(_l => regex.IsMatch(_l.Text)).Select(_l => $"{_l.File}:{_l.Line}: {_l.Text.Trim()}").ToList();
+            var hits = SourceFiles().SelectMany(_f => Hits(regex, _f.Code).Select(_h => $"{_f.File}:{_h}")).ToList();
             Assert.True(hits.Count == 0, $"{rule}:\n{string.Join('\n', hits)}");
         }
 
@@ -182,11 +209,23 @@ namespace Hider.Core.Tests
             { "D-12", "Activator.CreateInstanceFrom(path, \"Plugin.Entry\")", true },
             { "D-12", "Activator.CreateInstance(\"Plugin\", \"Plugin.Entry\")", true },
             { "D-12", "Type.GetType(\"Plugin.Entry, Plugin\")", true },
+            { "D-12", "var domain = AppDomain.CurrentDomain;\ndomain.Load(_name);", true },
+            { "D-12", "AppDomain.CurrentDomain\n    .Load(_name);", true },
+            { "D-12", "using static System.Reflection.Assembly;\nvar a = Load(_name);", true },
+            { "D-12", "var a = Assembly\n    .Load(_name);", true },
+            { "D-12", "private const string PluginType = \"Plugin.Entry, Plugin\";\nvar t = Type.GetType(PluginType);", true },
+            { "D-12", "Type.GetType(typeName: \"Plugin.Entry, Plugin\")", true },
+            { "D-12", "Activator.CreateInstance(assemblyName: \"Plugin\", typeName: \"Plugin.Entry\")", true },
+            { "D-12", "Type.GetType(\"System.Int32\")", true },
+            { "D-12", "using Asm = System.Reflection.Assembly;", true },
             { "D-12", "var state = AreasFile.Load(path, out var status);", false },
             { "D-12", "using var s = typeof(SkslMethod).Assembly.GetManifestResourceStream(name);", false },
             { "D-12", "AppDomain.CurrentDomain.UnhandledException += OnUnhandled;", false },
+            { "D-12", "AppDomain.CurrentDomain\n    .ProcessExit += OnExit;", false },
             { "D-12", "Activator.CreateInstance(typeof(Probe))", false },
-            { "D-12", "Type.GetType(\"System.Int32\")", false },
+            { "D-12", "Activator.CreateInstance<Probe>()", false },
+            { "D-12", "Type t = value.GetType();", false },
+            { "D-12", "using System.Reflection;", false },
 
             { "FR-65", "Path.Combine(dir, \"setting.txt\")", true },
             { "FR-65", "Path.Combine(local, \"hider_setting\")", true },
@@ -196,9 +235,17 @@ namespace Hider.Core.Tests
 
         [Theory]
         [MemberData(nameof(PatternCases))]
-        public void CT150_EachPattern_CatchesTheWaysToBreakItsRule(string _id, string _line, bool _hit)
+        public void CT150_EachPattern_CatchesTheWaysToBreakItsRule(string _id, string _code, bool _hit)
         {
-            Assert.Equal(_hit, new Regex(Rules[_id].Pattern).IsMatch(_line));
+            Assert.Equal(_hit, Hits(new Regex(Rules[_id].Pattern), _code).Any());
+        }
+
+        [Fact]
+        public void CT150_AHit_NamesTheLineWhereItStarts()
+        {
+            string code = "namespace N\n{\n    var d = AppDomain.CurrentDomain\n        .Load(x);\n}";
+            Assert.Equal("3: var d = AppDomain.CurrentDomain", Assert.Single(Hits(new Regex(Rules["D-12"].Pattern), code)));
+            Assert.Equal("1: BeginMoveDrag(e);|2: x.BeginResizeDrag(w, e);", string.Join('|', Hits(new Regex(Rules["drag"].Pattern), "BeginMoveDrag(e);\nx.BeginResizeDrag(w, e);")));
         }
 
         [Fact]
@@ -277,6 +324,11 @@ namespace Hider.Core.Tests
             { "an interpolated raw string", "s = $$\"\"\"{x} {{F(/* c */1)}}\"\"\"; // d", "s = $$\"\"\"{x} {{F(       1)}}\"\"\";     " },
             { "a verbatim interpolated string", "s = @$\"\"\"{a}//\"; // d", "s = @$\"\"\"{a}//\";     " },
             { "a division is no comment", "x = a / b * c; // d", "x = a / b * c;     " },
+            { "the format of a hole is text", "s = $\"{d:yyyy//MM}\"; // c", "s = $\"{d:yyyy//MM}\";     " },
+            { "a named argument in a hole is code", "s = $\"{F(x: 1) /* c */}\";", "s = $\"{F(x: 1)        }\";" },
+            { "a directive line holds no code", "#region a /* b\nx = 1; // c", "              \nx = 1;     " },
+            { "an indented directive", "  #error \"x\nAssembly.Load(b);", "           \nAssembly.Load(b);" },
+            { "a # not at the start of a line is code", "x = a; # y", "x = a; # y" },
         };
 
         [Theory]
@@ -293,6 +345,7 @@ namespace Hider.Core.Tests
             { "a comment over lines", "<!-- line one\n  Avalonia.Wayland is never referenced -->\n<A />", "             \n                                          \n<A />" },
             { "an unclosed comment runs to the end", "<A /><!-- x\ny", "<A />      \n " },
             { "text outside comments stays", "<PackageReference Include=\"Avalonia.Wayland\" />", "<PackageReference Include=\"Avalonia.Wayland\" />" },
+            { "a comment marker in CDATA is text", "<A><![CDATA[ <!-- ]]></A> <!-- c --> <B />", "<A><![CDATA[ <!-- ]]></A>            <B />" },
         };
 
         [Theory]
@@ -318,11 +371,13 @@ namespace Hider.Core.Tests
 
         /// <summary>
         /// The allow list of NuGet packages (CLAUDE.md, work instructions §2.2): which names, and where they may be referenced.
+        /// The central file may declare the version of a test-only package (PackageVersion), but not reference it for every
+        /// project (GlobalPackageReference, which reaches src/ too).
         /// </summary>
-        private static bool Allowed(string _name, string _file, out string _why)
+        private static bool Allowed(string _name, string _file, string _kind, out string _why)
         {
             bool tests = _file.StartsWith("tests/", StringComparison.Ordinal);
-            bool central = _file == "Directory.Packages.props";
+            bool central = _file == "Directory.Packages.props" && _kind == "PackageVersion";
             bool bench = _file.Contains("bench", StringComparison.OrdinalIgnoreCase);
             _why = "";
             if (_name == "Avalonia.Wayland")
@@ -351,49 +406,40 @@ namespace Hider.Core.Tests
             var items = new List<(string, string, string, string?)>();
             foreach (string relative in FilesUnder(root, root))
             {
-                if (!IsMsBuildFile(relative))
+                if (IsMsBuildFile(relative))
                 {
-                    continue;
-                }
-                foreach (var element in XDocument.Load(Path.Combine(root, relative)).Descendants())
-                {
-                    string kind = element.Name.LocalName;
-                    if (kind is "PackageVersion" or "PackageReference" or "GlobalPackageReference")
-                    {
-                        string name = (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update") ?? "";
-                        string? version = (string?)element.Attribute("Version") ?? (string?)element.Attribute("VersionOverride");
-                        items.Add((relative, kind, name, version));
-                    }
+                    items.AddRange(PackageItemsOf(relative, XDocument.Load(Path.Combine(root, relative))));
                 }
             }
             return items;
         }
 
-        /// <summary>The version of <paramref name="_dependency"/> that <paramref name="_package"/> depends on (src/Hider's lock file).</summary>
-        private static string DependencyVersion(string _package, string _dependency)
+        /// <summary>
+        /// The package items of one MSBuild file. A version may be an attribute or a child element (Version, VersionOverride),
+        /// which MSBuild reads alike.
+        /// </summary>
+        internal static IEnumerable<(string File, string Kind, string Name, string? Version)> PackageItemsOf(string _file, XDocument _project)
         {
-            using var lockFile = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "src", "Hider", "packages.lock.json")));
-            foreach (var framework in lockFile.RootElement.GetProperty("dependencies").EnumerateObject())
+            foreach (var element in _project.Descendants())
             {
-                if (framework.Value.TryGetProperty(_package, out var package) && package.TryGetProperty("dependencies", out var dependencies)
-                    && dependencies.TryGetProperty(_dependency, out var version))
+                string kind = element.Name.LocalName;
+                if (kind is "PackageVersion" or "PackageReference" or "GlobalPackageReference")
                 {
-                    return version.GetString()!;
+                    string name = (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update") ?? "";
+                    string? version = (string?)element.Attribute("Version") ?? (string?)element.Attribute("VersionOverride")
+                        ?? element.Elements().Where(_c => _c.Name.LocalName is "Version" or "VersionOverride").Select(_c => _c.Value.Trim()).FirstOrDefault();
+                    yield return (_file, kind, name, version);
                 }
             }
-            throw new InvalidOperationException($"{_package} -> {_dependency} not in src/Hider/packages.lock.json");
         }
 
-        [Fact]
-        public void CT150_NuGetPackages_AreOnTheAllowList_AtTheAllowedVersions()
+        /// <summary>What is wrong with the package items: names off the allow list, versions outside the central file or not the allowed ones.</summary>
+        internal static List<string> PackageProblems(IEnumerable<(string File, string Kind, string Name, string? Version)> _items, string _skia, string _dbus)
         {
-            var items = PackageItems();
             var problems = new List<string>();
-            string skia = DependencyVersion("Avalonia.Skia", "SkiaSharp");
-            string dbus = DependencyVersion("Avalonia.FreeDesktop", "Tmds.DBus.Protocol");
-            foreach (var (file, kind, name, version) in items)
+            foreach (var (file, kind, name, version) in _items)
             {
-                if (!Allowed(name, file, out string why))
+                if (!Allowed(name, file, kind, out string why))
                 {
                     problems.Add($"{file}: {kind} {name} is not allowed{(why.Length > 0 ? " (" + why + ")" : "")}");
                 }
@@ -415,15 +461,38 @@ namespace Hider.Core.Tests
                 {
                     problems.Add($"{name} {version}: Avalonia is 12.1.x");
                 }
-                if ((name == "SkiaSharp" || name.StartsWith("SkiaSharp.", StringComparison.Ordinal)) && version != skia)
+                if ((name == "SkiaSharp" || name.StartsWith("SkiaSharp.", StringComparison.Ordinal)) && version != _skia)
                 {
-                    problems.Add($"{name} {version}: SkiaSharp is the version Avalonia.Skia uses ({skia})");
+                    problems.Add($"{name} {version}: SkiaSharp is the version Avalonia.Skia uses ({_skia})");
                 }
-                if (name == "Tmds.DBus.Protocol" && version != dbus)
+                if (name == "Tmds.DBus.Protocol" && version != _dbus)
                 {
-                    problems.Add($"{name} {version}: the version Avalonia.FreeDesktop uses ({dbus})");
+                    problems.Add($"{name} {version}: the version Avalonia.FreeDesktop uses ({_dbus})");
                 }
             }
+            return problems;
+        }
+
+        /// <summary>The version of <paramref name="_dependency"/> that <paramref name="_package"/> depends on (src/Hider's lock file).</summary>
+        private static string DependencyVersion(string _package, string _dependency)
+        {
+            using var lockFile = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "src", "Hider", "packages.lock.json")));
+            foreach (var framework in lockFile.RootElement.GetProperty("dependencies").EnumerateObject())
+            {
+                if (framework.Value.TryGetProperty(_package, out var package) && package.TryGetProperty("dependencies", out var dependencies)
+                    && dependencies.TryGetProperty(_dependency, out var version))
+                {
+                    return version.GetString()!;
+                }
+            }
+            throw new InvalidOperationException($"{_package} -> {_dependency} not in src/Hider/packages.lock.json");
+        }
+
+        [Fact]
+        public void CT150_NuGetPackages_AreOnTheAllowList_AtTheAllowedVersions()
+        {
+            var items = PackageItems();
+            var problems = PackageProblems(items, DependencyVersion("Avalonia.Skia", "SkiaSharp"), DependencyVersion("Avalonia.FreeDesktop", "Tmds.DBus.Protocol"));
             Assert.True(problems.Count == 0, string.Join('\n', problems));
             // The check reads the real files: the central versions and the references of the app and of the tests.
             Assert.Contains(items, _i => _i is { File: "Directory.Packages.props", Kind: "PackageVersion", Name: "Avalonia" });
@@ -431,29 +500,50 @@ namespace Hider.Core.Tests
             Assert.Contains(items, _i => _i is { File: "tests/Hider.App.Tests/Hider.App.Tests.csproj", Name: "Avalonia.Headless.XUnit" });
         }
 
-        public static TheoryData<string, string, bool> AllowListCases() => new()
+        public static TheoryData<string, string, string, bool> AllowListCases() => new()
         {
-            { "Avalonia.Desktop", "src/Hider/Hider.csproj", true },
-            { "SkiaSharp.NativeAssets.Linux", "tests/Hider.Core.Tests/Hider.Core.Tests.csproj", true },
-            { "Tmds.DBus.Protocol", "tools/fakeportal/FakePortal.csproj", true },
-            { "xunit.v3", "tests/Hider.App.Tests/Hider.App.Tests.csproj", true },
-            { "xunit.v3", "Directory.Packages.props", true },
-            { "xunit.v3", "src/Hider/Hider.csproj", false },
-            { "Avalonia.Headless.XUnit", "src/Hider/Hider.csproj", false },
-            { "Microsoft.NET.Test.Sdk", "src/Hider.Core/Hider.Core.csproj", false },
-            { "Avalonia.Wayland", "src/Hider/Hider.csproj", false },
-            { "Avalonia.Wayland", "Directory.Packages.props", false },
-            { "Newtonsoft.Json", "Directory.Packages.props", false },
-            { "Newtonsoft.Json", "src/Hider/Hider.csproj", false },
-            { "BenchmarkDotNet", "src/Hider/Hider.csproj", false },
-            { "BenchmarkDotNet", "bench/Hider.Bench/Hider.Bench.csproj", true },
+            { "Avalonia.Desktop", "src/Hider/Hider.csproj", "PackageReference", true },
+            { "SkiaSharp.NativeAssets.Linux", "tests/Hider.Core.Tests/Hider.Core.Tests.csproj", "PackageReference", true },
+            { "Tmds.DBus.Protocol", "tools/fakeportal/FakePortal.csproj", "PackageReference", true },
+            { "xunit.v3", "tests/Hider.App.Tests/Hider.App.Tests.csproj", "PackageReference", true },
+            { "xunit.v3", "Directory.Packages.props", "PackageVersion", true },
+            { "xunit.v3", "Directory.Packages.props", "GlobalPackageReference", false },
+            { "xunit.v3", "src/Hider/Hider.csproj", "PackageReference", false },
+            { "Avalonia.Headless.XUnit", "src/Hider/Hider.csproj", "PackageReference", false },
+            { "Microsoft.NET.Test.Sdk", "src/Hider.Core/Hider.Core.csproj", "PackageReference", false },
+            { "Avalonia.Wayland", "src/Hider/Hider.csproj", "PackageReference", false },
+            { "Avalonia.Wayland", "Directory.Packages.props", "PackageVersion", false },
+            { "Newtonsoft.Json", "Directory.Packages.props", "PackageVersion", false },
+            { "Newtonsoft.Json", "src/Hider/Hider.csproj", "PackageReference", false },
+            { "BenchmarkDotNet", "src/Hider/Hider.csproj", "PackageReference", false },
+            { "BenchmarkDotNet", "bench/Hider.Bench/Hider.Bench.csproj", "PackageReference", true },
+            { "BenchmarkDotNet", "Directory.Packages.props", "PackageVersion", true },
+            { "BenchmarkDotNet", "Directory.Packages.props", "GlobalPackageReference", false },
         };
 
         [Theory]
         [MemberData(nameof(AllowListCases))]
-        public void CT150_TheAllowList(string _name, string _file, bool _allowed)
+        public void CT150_TheAllowList(string _name, string _file, string _kind, bool _allowed)
         {
-            Assert.Equal(_allowed, Allowed(_name, _file, out _));
+            Assert.Equal(_allowed, Allowed(_name, _file, _kind, out _));
+        }
+
+        public static TheoryData<string, string, string, string?> PackageXmlCases() => new()
+        {
+            { "a version as an attribute", "src/A/A.csproj", "<Project><ItemGroup><PackageReference Include=\"SkiaSharp\" VersionOverride=\"3.119.5\" /></ItemGroup></Project>", "src/A/A.csproj: PackageReference SkiaSharp has its own version 3.119.5 (versions are in Directory.Packages.props)" },
+            { "VersionOverride as a child element", "src/A/A.csproj", "<Project><ItemGroup><PackageReference Include=\"SkiaSharp\"><VersionOverride> 3.119.5 </VersionOverride></PackageReference></ItemGroup></Project>", "src/A/A.csproj: PackageReference SkiaSharp has its own version 3.119.5 (versions are in Directory.Packages.props)" },
+            { "Version as a child element", "src/A/A.csproj", "<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"><ItemGroup><PackageReference Include=\"Avalonia\"><Version>12.1.4</Version></PackageReference></ItemGroup></Project>", "src/A/A.csproj: PackageReference Avalonia has its own version 12.1.4 (versions are in Directory.Packages.props)" },
+            { "a central version as a child element", "Directory.Packages.props", "<Project><ItemGroup><PackageVersion Include=\"Avalonia\"><Version>12.2.0</Version></PackageVersion></ItemGroup></Project>", "Avalonia 12.2.0: Avalonia is 12.1.x" },
+            { "a test package for every project", "Directory.Packages.props", "<Project><ItemGroup><GlobalPackageReference Include=\"xunit.v3\" Version=\"3.2.2\" /></ItemGroup></Project>", "Directory.Packages.props: GlobalPackageReference xunit.v3 is not allowed (tests only)" },
+            { "a reference without a version", "src/A/A.csproj", "<Project><ItemGroup><PackageReference Include=\"SkiaSharp\" /></ItemGroup></Project>", null },
+        };
+
+        [Theory]
+        [MemberData(nameof(PackageXmlCases))]
+        public void CT150_PackageItems_ReadVersionsAsAttributesAndChildElements(string _case, string _file, string _xml, string? _problem)
+        {
+            var problems = PackageProblems(PackageItemsOf(_file, XDocument.Parse(_xml)), "3.119.4", "0.94.1");
+            Assert.True(_problem is null ? problems.Count == 0 : problems.SequenceEqual(new[] { _problem }), $"{_case}: {string.Join('\n', problems)}");
         }
 
         [Fact]
