@@ -15,28 +15,28 @@ from .support import REPO_DIR
 
 
 class PathsTest(unittest.TestCase):
-    def test_root_dir_is_the_repository(self) -> None:
+    def test_st09_root_dir_is_the_repository(self) -> None:
         self.assertEqual(common.ROOT_DIR, REPO_DIR)
         self.assertTrue((common.ROOT_DIR / 'Hider.slnx').is_file())
         self.assertTrue(common.ROOT_DIR.is_absolute())
 
-    def test_project_file_is_the_app_project(self) -> None:
+    def test_st09_project_file_is_the_app_project(self) -> None:
         self.assertEqual(common.PROJECT_FILE, REPO_DIR / 'src' / 'Hider' / 'Hider.csproj')
         self.assertTrue(common.PROJECT_FILE.is_file())
 
-    def test_native_helper_dir_has_the_makefile(self) -> None:
+    def test_st09_native_helper_dir_has_the_makefile(self) -> None:
         self.assertEqual(common.NATIVE_HELPER_DIR, REPO_DIR / 'native' / 'hidercap')
         self.assertTrue((common.NATIVE_HELPER_DIR / 'Makefile').is_file())
 
-    def test_targets_are_the_three_supported_rids_in_order(self) -> None:
+    def test_st09_targets_are_the_three_supported_rids_in_order(self) -> None:
         self.assertEqual(common.TARGETS, ['win-x64', 'linux-x64', 'linux-arm64'])
 
-    def test_publish_dir_is_under_bin_publish(self) -> None:
+    def test_st09_publish_dir_is_under_bin_publish(self) -> None:
         for target in common.TARGETS:
             with self.subTest(target=target):
                 self.assertEqual(common.publish_dir(target), REPO_DIR / 'bin' / 'publish' / target)
 
-    def test_publish_dir_takes_any_name(self) -> None:
+    def test_st09_publish_dir_takes_any_name(self) -> None:
         self.assertEqual(common.publish_dir('osx-arm64'), REPO_DIR / 'bin' / 'publish' / 'osx-arm64')
 
 
@@ -65,7 +65,7 @@ HOST_CASES: tuple[tuple[str, str, str | None], ...] = (
 
 
 class HostTargetTest(unittest.TestCase):
-    def test_maps_system_and_machine(self) -> None:
+    def test_st10_maps_system_and_machine(self) -> None:
         for system, machine, expected in HOST_CASES:
             with (
                 self.subTest(system=system, machine=machine),
@@ -74,7 +74,7 @@ class HostTargetTest(unittest.TestCase):
             ):
                 self.assertEqual(common.host_target(), expected)
 
-    def test_result_is_always_a_target_or_none(self) -> None:
+    def test_st10_result_is_always_a_target_or_none(self) -> None:
         for system, machine, _ in HOST_CASES:
             with (
                 mock.patch('platform.system', return_value=system),
@@ -83,7 +83,7 @@ class HostTargetTest(unittest.TestCase):
                 target = common.host_target()
             self.assertTrue(target is None or target in common.TARGETS)
 
-    def test_this_machine_on_a_ci_runner(self) -> None:
+    def test_st10_this_machine_on_a_ci_runner(self) -> None:
         # Expected from what GitHub Actions says about the runner (RUNNER_OS, RUNNER_ARCH), not from platform again. A
         # development machine can be anything (macOS, 32-bit, ...), so it has no fixed expectation.
         if os.environ.get('GITHUB_ACTIONS') != 'true':
@@ -96,17 +96,17 @@ class HostTargetTest(unittest.TestCase):
 class ScriptFilesTest(unittest.TestCase):
     """The scripts run directly as well as with python (CLAUDE.md): shebang and executable bit."""
 
-    def test_entry_points_are_executable(self) -> None:
+    def test_st11_entry_points_are_executable(self) -> None:
         for name in ['build.py', 'install.py', 'make_icons.py', 'check_wayland_list.py', 'make_release.py']:
             with self.subTest(name=name):
                 path = SCRIPTS_DIR / name
                 self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env python3\n'))
                 self.assertTrue(os.access(path, os.X_OK))
 
-    def test_common_is_a_module_only(self) -> None:
+    def test_st11_common_is_a_module_only(self) -> None:
         self.assertFalse((SCRIPTS_DIR / 'common.py').read_text(encoding='utf-8').startswith('#!'))
 
-    def test_standard_library_only(self) -> None:
+    def test_st11_standard_library_only(self) -> None:
         allowed = set(sys.stdlib_module_names) | {'common', '__future__'}
         for path in sorted(SCRIPTS_DIR.glob('*.py')):
             with self.subTest(name=path.name):
@@ -121,7 +121,7 @@ class ScriptFilesTest(unittest.TestCase):
                     for name in names:
                         self.assertIn(name.split('.')[0], allowed, f'{path.name} imports {name}')
 
-    def test_parses_as_python_3_10(self) -> None:
+    def test_st11_parses_as_python_3_10(self) -> None:
         for path in sorted(SCRIPTS_DIR.glob('*.py')):
             with self.subTest(name=path.name):
                 ast.parse(path.read_text(encoding='utf-8'), feature_version=(3, 10))

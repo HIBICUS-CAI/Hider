@@ -348,7 +348,7 @@ class InstallerTest(unittest.TestCase):
 
 
 class OptionsTest(InstallerTest):
-    def test_help(self) -> None:
+    def test_st23_help(self) -> None:
         for option in ['-h', '--help']:
             with self.subTest(option=option):
                 result = self.run_installer(option, env={'FAKE_UNAME_S': 'Darwin'})
@@ -362,7 +362,7 @@ class OptionsTest(InstallerTest):
                 self.assertFalse(self.data.exists())
                 self.assertEqual(result.log, [])
 
-    def test_unknown_argument(self) -> None:
+    def test_st23_unknown_argument(self) -> None:
         for args in [('--force',), ('folder',), ('-d', 'x', 'extra')]:
             with self.subTest(args=args):
                 result = self.run_installer(*args)
@@ -371,13 +371,13 @@ class OptionsTest(InstallerTest):
                 self.assertTrue(result.err.startswith('usage: sh install.sh [-d <folder>]\n'))
                 self.assertFalse(self.data.exists())
 
-    def test_dest_needs_a_folder(self) -> None:
+    def test_st23_dest_needs_a_folder(self) -> None:
         for option in ['-d', '--dest']:
             with self.subTest(option=option):
                 self.assert_error(self.run_installer(option), f'{option} needs a folder')
                 self.assertFalse(self.data.exists())
 
-    def test_dest(self) -> None:
+    def test_st23_dest(self) -> None:
         for option in ['-d', '--dest']:
             with self.subTest(option=option):
                 dest = self.root / f'apps{option}' / 'Hider'
@@ -388,7 +388,7 @@ class OptionsTest(InstallerTest):
                 # The desktop entry still goes to the data home.
                 self.assertFalse((self.data / 'Hider').exists())
 
-    def test_relative_dest_is_made_absolute(self) -> None:
+    def test_st23_relative_dest_is_made_absolute(self) -> None:
         work = self.root / 'cwd'
         work.mkdir()
         result = self.run_installer('-d', 'rel/Hider', cwd=work)
@@ -396,7 +396,7 @@ class OptionsTest(InstallerTest):
         self.assert_installed(work / 'rel' / 'Hider')
         self.assertIn(f'Copying to {work}/rel/Hider\n', result.out)
 
-    def test_empty_dest_is_the_default(self) -> None:
+    def test_st23_empty_dest_is_the_default(self) -> None:
         # As install.bat "" and scripts/install.py --dest '' do.
         for option in ['-d', '--dest']:
             with self.subTest(option=option):
@@ -404,7 +404,7 @@ class OptionsTest(InstallerTest):
                 self.assert_ok(result)
                 self.assert_installed(self.data / 'Hider')
 
-    def test_dest_with_an_equals_sign_is_an_unknown_argument(self) -> None:
+    def test_st23_dest_with_an_equals_sign_is_an_unknown_argument(self) -> None:
         # Only the forms of the usage line: -d <folder> and --dest <folder>.
         for args in [('--dest=x',), ('-dx',), ('-d=x',)]:
             with self.subTest(args=args):
@@ -414,7 +414,7 @@ class OptionsTest(InstallerTest):
                 self.assertFalse(self.data.exists())
                 self.assertFalse((self.root / 'x').exists())
 
-    def test_help_after_a_dest(self) -> None:
+    def test_st23_help_after_a_dest(self) -> None:
         # The arguments are read in order: -h ends the run before anything is installed.
         result = self.run_installer('-d', str(self.root / 'x'), '-h')
         self.assert_ok(result)
@@ -422,7 +422,7 @@ class OptionsTest(InstallerTest):
         self.assertFalse((self.root / 'x').exists())
         self.assertEqual(result.log, [])
 
-    def test_last_dest_wins(self) -> None:
+    def test_st23_last_dest_wins(self) -> None:
         result = self.run_installer('-d', str(self.root / 'first'), '--dest', str(self.root / 'second'))
         self.assert_ok(result)
         self.assertFalse((self.root / 'first').exists())
@@ -430,7 +430,7 @@ class OptionsTest(InstallerTest):
 
 
 class DefaultFolderTest(InstallerTest):
-    def test_xdg_data_home(self) -> None:
+    def test_st24_xdg_data_home(self) -> None:
         result = self.run_installer()
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
@@ -444,7 +444,7 @@ class DefaultFolderTest(InstallerTest):
         )
         self.assertEqual(result.err.count('error'), 0)
 
-    def test_without_xdg_data_home(self) -> None:
+    def test_st24_without_xdg_data_home(self) -> None:
         for value in [None, '']:
             with self.subTest(value=value):
                 result = self.run_installer(env={'XDG_DATA_HOME': value})
@@ -453,12 +453,12 @@ class DefaultFolderTest(InstallerTest):
                 self.assert_installed(share / 'Hider', data=share)
                 shutil.rmtree(self.home / '.local')
 
-    def test_xdg_data_home_without_home(self) -> None:
+    def test_st24_xdg_data_home_without_home(self) -> None:
         result = self.run_installer(env={'HOME': None})
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
 
-    def test_neither_xdg_data_home_nor_home(self) -> None:
+    def test_st24_neither_xdg_data_home_nor_home(self) -> None:
         # e.g. env -i sh install.sh: a message of ours, not the shell's "HOME: parameter not set" (set -u).
         message = 'neither XDG_DATA_HOME nor HOME is set: the desktop entry goes under one of them'
         envs: list[dict[str, str | None]] = [{'XDG_DATA_HOME': None, 'HOME': None}, {'XDG_DATA_HOME': '', 'HOME': None}]
@@ -476,7 +476,7 @@ class DefaultFolderTest(InstallerTest):
 
 
 class MachineTest(InstallerTest):
-    def test_architectures(self) -> None:
+    def test_st25_architectures(self) -> None:
         for machine, rid in [
             ('x86_64', 'linux-x64'),
             ('amd64', 'linux-x64'),
@@ -490,50 +490,50 @@ class MachineTest(InstallerTest):
                 self.assert_installed(dest, rid)
                 self.assertIn(f'Downloading {BASE_URL}/Hider-{VERSION}-{rid}.tar.gz\n', result.out)
 
-    def test_unsupported_architecture(self) -> None:
+    def test_st25_unsupported_architecture(self) -> None:
         for machine in ['armv7l', 'i686', 'riscv64', 'X86_64']:
             with self.subTest(machine=machine):
                 result = self.run_installer(env={'FAKE_UNAME_M': machine})
                 self.assert_error(result, f'unsupported architecture {machine} (x86_64 and aarch64 are supported)')
                 self.assertEqual(self.calls(result, 'curl'), [])
 
-    def test_not_linux(self) -> None:
+    def test_st25_not_linux(self) -> None:
         for system in ['Darwin', 'FreeBSD', 'MINGW64_NT-10.0', 'linux']:
             with self.subTest(system=system):
                 result = self.run_installer(env={'FAKE_UNAME_S': system})
                 self.assert_error(result, 'this installer is for Linux; on Windows use install.bat')
                 self.assertFalse(self.data.exists())
 
-    def test_running_hider_stops_the_install(self) -> None:
+    def test_st25_running_hider_stops_the_install(self) -> None:
         result = self.run_installer(env={'FAKE_PGREP_STATUS': '0'})
         self.assert_error(result, 'Hider is running: quit it from the tray menu and run this again')
         self.assertEqual(self.calls(result, 'pgrep'), ['pgrep -x Hider'])
         self.assertEqual(self.calls(result, 'curl'), [])
         self.assertFalse(self.data.exists())
 
-    def test_hider_not_running(self) -> None:
+    def test_st25_hider_not_running(self) -> None:
         result = self.run_installer()
         self.assert_ok(result)
         self.assertEqual(self.calls(result, 'pgrep'), ['pgrep -x Hider'])
 
-    def test_without_pgrep(self) -> None:
+    def test_st25_without_pgrep(self) -> None:
         result = self.run_installer(machine=Machine(pgrep=False))
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
 
-    def test_shasum_instead_of_sha256sum(self) -> None:
+    def test_st25_shasum_instead_of_sha256sum(self) -> None:
         result = self.run_installer(machine=Machine(sha256sum=False, shasum=True))
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
         self.assertEqual(len(self.calls(result, 'shasum')), 1)
         self.assertTrue(self.calls(result, 'shasum')[0].startswith('shasum -a 256 '))
 
-    def test_sha256sum_preferred(self) -> None:
+    def test_st25_sha256sum_preferred(self) -> None:
         result = self.run_installer(machine=Machine(sha256sum=True, shasum=True))
         self.assert_ok(result)
         self.assertEqual(self.calls(result, 'shasum'), [])
 
-    def test_no_checksum_tool(self) -> None:
+    def test_st25_no_checksum_tool(self) -> None:
         result = self.run_installer(machine=Machine(sha256sum=False, shasum=False))
         self.assert_error(result, 'sha256sum (coreutils) was not found')
         self.assertEqual(self.calls(result, 'curl'), [])
@@ -543,7 +543,7 @@ class DownloadTest(InstallerTest):
     def archive_url(self, rid: str = 'linux-x64') -> str:
         return f'{BASE_URL}/Hider-{VERSION}-{rid}.tar.gz'
 
-    def test_curl(self) -> None:
+    def test_st26_curl(self) -> None:
         result = self.run_installer()
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
@@ -558,12 +558,12 @@ class DownloadTest(InstallerTest):
         self.assertTrue(work_archive.endswith(f'/Hider-{VERSION}-linux-x64.tar.gz'))
         self.assertIn(f'Downloading {self.archive_url()}\n', result.out)
 
-    def test_curl_failing(self) -> None:
+    def test_st26_curl_failing(self) -> None:
         result = self.run_installer(env={'FAKE_DOWNLOAD_FAIL': '1'})
         self.assert_error(result, f'download failed: {self.archive_url()}')
         self.assertFalse(self.data.exists())
 
-    def test_wget(self) -> None:
+    def test_st26_wget(self) -> None:
         result = self.run_installer(machine=Machine(curl=False, wget=True))
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
@@ -571,29 +571,29 @@ class DownloadTest(InstallerTest):
         self.assertTrue(call.startswith(f'wget --https-only -O {self.tmp}/'))
         self.assertTrue(call.endswith(f'/Hider-{VERSION}-linux-x64.tar.gz {self.archive_url()}'))
 
-    def test_wget_failing(self) -> None:
+    def test_st26_wget_failing(self) -> None:
         result = self.run_installer(machine=Machine(curl=False, wget=True), env={'FAKE_DOWNLOAD_FAIL': '1'})
         self.assert_error(result, f'download failed: {self.archive_url()}')
 
-    def test_curl_preferred_over_wget(self) -> None:
+    def test_st26_curl_preferred_over_wget(self) -> None:
         result = self.run_installer(machine=Machine(curl=True, wget=True))
         self.assert_ok(result)
         self.assertEqual(len(self.calls(result, 'curl')), 1)
         self.assertEqual(self.calls(result, 'wget'), [])
 
-    def test_no_download_tool(self) -> None:
+    def test_st26_no_download_tool(self) -> None:
         result = self.run_installer(machine=Machine(curl=False, wget=False))
         self.assert_error(result, 'curl or wget is needed to download Hider')
         self.assertIn(f'Downloading {self.archive_url()}\n', result.out)
 
-    def test_archive_missing_on_the_server(self) -> None:
+    def test_st26_archive_missing_on_the_server(self) -> None:
         (self.store / f'Hider-{VERSION}-linux-x64.tar.gz').unlink()
         result = self.run_installer()
         self.assertEqual(result.code, 1)
         self.assertTrue(result.err.endswith(f'error: download failed: {self.archive_url()}\n'))
         self.assert_cleaned_up()
 
-    def test_archive_next_to_the_script(self) -> None:
+    def test_st26_archive_next_to_the_script(self) -> None:
         local = self.put_next_to_script()
         result = self.run_installer(machine=Machine(curl=True, wget=True))
         self.assert_ok(result)
@@ -604,14 +604,14 @@ class DownloadTest(InstallerTest):
         # Copied, not moved.
         self.assertTrue(local.is_file())
 
-    def test_archive_for_the_other_architecture_is_not_used(self) -> None:
+    def test_st26_archive_for_the_other_architecture_is_not_used(self) -> None:
         self.put_next_to_script('linux-arm64')
         result = self.run_installer()
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider', 'linux-x64')
         self.assertEqual(len(self.calls(result, 'curl')), 1)
 
-    def test_script_started_by_a_relative_path(self) -> None:
+    def test_st26_script_started_by_a_relative_path(self) -> None:
         local = self.put_next_to_script()
         result = self.run_installer(cwd=self.release, script=Path('install.sh'))
         self.assert_ok(result)
@@ -622,7 +622,7 @@ class DownloadTest(InstallerTest):
         self.assert_ok(result)
         self.assertIn(f'Using {local}\n', result.out)
 
-    def test_piped_to_sh_uses_the_current_directory(self) -> None:
+    def test_st26_piped_to_sh_uses_the_current_directory(self) -> None:
         self.put_next_to_script()
         text = self.script.read_text(encoding='utf-8')
         result = self.run_installer(stdin=text, cwd=self.release)
@@ -630,13 +630,13 @@ class DownloadTest(InstallerTest):
         self.assert_installed(self.data / 'Hider')
         self.assertIn(f'Using {self.release}/Hider-{VERSION}-linux-x64.tar.gz\n', result.out)
 
-    def test_piped_to_sh_downloads(self) -> None:
+    def test_st26_piped_to_sh_downloads(self) -> None:
         result = self.run_installer(stdin=self.script.read_text(encoding='utf-8'), cwd=self.root)
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
         self.assertEqual(len(self.calls(result, 'curl')), 1)
 
-    def test_cut_short_download_of_the_script_runs_nothing(self) -> None:
+    def test_st26_cut_short_download_of_the_script_runs_nothing(self) -> None:
         # curl ... | sh with the connection lost: main is never called, so nothing runs.
         text = self.script.read_text(encoding='utf-8')
         cut = text[: text.index('    tar -xzf')]
@@ -653,7 +653,7 @@ class DownloadTest(InstallerTest):
 
 
 class ChecksumTest(InstallerTest):
-    def test_mismatch_of_a_download(self) -> None:
+    def test_st27_mismatch_of_a_download(self) -> None:
         expected = self.digests['linux-x64']
         actual = self.make_archive(self.store, 'linux-x64', {'Hider': (b'tampered', 0o755)})
         result = self.run_installer()
@@ -662,7 +662,7 @@ class ChecksumTest(InstallerTest):
         )
         self.assertFalse(self.data.exists())
 
-    def test_mismatch_of_a_local_archive(self) -> None:
+    def test_st27_mismatch_of_a_local_archive(self) -> None:
         self.make_archive(self.release, 'linux-x64', {'Hider': (b'other', 0o755)})
         result = self.run_installer()
         self.assertEqual(result.code, 1)
@@ -670,7 +670,7 @@ class ChecksumTest(InstallerTest):
         self.assertEqual(self.calls(result, 'curl'), [])
         self.assertFalse(self.data.exists())
 
-    def test_each_architecture_has_its_own_checksum(self) -> None:
+    def test_st27_each_architecture_has_its_own_checksum(self) -> None:
         # Swapping the two checksums makes both architectures fail.
         swapped = {'linux-x64': self.digests['linux-arm64'], 'linux-arm64': self.digests['linux-x64']}
         script = self.write_installer(self.root, swapped)
@@ -680,7 +680,7 @@ class ChecksumTest(InstallerTest):
                 self.assertEqual(result.code, 1)
                 self.assertIn('SHA-256 mismatch', result.err)
 
-    def test_archive_without_the_executable(self) -> None:
+    def test_st27_archive_without_the_executable(self) -> None:
         digest = self.make_archive(self.store, 'linux-x64', {'Assets/hider.svg': (b'<svg/>', 0o644)})
         script = self.write_installer(self.root, {'linux-x64': digest, 'linux-arm64': self.digests['linux-arm64']})
         result = self.run_installer(script=script)
@@ -688,7 +688,7 @@ class ChecksumTest(InstallerTest):
         self.assert_error(result, f'{name}.tar.gz does not contain {name}/Hider')
         self.assertFalse(self.data.exists())
 
-    def test_archive_of_another_version(self) -> None:
+    def test_st27_archive_of_another_version(self) -> None:
         # The right file name with a different folder inside.
         other = self.root / 'other'
         other.mkdir()
@@ -701,7 +701,7 @@ class ChecksumTest(InstallerTest):
         self.assertEqual(result.code, 1)
         self.assertIn(f'does not contain Hider-{VERSION}-linux-x64/Hider', result.err)
 
-    def test_corrupt_archive_with_a_matching_checksum(self) -> None:
+    def test_st27_corrupt_archive_with_a_matching_checksum(self) -> None:
         archive = self.store / f'Hider-{VERSION}-linux-x64.tar.gz'
         archive.write_bytes(b'not a tarball')
         digest = hashlib.sha256(b'not a tarball').hexdigest()
@@ -716,7 +716,7 @@ class ChecksumTest(InstallerTest):
 
 
 class ExistingInstallTest(InstallerTest):
-    def test_replaces_an_existing_install(self) -> None:
+    def test_st28_replaces_an_existing_install(self) -> None:
         dest = self.data / 'Hider'
         (dest / 'Assets').mkdir(parents=True)
         (dest / 'Hider').write_text('old', encoding='utf-8')
@@ -735,13 +735,13 @@ class ExistingInstallTest(InstallerTest):
         self.assertEqual((dest / 'Assets' / 'old.png').read_bytes(), b'old')
         self.assertEqual((apps / 'other.desktop').read_text(encoding='utf-8'), 'other')
 
-    def test_installing_twice(self) -> None:
+    def test_st28_installing_twice(self) -> None:
         self.assert_ok(self.run_installer())
         result = self.run_installer()
         self.assert_ok(result)
         self.assert_installed(self.data / 'Hider')
 
-    def test_sets_the_executable_bit(self) -> None:
+    def test_st28_sets_the_executable_bit(self) -> None:
         # make_release sets 0755 in the archive; the installer sets it again on the installed file.
         dest = self.data / 'Hider'
         dest.mkdir(parents=True)
@@ -750,7 +750,7 @@ class ExistingInstallTest(InstallerTest):
         self.assert_ok(self.run_installer())
         self.assertEqual(stat.S_IMODE((dest / 'Hider').stat().st_mode), 0o755)
 
-    def test_copy_failure(self) -> None:
+    def test_st28_copy_failure(self) -> None:
         dest = self.data / 'Hider'
         result = self.run_installer(machine=Machine(cp_fails=True), env={'FAKE_CP_FAIL_DEST': str(dest)})
         self.assertEqual(result.code, 1)
@@ -758,7 +758,7 @@ class ExistingInstallTest(InstallerTest):
         self.assertFalse((self.data / 'applications').exists())
         self.assert_cleaned_up()
 
-    def test_dest_is_a_file(self) -> None:
+    def test_st28_dest_is_a_file(self) -> None:
         self.data.mkdir()
         (self.data / 'Hider').write_text('a file', encoding='utf-8')
         result = self.run_installer()
@@ -770,7 +770,7 @@ class ExistingInstallTest(InstallerTest):
 
 
 class DesktopEntryTest(InstallerTest):
-    def test_paths_are_escaped_like_install_py(self) -> None:
+    def test_st29_paths_are_escaped_like_install_py(self) -> None:
         for name in [
             'plain',
             'with space',
@@ -791,7 +791,7 @@ class DesktopEntryTest(InstallerTest):
                 # say prints the path as it is (printf, not echo).
                 self.assertIn(f'Copying to {dest}\n', result.out)
 
-    def test_entry_lines(self) -> None:
+    def test_st29_entry_lines(self) -> None:
         self.assert_ok(self.run_installer())
         lines = (self.data / 'applications' / 'Hider.desktop').read_text(encoding='utf-8').splitlines()
         self.assertEqual(lines[4], f'Exec="{self.data}/Hider/Hider"')
@@ -810,27 +810,27 @@ class LaunchTest(InstallerTest):
         self.assertEqual(result.out.endswith(started), bool(calls))
         return calls
 
-    def test_starts_with_a_display(self) -> None:
+    def test_st30_starts_with_a_display(self) -> None:
         expected = [f'nohup {self.data}/Hider/Hider']
         self.assertEqual(self.launches({'DISPLAY': ':0'}), expected)
         self.assertEqual(self.launches({'WAYLAND_DISPLAY': 'wayland-0'}), expected)
         self.assertEqual(self.launches({'DISPLAY': ':1', 'WAYLAND_DISPLAY': 'wayland-0'}), expected)
 
-    def test_empty_no_launch_still_starts(self) -> None:
+    def test_st30_empty_no_launch_still_starts(self) -> None:
         self.assertEqual(len(self.launches({'DISPLAY': ':0', 'HIDER_NO_LAUNCH': ''})), 1)
 
-    def test_no_launch(self) -> None:
+    def test_st30_no_launch(self) -> None:
         for value in ['1', '0', 'yes']:
             with self.subTest(value=value):
                 self.assertEqual(self.launches({'DISPLAY': ':0', 'HIDER_NO_LAUNCH': value}), [])
 
-    def test_no_display(self) -> None:
+    def test_st30_no_display(self) -> None:
         self.assertEqual(self.launches({}), [])
         self.assertEqual(self.launches({'DISPLAY': '', 'WAYLAND_DISPLAY': ''}), [])
 
 
 class InterruptTest(InstallerTest):
-    def test_terminated_during_the_download(self) -> None:
+    def test_st30_terminated_during_the_download(self) -> None:
         result = self.run_installer(env={'FAKE_KILL_INSTALLER': '1'})
         self.assertEqual(result.code, 130)
         self.assertNotIn('Installed', result.out)
@@ -841,7 +841,7 @@ class InterruptTest(InstallerTest):
 class ShellsTest(InstallerTest):
     """The awkward paths together (load_tests runs this under every shell like the rest), and the parametrisation."""
 
-    def test_runs_under_the_shell_asked_for(self) -> None:
+    def test_st31_runs_under_the_shell_asked_for(self) -> None:
         # The process's executable, bash's options (posix when started as sh), and a command found through PATH (the
         # uname stub).
         probe = self.root / 'probe.sh'
@@ -858,7 +858,7 @@ class ShellsTest(InstallerTest):
         # own applets and bypass the stubs.
         self.assertEqual(uname, 'from-path')
 
-    def test_something_left_running_fails_instead_of_hanging(self) -> None:
+    def test_st31_something_left_running_fails_instead_of_hanging(self) -> None:
         # Output to /dev/null as the launch's nohup does: only the inherited pipe still sees the process.
         script = self.root / 'leftover.sh'
         script.write_text(f'{real("sleep")} 3 > /dev/null 2>&1 &\n', encoding='utf-8')
@@ -871,7 +871,7 @@ class ShellsTest(InstallerTest):
         self.assertEqual(str(raised.exception), 'something the installer started still runs 0.5 s after it ended')
         self.assertLess(time.monotonic() - start, 3)
 
-    def test_odd_folder_and_launch(self) -> None:
+    def test_st31_odd_folder_and_launch(self) -> None:
         dest = self.root / 'odd' / self.shell.name / 'a "b" $c `d` \\e \\n 100%'
         result = self.run_installer('-d', str(dest), env={'DISPLAY': ':0', 'HIDER_NO_LAUNCH': ''})
         self.assert_ok(result)
@@ -888,7 +888,7 @@ class SyntaxTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_install_sh(self) -> None:
+    def test_st32_install_sh(self) -> None:
         root = temp_dir(self)
         rendered = root / 'install.sh'
         values = {'HIDER_VERSION': '1.0.0', 'HIDER_BASE_URL': 'https://x/y'}
@@ -899,13 +899,13 @@ class SyntaxTest(unittest.TestCase):
                 self.check(shell, SCRIPTS_DIR / 'release' / 'install.sh.in')
                 self.check(shell, rendered)
 
-    def test_xvfb_strip_smoke(self) -> None:
+    def test_st32_xvfb_strip_smoke(self) -> None:
         path = SCRIPTS_DIR / 'xvfb-strip-smoke.sh'
         self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env bash\n'))
         self.check(Shell('bash', real('bash'), 'bash'), path)
         self.assertTrue(os.access(path, os.X_OK), 'xvfb-strip-smoke.sh is executable')
 
-    def test_windows_stress_is_a_powershell_script(self) -> None:
+    def test_st32_windows_stress_is_a_powershell_script(self) -> None:
         # Only its shape here: CI's python-lint parses it (PowerShell's parser, PSScriptAnalyzer), publish runs it.
         text = (SCRIPTS_DIR / 'windows-stress.ps1').read_text(encoding='utf-8-sig')
         self.assertTrue(text.startswith('#Requires -Version 7\n'))

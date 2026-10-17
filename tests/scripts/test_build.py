@@ -49,29 +49,29 @@ class ParseArgsTest(unittest.TestCase):
         self.assertTrue(output.err.startswith('usage: '))
         return output.err.splitlines()[-1]
 
-    def test_each_target(self) -> None:
+    def test_st01_each_target(self) -> None:
         for target in TARGETS:
             with self.subTest(target=target):
                 self.assertEqual(self.parse(target), ([target], None))
 
-    def test_all_is_every_target_in_order(self) -> None:
+    def test_st01_all_is_every_target_in_order(self) -> None:
         targets, version = self.parse('all')
         self.assertEqual(targets, ['win-x64', 'linux-x64', 'linux-arm64'])
         self.assertIsNone(version)
         # A copy: the caller may change it without changing TARGETS.
         self.assertIsNot(targets, TARGETS)
 
-    def test_all_wins_over_other_targets(self) -> None:
+    def test_st01_all_wins_over_other_targets(self) -> None:
         self.assertEqual(self.parse('linux-arm64', 'all')[0], TARGETS)
         self.assertEqual(self.parse('all', 'win-x64', 'all')[0], TARGETS)
 
-    def test_keeps_the_given_order(self) -> None:
+    def test_st01_keeps_the_given_order(self) -> None:
         self.assertEqual(self.parse('linux-arm64', 'win-x64')[0], ['linux-arm64', 'win-x64'])
 
-    def test_drops_repeated_targets(self) -> None:
+    def test_st01_drops_repeated_targets(self) -> None:
         self.assertEqual(self.parse('linux-x64', 'win-x64', 'linux-x64', 'win-x64')[0], ['linux-x64', 'win-x64'])
 
-    def test_no_target_builds_the_host(self) -> None:
+    def test_st01_no_target_builds_the_host(self) -> None:
         for host in TARGETS:
             with (
                 self.subTest(host=host),
@@ -80,7 +80,7 @@ class ParseArgsTest(unittest.TestCase):
             ):
                 self.assertEqual(build.parse_args(), ([host], None))
 
-    def test_no_target_on_an_unsupported_host_exits(self) -> None:
+    def test_st01_no_target_on_an_unsupported_host_exits(self) -> None:
         with (
             arguments('build.py'),
             mock.patch.object(build, 'host_target', return_value=None),
@@ -92,31 +92,31 @@ class ParseArgsTest(unittest.TestCase):
             'This machine is not a supported target, specify one of: win-x64, linux-x64, linux-arm64',
         )
 
-    def test_given_targets_do_not_ask_the_host(self) -> None:
+    def test_st01_given_targets_do_not_ask_the_host(self) -> None:
         with (
             arguments('build.py', 'win-x64'),
             mock.patch.object(build, 'host_target', side_effect=AssertionError('host_target called')),
         ):
             self.assertEqual(build.parse_args(), (['win-x64'], None))
 
-    def test_unknown_target(self) -> None:
+    def test_st01_unknown_target(self) -> None:
         self.assertEqual(
             self.parse_error('osx-x64'),
             'build.py: error: invalid target osx-x64 (choose from win-x64, linux-x64, linux-arm64, all)',
         )
 
-    def test_unknown_targets_are_all_named(self) -> None:
+    def test_st01_unknown_targets_are_all_named(self) -> None:
         self.assertIn('invalid target a, b (choose from', self.parse_error('a', 'win-x64', 'b'))
 
-    def test_target_names_are_case_sensitive(self) -> None:
+    def test_st01_target_names_are_case_sensitive(self) -> None:
         self.assertIn('invalid target Win-x64, ALL ', self.parse_error('Win-x64', 'ALL'))
 
-    def test_version(self) -> None:
+    def test_st02_version(self) -> None:
         self.assertEqual(self.parse('win-x64', '--version', '2.1.0'), (['win-x64'], '2.1.0'))
         self.assertEqual(self.parse('--version=10.20.30', 'linux-x64'), (['linux-x64'], '10.20.30'))
         self.assertEqual(self.parse('--version', '0.0.0'), (['linux-x64'], '0.0.0'))
 
-    def test_invalid_version(self) -> None:
+    def test_st02_invalid_version(self) -> None:
         # Non-ASCII digits (Arabic-Indic, fullwidth): \d alone would take them.
         non_ascii = ['\u0661.\u0662.\u0663', '\uff12.\uff11.\uff10', '2.1.\u0660']
         for version in ['2.1', '2.1.0.0', 'v2.1.0', '2.1.0-beta', '2.1.0 ', ' 2.1.0', 'a.b.c', '2..1', '', *non_ascii]:
@@ -126,16 +126,16 @@ class ParseArgsTest(unittest.TestCase):
                     f'build.py: error: invalid version {version} (expected MAJOR.MINOR.PATCH)',
                 )
 
-    def test_version_is_checked_before_targets(self) -> None:
+    def test_st02_version_is_checked_before_targets(self) -> None:
         self.assertIn('invalid version x', self.parse_error('nope', '--version', 'x'))
 
-    def test_version_needs_a_value(self) -> None:
+    def test_st02_version_needs_a_value(self) -> None:
         self.assertIn('expected one argument', self.parse_error('--version'))
 
-    def test_unknown_option(self) -> None:
+    def test_st03_unknown_option(self) -> None:
         self.assertIn('unrecognized arguments: --release', self.parse_error('win-x64', '--release'))
 
-    def test_help(self) -> None:
+    def test_st03_help(self) -> None:
         with arguments('build.py', '--help'), captured() as output, self.assertRaises(SystemExit) as raised:
             build.parse_args()
         self.assertEqual(raised.exception.code, 0)
@@ -146,21 +146,21 @@ class ParseArgsTest(unittest.TestCase):
 
 
 class ParseTargetsTest(unittest.TestCase):
-    def test_returns_the_targets_only(self) -> None:
+    def test_st01_returns_the_targets_only(self) -> None:
         with arguments('build.py', 'linux-arm64', '--version', '3.0.0'):
             self.assertEqual(build.parse_targets(), ['linux-arm64'])
 
-    def test_no_target_is_the_host(self) -> None:
+    def test_st01_no_target_is_the_host(self) -> None:
         with arguments('build.py'), mock.patch.object(build, 'host_target', return_value='win-x64'):
             self.assertEqual(build.parse_targets(), ['win-x64'])
 
-    def test_all(self) -> None:
+    def test_st01_all(self) -> None:
         with arguments('build.py', 'win-x64', 'all'):
             self.assertEqual(build.parse_targets(), TARGETS)
 
 
 class WarnTest(unittest.TestCase):
-    def test_writes_to_stderr_with_a_prefix(self) -> None:
+    def test_st03_writes_to_stderr_with_a_prefix(self) -> None:
         with captured() as output:
             build.warn('something happened')
         self.assertEqual(output.err, 'warning: something happened\n')
@@ -196,7 +196,7 @@ class BuildNativeHelperTest(unittest.TestCase):
             build.build_native_helper(target)
         return output, run_mock
 
-    def test_runs_make_for_the_target(self) -> None:
+    def test_st04_runs_make_for_the_target(self) -> None:
         for target in ['linux-x64', 'linux-arm64']:
             for host in ['linux-x64', 'linux-arm64', 'win-x64', None]:
                 with self.subTest(target=target, host=host):
@@ -205,7 +205,7 @@ class BuildNativeHelperTest(unittest.TestCase):
                     self.assertEqual(output.err, '')
                     self.assertEqual(output.out, '')
 
-    def test_removes_the_old_helper_first(self) -> None:
+    def test_st04_removes_the_old_helper_first(self) -> None:
         self.leave_old_helper('linux-x64')
         self.leave_old_helper('linux-arm64')
         self.call('linux-x64', 'linux-x64', make=True)
@@ -213,11 +213,11 @@ class BuildNativeHelperTest(unittest.TestCase):
         # Only the target's own helper.
         self.assertTrue(self.helper('linux-arm64').exists())
 
-    def test_without_an_old_helper(self) -> None:
+    def test_st04_without_an_old_helper(self) -> None:
         self.assertFalse(self.helper_dir.exists())
         self.call('linux-x64', 'linux-x64', make=True)
 
-    def test_make_missing_on_the_host_exits(self) -> None:
+    def test_st04_make_missing_on_the_host_exits(self) -> None:
         self.leave_old_helper('linux-x64')
         with self.assertRaises(SystemExit) as raised:
             self.call('linux-x64', 'linux-x64', make=False)
@@ -226,19 +226,19 @@ class BuildNativeHelperTest(unittest.TestCase):
         )
         self.assertFalse(self.helper('linux-x64').exists())
 
-    def test_make_missing_for_another_architecture_warns(self) -> None:
+    def test_st04_make_missing_for_another_architecture_warns(self) -> None:
         self.leave_old_helper('linux-arm64')
         output, run = self.call('linux-arm64', 'linux-x64', make=False)
         run.assert_not_called()
         self.assertEqual(output.err, 'warning: make not found, linux-arm64 is built without libhidercap.so\n')
         self.assertFalse(self.helper('linux-arm64').exists())
 
-    def test_make_missing_on_an_unsupported_host_warns(self) -> None:
+    def test_st04_make_missing_on_an_unsupported_host_warns(self) -> None:
         output, run = self.call('linux-x64', None, make=False)
         run.assert_not_called()
         self.assertEqual(output.err, 'warning: make not found, linux-x64 is built without libhidercap.so\n')
 
-    def test_make_failing_on_the_host_exits(self) -> None:
+    def test_st04_make_failing_on_the_host_exits(self) -> None:
         with self.assertRaises(SystemExit) as raised:
             self.call('linux-arm64', 'linux-arm64', make=True, returncode=2)
         self.assertEqual(
@@ -246,7 +246,7 @@ class BuildNativeHelperTest(unittest.TestCase):
             'Building libhidercap.so for linux-arm64 failed: make exited with 2 (its output is above).',
         )
 
-    def test_make_failing_for_another_architecture_warns(self) -> None:
+    def test_st04_make_failing_for_another_architecture_warns(self) -> None:
         output, run = self.call('linux-arm64', 'linux-x64', make=True, returncode=1)
         run.assert_called_once()
         self.assertEqual(
@@ -256,7 +256,7 @@ class BuildNativeHelperTest(unittest.TestCase):
             "(a cross compiler and that architecture's libpipewire-0.3-dev are needed)\n",
         )
 
-    def test_negative_return_code_is_a_failure(self) -> None:
+    def test_st04_negative_return_code_is_a_failure(self) -> None:
         # A signal: subprocess reports it as a negative return code.
         output, _ = self.call('linux-x64', 'linux-arm64', make=True, returncode=-9)
         self.assertIn('make exited with -9', output.err)
@@ -305,7 +305,7 @@ class MainTest(unittest.TestCase):
         out_dir = str(self.publish_dir(target))
         return ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', out_dir, *extra]
 
-    def test_all_targets(self) -> None:
+    def test_st05_all_targets(self) -> None:
         output, run = self.run_main('all')
         self.assertEqual([c.args[0] for c in run.call_args_list], [self.publish_command(t) for t in TARGETS])
         # libhidercap.so is built for the Linux targets only, each before its publish.
@@ -318,7 +318,7 @@ class MainTest(unittest.TestCase):
             [*(f'Building {t} -> {self.publish_dir(t)}' for t in TARGETS), 'Done.'],
         )
 
-    def test_version_is_passed_as_a_global_property(self) -> None:
+    def test_st05_version_is_passed_as_a_global_property(self) -> None:
         _, run = self.run_main('win-x64', 'linux-arm64', '--version', '2.3.4')
         self.assertEqual(
             [c.args[0] for c in run.call_args_list],
@@ -328,47 +328,47 @@ class MainTest(unittest.TestCase):
             ],
         )
 
-    def test_no_target_builds_the_host(self) -> None:
+    def test_st05_no_target_builds_the_host(self) -> None:
         _, run = self.run_main()
         self.assertEqual([c.args[0] for c in run.call_args_list], [self.publish_command('linux-x64')])
         self.assertEqual(self.events, ['helper linux-x64', 'publish linux-x64'])
 
-    def test_windows_target_does_not_build_the_helper(self) -> None:
+    def test_st05_windows_target_does_not_build_the_helper(self) -> None:
         self.run_main('win-x64')
         self.assertEqual(self.events, ['publish win-x64'])
 
-    def test_replaces_the_old_output(self) -> None:
+    def test_st05_replaces_the_old_output(self) -> None:
         old = self.publish_dir('linux-arm64') / 'Assets'
         old.mkdir(parents=True)
         (old / 'stale.txt').write_text('old', encoding='utf-8')
         self.run_main('linux-arm64')
         self.assertFalse(self.publish_dir('linux-arm64').exists())
 
-    def test_dotnet_missing_exits_before_building(self) -> None:
+    def test_st05_dotnet_missing_exits_before_building(self) -> None:
         with self.assertRaises(SystemExit) as raised:
             self.run_main('all', dotnet=False)
         self.assertEqual(raised.exception.code, 'dotnet was not found in PATH, install the .NET 10 SDK first.')
         self.assertEqual(self.events, [])
 
-    def test_arguments_are_checked_before_dotnet(self) -> None:
+    def test_st05_arguments_are_checked_before_dotnet(self) -> None:
         with self.assertRaises(SystemExit) as raised:
             self.run_main('nope', dotnet=False)
         self.assertEqual(raised.exception.code, 2)
 
-    def test_failed_publish_stops(self) -> None:
+    def test_st05_failed_publish_stops(self) -> None:
         with self.assertRaises(subprocess.CalledProcessError):
             self.run_main('all', fail='linux-x64')
         self.assertEqual(self.events, ['publish win-x64', 'helper linux-x64', 'publish linux-x64'])
 
 
 class ScriptTest(unittest.TestCase):
-    def test_help_as_a_script(self) -> None:
+    def test_st03_help_as_a_script(self) -> None:
         with captured() as output, self.assertRaises(SystemExit) as raised:
             run_as_main('build.py', '--help')
         self.assertEqual(raised.exception.code, 0)
         self.assertIn('Publish Hider as a self-contained executable.', output.out)
 
-    def test_invalid_target_as_a_script(self) -> None:
+    def test_st03_invalid_target_as_a_script(self) -> None:
         with captured() as output, self.assertRaises(SystemExit) as raised:
             run_as_main('build.py', 'osx-x64')
         self.assertEqual(raised.exception.code, 2)

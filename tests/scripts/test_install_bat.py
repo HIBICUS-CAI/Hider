@@ -158,21 +158,21 @@ class InstallBatTest(unittest.TestCase):
 
     # C1: the failures
 
-    def test_tampered_archive_is_refused(self) -> None:
+    def test_st20_tampered_archive_is_refused(self) -> None:
         actual = self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
         result = self.run_bat(str(self.dest))
         self.assert_failed(result, f'SHA-256 mismatch for {ARCHIVE} (expected {self.digest}, got {actual}).')
         self.assertFalse(self.dest.exists())
         self.assertIn(f'Using {self.release / ARCHIVE}', result.out.splitlines())
 
-    def test_archive_without_the_executable(self) -> None:
+    def test_st20_archive_without_the_executable(self) -> None:
         digest = self.make_zip(self.release, {'Assets/x.png': b'png'})
         bat = self.write_bat(self.release, digest)
         result = self.run_bat(str(self.dest), bat=bat)
         self.assert_failed(result, f'{ARCHIVE} does not contain {NAME}\\Hider.exe.')
         self.assertFalse(self.dest.exists())
 
-    def test_running_hider_stops_the_install(self) -> None:
+    def test_st20_running_hider_stops_the_install(self) -> None:
         # A process named Hider: a copy of Windows PowerShell under that name, sleeping.
         running = self.root / 'running'
         running.mkdir()
@@ -191,13 +191,13 @@ class InstallBatTest(unittest.TestCase):
         self.assertFalse(self.dest.exists())
         self.assertNotIn('Copying to', result.out)
 
-    def test_no_local_app_data_without_a_folder(self) -> None:
+    def test_st20_no_local_app_data_without_a_folder(self) -> None:
         result = self.run_bat(env={'LOCALAPPDATA': None})
         # Started without arguments (double-click): the window waits for a key; the exit code stays 1.
         self.assert_failed(result, 'LOCALAPPDATA is not set: give the install folder as the argument.', paused=True)
         self.assertEqual(list(self.local_app_data.iterdir()), [])
 
-    def test_copy_failure(self) -> None:
+    def test_st20_copy_failure(self) -> None:
         # Hider.exe in the folder held open without sharing, as by a running Hider.
         self.dest.mkdir()
         locked = self.dest / 'Hider.exe'
@@ -227,7 +227,7 @@ class InstallBatTest(unittest.TestCase):
         self.assertFalse(self.link.exists())
         self.assert_cleaned_up()
 
-    def test_failure_after_a_double_click_pauses_and_keeps_the_exit_code(self) -> None:
+    def test_st20_failure_after_a_double_click_pauses_and_keeps_the_exit_code(self) -> None:
         # if not "%HIDER_EXIT%"=="0" if "%~1"=="" pause: the pause must not replace the exit code with its own 0.
         actual = self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
         result = self.run_bat()
@@ -236,7 +236,7 @@ class InstallBatTest(unittest.TestCase):
         )
         self.assertFalse((self.local_app_data / 'Programs').exists())
 
-    def test_failure_with_a_folder_does_not_pause(self) -> None:
+    def test_st20_failure_with_a_folder_does_not_pause(self) -> None:
         self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
         result = self.run_bat(str(self.dest))
         self.assertEqual(result.code, 1)
@@ -244,7 +244,7 @@ class InstallBatTest(unittest.TestCase):
 
     # C2: the successful paths
 
-    def test_installs_into_the_folder(self) -> None:
+    def test_st21_installs_into_the_folder(self) -> None:
         result = self.run_bat(str(self.dest))
         self.assert_installed(self.dest, result)
         self.assertEqual(
@@ -259,24 +259,24 @@ class InstallBatTest(unittest.TestCase):
         # The archive next to the installer is copied, not moved.
         self.assertTrue((self.release / ARCHIVE).is_file())
 
-    def test_default_folder_is_local_app_data(self) -> None:
+    def test_st21_default_folder_is_local_app_data(self) -> None:
         result = self.run_bat()
         dest = self.local_app_data / 'Programs' / 'Hider'
         self.assert_installed(dest, result)
         self.assertIn(f'Installed Hider {VERSION} to {dest}', result.out.splitlines())
 
-    def test_empty_argument_is_the_default_folder(self) -> None:
+    def test_st21_empty_argument_is_the_default_folder(self) -> None:
         result = self.run_bat('')
         self.assert_installed(self.local_app_data / 'Programs' / 'Hider', result)
 
-    def test_relative_folder_is_made_absolute(self) -> None:
+    def test_st21_relative_folder_is_made_absolute(self) -> None:
         work = self.root / 'cwd'
         work.mkdir()
         result = self.run_bat('rel\\Hider', cwd=work)
         self.assert_installed(work / 'rel' / 'Hider', result)
         self.assertIn(f'Copying to {work / "rel" / "Hider"}', result.out.splitlines())
 
-    def test_overwrites_an_existing_install(self) -> None:
+    def test_st21_overwrites_an_existing_install(self) -> None:
         (self.dest / 'Assets').mkdir(parents=True)
         (self.dest / 'Hider.exe').write_bytes(b'old')
         (self.dest / 'Assets' / 'x.png').write_bytes(b'old')
@@ -306,7 +306,7 @@ class InstallBatTest(unittest.TestCase):
         self.addCleanup(server.shutdown)
         return f'http://127.0.0.1:{server.server_port}/dl', requests
 
-    def test_downloads_when_the_archive_is_not_next_to_it(self) -> None:
+    def test_st22_downloads_when_the_archive_is_not_next_to_it(self) -> None:
         store = self.root / 'store' / 'dl'
         store.mkdir(parents=True)
         shutil.move(str(self.release / ARCHIVE), store / ARCHIVE)
@@ -317,7 +317,7 @@ class InstallBatTest(unittest.TestCase):
         self.assertEqual(result.out.splitlines()[0], f'Downloading {base_url}/{ARCHIVE}')
         self.assertEqual(requests, [f'/dl/{ARCHIVE}'])
 
-    def test_download_not_found(self) -> None:
+    def test_st22_download_not_found(self) -> None:
         (self.release / ARCHIVE).unlink()
         empty = self.root / 'empty'
         empty.mkdir()
@@ -333,7 +333,7 @@ class InstallBatTest(unittest.TestCase):
         self.assertFalse(self.link.exists())
         self.assert_cleaned_up()
 
-    def test_starts_hider_unless_told_not_to(self) -> None:
+    def test_st22_starts_hider_unless_told_not_to(self) -> None:
         # Hider.exe is a copy of Windows PowerShell: started without arguments in its own console, it stays.
         powershell_exe = Path(shutil.which('powershell') or 'powershell.exe')
         files = {**default_files(), 'Hider.exe': powershell_exe.read_bytes()}
@@ -347,7 +347,7 @@ class InstallBatTest(unittest.TestCase):
         self.assertTrue(same_path(started[0], self.dest / 'Hider.exe'), started)
         self.assertEqual(hider_processes_under(self.root), started)
 
-    def test_no_launch_does_not_start_it(self) -> None:
+    def test_st22_no_launch_does_not_start_it(self) -> None:
         powershell_exe = Path(shutil.which('powershell') or 'powershell.exe')
         digest = self.make_zip(self.release, {**default_files(), 'Hider.exe': powershell_exe.read_bytes()})
         bat = self.write_bat(self.release, digest)

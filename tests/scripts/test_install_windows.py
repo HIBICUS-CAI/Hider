@@ -31,7 +31,7 @@ class InstallWindowsRealTest(unittest.TestCase):
         self.assertTrue(same_path(target, dest / 'Hider.exe'), target)
         self.assertTrue(same_path(working_dir, dest), working_dir)
 
-    def test_install_windows_makes_the_shortcut(self) -> None:
+    def test_st33_install_windows_makes_the_shortcut(self) -> None:
         # Characters PowerShell would read in a script ($, quote, space) reach it through the environment only.
         dest = self.root / "Program's $files (x)" / 'Hider'
         with captured() as output:
@@ -41,13 +41,13 @@ class InstallWindowsRealTest(unittest.TestCase):
         self.assertTrue((dest / 'Assets' / 'hider.svg').is_file())
         self.assert_shortcut(dest)
 
-    def test_replaces_an_existing_shortcut(self) -> None:
+    def test_st33_replaces_an_existing_shortcut(self) -> None:
         with captured():
             install.install_windows(self.src, self.root / 'first')
             install.install_windows(self.src, self.root / 'second')
         self.assert_shortcut(self.root / 'second')
 
-    def test_main_into_local_app_data(self) -> None:
+    def test_st33_main_into_local_app_data(self) -> None:
         local_app_data = self.root / 'lad'
         with (
             mock.patch.object(install, 'publish_dir', return_value=self.src),
