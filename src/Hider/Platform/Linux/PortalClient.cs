@@ -17,6 +17,9 @@ namespace Hider.Platform.Linux
         /// <summary>Long enough for a first-time permission dialog.</summary>
         public static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(120);
 
+        /// <summary>ResponseTimeout, shortened by tests.</summary>
+        internal TimeSpan ResponseWait { get; init; } = ResponseTimeout;
+
         private readonly string? address;
         private readonly SemaphoreSlim connectLock = new(1, 1);
         private DBusConnection? connection;
@@ -106,7 +109,7 @@ namespace Hider.Platform.Linux
             await _bus.CallMethodAsync(call).ConfigureAwait(false);
             try
             {
-                return await response.Task.WaitAsync(ResponseTimeout, _ct).ConfigureAwait(false);
+                return await response.Task.WaitAsync(ResponseWait, _ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is OperationCanceledException or TimeoutException)
             {
