@@ -31,6 +31,8 @@ namespace Hider.Core.Tests.Mosaic
             var inputs = MosaicPipeline.Prepare(source, default, p, null, method);
             try
             {
+                // Measured on linux-x64 (since the nearest rule of 6c5eb3c): 0 pixels differ by more than 1 for all four
+                // radii. The share stays for the float differences of arm64 and Windows, which no local run measures.
                 AssertClose(method, inputs, p, 0.005);
             }
             finally
@@ -55,6 +57,7 @@ namespace Hider.Core.Tests.Mosaic
             var p = ParamValues.ForGenerated(method, settings);
             // The lattice hash is exact (LatticeHash); only the float interpolation between nodes may put a pixel right at a
             // step boundary into the neighbouring step.
+            // Measured on linux-x64: 0 pixels differ by more than 1 for all four cases; the share is for other platforms.
             AssertClose(method, new MosaicInputs { AreaSize = new SKSizeI(Width, Height) }, p, 0.002);
         }
 
