@@ -117,7 +117,9 @@ class ParseArgsTest(unittest.TestCase):
         self.assertEqual(self.parse('--version', '0.0.0'), (['linux-x64'], '0.0.0'))
 
     def test_invalid_version(self) -> None:
-        for version in ['2.1', '2.1.0.0', 'v2.1.0', '2.1.0-beta', '2.1.0 ', ' 2.1.0', 'a.b.c', '2..1', '']:
+        # Non-ASCII digits (Arabic-Indic, fullwidth): \d alone would take them.
+        non_ascii = ['\u0661.\u0662.\u0663', '\uff12.\uff11.\uff10', '2.1.\u0660']
+        for version in ['2.1', '2.1.0.0', 'v2.1.0', '2.1.0-beta', '2.1.0 ', ' 2.1.0', 'a.b.c', '2..1', '', *non_ascii]:
             with self.subTest(version=version):
                 self.assertEqual(
                     self.parse_error('win-x64', '--version', version),
