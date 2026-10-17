@@ -8,6 +8,7 @@ namespace Hider.Tray
         EditAll,
         EndEdit,
         DeleteAll,
+        Version,
         Exit,
     }
 
@@ -15,11 +16,12 @@ namespace Hider.Tray
 
     /// <summary>
     /// The tray menu (FR-03, FR-04) as data, shared by the native menu, the Windows left-click popup and the D-9 fallback
-    /// window so they always show the same items and enabled states.
+    /// window so they always show the same items and enabled states. The version row is information only and never enabled
+    /// (proposal P-10).
     /// </summary>
     public static class TrayMenuModel
     {
-        public static IReadOnlyList<TrayMenuItem> Build(int _areaCount, bool _anyEditing)
+        public static IReadOnlyList<TrayMenuItem> Build(int _areaCount, bool _anyEditing, string _version)
         {
             bool hasAreas = _areaCount > 0;
             return new[]
@@ -29,7 +31,8 @@ namespace Hider.Tray
                     ? new TrayMenuItem(TrayCommand.EndEdit, Strings.TrayEndEdit, true, false)
                     : new TrayMenuItem(TrayCommand.EditAll, Strings.TrayEditAll, hasAreas, false),
                 new TrayMenuItem(TrayCommand.DeleteAll, Strings.TrayDeleteAll, hasAreas, false),
-                new TrayMenuItem(TrayCommand.Exit, Strings.TrayExit, true, true),
+                new TrayMenuItem(TrayCommand.Version, Strings.TrayVersion(_version), false, true),
+                new TrayMenuItem(TrayCommand.Exit, Strings.TrayExit, true, false),
             };
         }
     }

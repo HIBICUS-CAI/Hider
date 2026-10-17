@@ -9,9 +9,9 @@ namespace Hider.App.Tests.Tray
 {
     public class TrayTests
     {
-        private static readonly bool[] emptyEnabled = { true, false, false, true };
-        private static readonly bool[] emptySeparators = { false, false, false, true };
-        private static readonly string[] emptyLabels = { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "終了" };
+        private static readonly bool[] emptyEnabled = { true, false, false, false, true };
+        private static readonly bool[] emptySeparators = { false, false, false, true, false };
+        private static readonly string[] emptyLabels = { "新しいエリアを追加", "すべてのエリアを編集", "すべてのエリアを削除…", "バージョン 2.1.3", "終了" };
 
         private static TrayController CreateTray(AreaFixture _f)
         {
@@ -19,20 +19,27 @@ namespace Hider.App.Tests.Tray
         }
 
         [AvaloniaFact]
-        public void GT16_MenuModel_FourItemsAndSeparator()
+        public void GT16_MenuModel_FiveItemsAndSeparator()
         {
-            var empty = TrayMenuModel.Build(0, false);
-            Assert.Equal(new[] { TrayCommand.AddArea, TrayCommand.EditAll, TrayCommand.DeleteAll, TrayCommand.Exit }, empty.Select(_i => _i.Command));
+            var empty = TrayMenuModel.Build(0, false, "2.1.3");
+            Assert.Equal(new[] { TrayCommand.AddArea, TrayCommand.EditAll, TrayCommand.DeleteAll, TrayCommand.Version, TrayCommand.Exit }, empty.Select(_i => _i.Command));
             Assert.Equal(emptyEnabled, empty.Select(_i => _i.IsEnabled));
             Assert.Equal(emptySeparators, empty.Select(_i => _i.SeparatorBefore));
             Assert.Equal(emptyLabels, empty.Select(_i => _i.Label));
-            Assert.All(TrayMenuModel.Build(2, false), _i => Assert.True(_i.IsEnabled));
+            // With areas everything is enabled except the version row, which is information only (P-10).
+            Assert.All(TrayMenuModel.Build(2, false, "2.1.3"), _i => Assert.Equal(_i.Command != TrayCommand.Version, _i.IsEnabled));
+            Assert.False(TrayMenuModel.Build(2, true, "2.1.3").Single(_i => _i.Command == TrayCommand.Version).IsEnabled);
 
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
-            Assert.Equal(5, tray.Menu.Items.Count);
+            Assert.Equal(6, tray.Menu.Items.Count);
             Assert.IsType<NativeMenuItemSeparator>(tray.Menu.Items[3]);
             Assert.False(((NativeMenuItem)tray.Menu.Items[1]).IsEnabled);
+            // The running build's version, the same text --version prints after "Hider ".
+            var version = (NativeMenuItem)tray.Menu.Items[4];
+            Assert.Equal($"バージョン {AppInfo.Version}", version.Header);
+            Assert.False(version.IsEnabled);
+            Assert.Matches(@"^\d+\.\d+\.\d+$", AppInfo.Version);
         }
 
         [AvaloniaFact]
