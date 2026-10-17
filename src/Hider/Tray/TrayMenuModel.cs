@@ -21,7 +21,7 @@ namespace Hider.Tray
     /// </summary>
     public static class TrayMenuModel
     {
-        public static IReadOnlyList<TrayMenuItem> Build(int _areaCount, bool _anyEditing, string _version)
+        public static IReadOnlyList<TrayMenuItem> Build(int _areaCount, bool _anyEditing, string? _version)
         {
             bool hasAreas = _areaCount > 0;
             return new[]

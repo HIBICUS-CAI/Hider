@@ -21,6 +21,7 @@ namespace Hider.Core
             ["tray.endEdit"] = "編集を終了",
             ["tray.deleteAll"] = "すべてのエリアを削除…",
             ["tray.version"] = "バージョン {0}",
+            ["tray.versionUnknown"] = "不明",
             ["tray.exit"] = "終了",
             ["tray.tooltip"] = "Hider — エリア {0} 個",
 
@@ -165,10 +166,13 @@ namespace Hider.Core
             return string.Format(CultureInfo.InvariantCulture, trayTooltip, _count);
         }
 
-        /// <summary>"バージョン 2.0.0": the tray menu's information row, with the version <c>--version</c> prints (proposal P-10).</summary>
-        public static string TrayVersion(string _version)
+        /// <summary>
+        /// "バージョン 2.0.0": the tray menu's information row, with the version <c>--version</c> prints (proposal P-10);
+        /// "バージョン 不明" when the build has no version.
+        /// </summary>
+        public static string TrayVersion(string? _version)
         {
-            return string.Format(CultureInfo.InvariantCulture, trayVersion, _version);
+            return string.Format(CultureInfo.InvariantCulture, trayVersion, _version ?? Get("tray.versionUnknown"));
         }
 
         /// <summary>The size shown on the edit toolbar, in physical pixels (FR-34).</summary>

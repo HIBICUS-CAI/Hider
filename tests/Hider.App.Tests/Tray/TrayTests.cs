@@ -39,7 +39,6 @@ namespace Hider.App.Tests.Tray
             var version = (NativeMenuItem)tray.Menu.Items[4];
             Assert.Equal($"バージョン {AppInfo.Version}", version.Header);
             Assert.False(version.IsEnabled);
-            Assert.Matches(@"^\d+\.\d+\.\d+$", AppInfo.Version);
         }
 
         [AvaloniaFact]

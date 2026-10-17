@@ -32,6 +32,8 @@ namespace Hider.Core.Tests
             Assert.Equal("Hider を起動できません。データフォルダのロックファイル（/x/instance.lock）を開けませんでした。\n\nAccess denied",
                 Strings.StartupLockFailed("/x/instance.lock", "Access denied"));
             Assert.Equal("色を選ぶ: #68768A", Strings.SettingsPickColorWithValue("#68768A"));
+            Assert.Equal("バージョン 2.1.3", Strings.TrayVersion("2.1.3"));
+            Assert.Equal("バージョン 不明", Strings.TrayVersion(null));
         }
 
         private static bool IsJapanese(char _c)
