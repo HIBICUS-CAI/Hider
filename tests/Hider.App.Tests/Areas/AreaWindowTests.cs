@@ -293,6 +293,13 @@ namespace Hider.App.Tests.Areas
             Assert.Equal(WindowDecorations.None, w.WindowDecorations);
             Assert.False(w.ShowActivated);
             Assert.False(w.CanResize);
+            // See-through strips (Linux) and the edit margins around the area need a transparent window.
+            Assert.Contains(WindowTransparencyLevel.Transparent, w.TransparencyLevelHint);
+            Assert.Equal(0, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(w.Background).Color.A);
+            Assert.True(w.Focusable); // Focus() on a press, then the arrow keys (FR-33)
+            Assert.Equal(SizeToContent.Manual, w.SizeToContent);
+            Assert.Equal(WindowStartupLocation.Manual, w.WindowStartupLocation); // otherwise it would override Place
+            Assert.Equal("Hider", w.Title);
         }
 
         [AvaloniaFact]
