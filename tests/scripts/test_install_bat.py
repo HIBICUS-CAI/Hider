@@ -10,9 +10,9 @@ installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. 
 cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
 more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
 `&`, `%`, `!`, `'`, `(1)` and `^` reach the script intact. The variants with delayed expansion on (`cmd.exe /v:on`, as
-the DelayedExpansion registry value also sets it) still pass the paths on intact, since cmd does not delay-expand the
-line of a plain batch file call; inside the script it would drop each `!` of %~f0 and %~1 unless the script turns it
-off.
+the DelayedExpansion registry value also sets it) escape `!` and `^` with a caret, since such a cmd delay-expands its
+own command line as well; the script then gets the paths intact, and inside it delayed expansion would drop each `!`
+of %~f0, %~1 and %LOCALAPPDATA% unless the script turns it off.
 """
 
 from __future__ import annotations
@@ -162,6 +162,10 @@ class InstallBatTest(unittest.TestCase):
         # stdin from NUL: the pause after a failed double-click run returns at once. A string, not a list: cmd.exe's
         # quoting is not the C runtime's that subprocess would apply.
         command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
+        if delayed_expansion:
+            # cmd /v:on delay-expands its own command line too: there `^!` is a `!` and `^^` a `^` (inside quotes the
+            # carets reach that phase), as a user of such a cmd types them.
+            command = command.replace('^', '^^').replace('!', '^!')
         switches = '/v:on /s /c' if delayed_expansion else '/s /c'
         result = subprocess.run(
             f'cmd.exe {switches} "{command}"',
