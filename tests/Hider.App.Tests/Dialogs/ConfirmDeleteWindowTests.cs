@@ -1,6 +1,8 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Hider.Dialogs;
@@ -96,6 +98,19 @@ namespace Hider.App.Tests.Dialogs
             var dialog = new ConfirmDeleteWindow();
             var ask = dialog.AskAsync();
             dialog.Close();
+            Assert.False(await ask);
+        }
+
+        [AvaloniaFact]
+        public async Task Escape_AnswersFalse_AndCloses()
+        {
+            var dialog = new ConfirmDeleteWindow();
+            var ask = dialog.AskAsync();
+            Dispatcher.UIThread.RunJobs();
+            dialog.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(ask.IsCompleted);
+            Assert.False(dialog.IsVisible);
             Assert.False(await ask);
         }
 
