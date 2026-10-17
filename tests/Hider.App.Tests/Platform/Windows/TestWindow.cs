@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Hider.Core.Capture;
+using Hider.Core.Model;
 using Hider.Platform.Windows;
 
 namespace Hider.App.Tests.Platform.Windows
@@ -68,9 +70,31 @@ namespace Hider.App.Tests.Platform.Windows
             created.Dispose();
         }
 
+        /// <summary>
+        /// Waits until DWM has composed the window: PrintWindow (as the capture calls it) answers with its red top row. It is
+        /// painted synchronously at creation, but DWM may still be composing it the first time it is read.
+        /// </summary>
+        public void WaitUntilComposed()
+        {
+            var source = new Win32WindowSource();
+            var rect = new PhysicalRect(X, Y, Width, Height);
+            var info = new WindowInfo(Handle, rect, rect, true, false, ClassName);
+            for (int i = 0; i <= 20; i++)
+            {
+                var image = source.Capture(info, TimeSpan.FromSeconds(30));
+                if (image.Failure == CaptureFailure.None && image.Image!.Bgra.Span[2] == 0xFF)
+                {
+                    return;
+                }
+                _ = DwmFlush();
+            }
+            throw new TimeoutException("DWM did not compose the test window after 20 flushes");
+        }
+
         private void Run()
         {
             nint instance = GetModuleHandleW(null);
+            bool registered = false;
             try
             {
                 fixed (char* name = ClassName)
@@ -80,6 +104,7 @@ namespace Hider.App.Tests.Platform.Windows
                     {
                         throw new InvalidOperationException($"RegisterClassW failed: error {Marshal.GetLastPInvokeError()}");
                     }
+                    registered = true;
                     uint exStyle = WsExToolWindow | WsExNoActivate | (topmost ? WsExTopmost : 0);
                     Handle = CreateWindowExW(exStyle, name, name, WsPopup | WsVisible, X, Y, Width, Height, 0, 0, instance, 0);
                     if (Handle == 0)
@@ -93,6 +118,10 @@ namespace Hider.App.Tests.Platform.Windows
             catch (Exception e)
             {
                 failure = e;
+                if (registered)
+                {
+                    Unregister(instance); // no window of the class was made: the class would outlive the test
+                }
                 created.Set();
                 return;
             }
@@ -103,9 +132,14 @@ namespace Hider.App.Tests.Platform.Windows
                 _ = TranslateMessage(&msg);
                 _ = DispatchMessageW(&msg);
             }
+            Unregister(instance);
+        }
+
+        private void Unregister(nint _instance)
+        {
             fixed (char* name = ClassName)
             {
-                _ = UnregisterClassW(name, instance);
+                _ = UnregisterClassW(name, _instance);
             }
         }
 

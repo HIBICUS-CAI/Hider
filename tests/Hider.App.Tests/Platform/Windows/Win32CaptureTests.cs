@@ -425,13 +425,8 @@ namespace Hider.App.Tests.Platform.Windows
             Assert.False(info.Cloaked);
             Assert.Equal(own.ClassName, info.ClassName);
 
+            own.WaitUntilComposed();
             var image = source.Capture(info, longWait);
-            for (int i = 0; i < 20 && !(image.Failure == CaptureFailure.None && image.Image!.Bgra.Span[2] == 0xFF); i++)
-            {
-                // Painted synchronously at creation; DWM may still be composing it the first time.
-                _ = TestWindow.DwmFlush();
-                image = source.Capture(info, longWait);
-            }
 
             Assert.Equal(CaptureFailure.None, image.Failure);
             var frame = image.Image!;
@@ -519,7 +514,7 @@ namespace Hider.App.Tests.Platform.Windows
             using var own = new TestWindow(200, 150, true); // topmost: no other window of the runner covers it
             using var capture = new Win32UnderlayCapture();
             var rect = new PhysicalRect(200 + 8, 150 + 8, 16, 16);
-            _ = TestWindow.DwmFlush();
+            own.WaitUntilComposed(); // a first PrintWindow of it may still be black, which fails the capture as Black
 
             var result = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 0x7FFFFFF0 }, 0), CancellationToken.None);
 
