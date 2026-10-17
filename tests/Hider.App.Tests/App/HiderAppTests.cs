@@ -176,6 +176,95 @@ namespace Hider.App.Tests.App
             }
         }
 
+        /// <summary>Start with the platform's capture, its restore token under <paramref name="_dir"/> (HOME, for the start).</summary>
+        private static HiderApp StartWithThePlatformCapture(TempDir _dir)
+        {
+            string? home = Environment.GetEnvironmentVariable("HOME");
+            try
+            {
+                Environment.SetEnvironmentVariable("HOME", _dir.Path);
+                return Start(_dir, null).Item1;
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("HOME", home);
+            }
+        }
+
+        /// <summary>Runs the UI thread's jobs until the area's first capture has ended (a frame, or the fallback).</summary>
+        private static async Task FirstCaptureAsync(AreaController _area)
+        {
+            var ct = TestContext.Current.CancellationToken;
+            while (_area.Frames.Version == 0 && !_area.CaptureFailed)
+            {
+                await Task.Delay(20, ct);
+                Dispatcher.UIThread.RunJobs();
+            }
+        }
+
+        [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),
+            SkipUnless = nameof(Hider.App.Tests.Platform.LinuxTestEnvironment.HasDbus))]
+        [System.Runtime.Versioning.SupportedOSPlatform("linux")]
+        public async Task Start_LinuxPlatformCapture_TakesTheStripsThroughTheScreenshotPortal()
+        {
+            // The Linux capture built by Start, end to end on a private bus with the scriptable portal (stage 1: its
+            // ScreenCast answers without a session). A new mosaic area's first capture goes through the strip host (the
+            // areas, the screen, transparent strips on the UI thread): one shot to prepare, then one per strip, each a PNG of
+            // the whole screen that is deleted once read (FR-53). The pixels are checked by xvfb-strip-smoke.sh.
+            using var dir = new TempDir();
+            using var env = await Hider.App.Tests.Platform.PortalEnv.StartAsync();
+            using var bus = new Hider.App.Tests.Platform.SessionBusOverride(env.Address);
+            string shots = Path.Combine(dir.Path, "shots");
+            Directory.CreateDirectory(shots);
+            using var app = StartWithThePlatformCapture(dir);
+            var screen = app.Areas!.Services.Screens.Screens.Single(_s => _s.IsPrimary).Bounds;
+            int shot = 0;
+            env.Portal.OnRequest = _call =>
+            {
+                if (_call.Member != "Screenshot")
+                {
+                    return Hider.App.Tests.Platform.FakeDesktopPortal.Answer.Ok();
+                }
+                string path = Path.Combine(shots, $"Screenshot-{Interlocked.Increment(ref shot)}.png");
+                Hider.App.Tests.Platform.PortalScreenshotGrabberTests.WritePng(path, screen.Width, screen.Height);
+                return new Hider.App.Tests.Platform.FakeDesktopPortal.Answer.Respond(0,
+                    (ref Tmds.DBus.Protocol.MessageWriter _w) => Hider.App.Tests.Platform.FakeDesktopPortal.Entry(ref _w, "uri", new Uri(path).AbsoluteUri));
+            };
+
+            var area = app.Areas.AddNew();
+            Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
+            await FirstCaptureAsync(area);
+
+            Assert.False(area.CaptureFailed);
+            Assert.Equal(1, area.Frames.Version);
+            Assert.Equal(PatternKind.Mosaic, area.Model.Pattern);
+            int strips = (area.Model.Rect.Height + area.Model.Mosaic.Common.StripPx - 1) / area.Model.Mosaic.Common.StripPx;
+            Assert.Equal(1 + strips, shot); // one shot to prepare, one per strip
+            Assert.Null(area.Window.TransparentRows); // every strip given back
+            Assert.Empty(Directory.GetFiles(shots));
+        }
+
+        [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),
+            SkipUnless = nameof(Hider.App.Tests.Platform.LinuxTestEnvironment.HasDbus))]
+        [System.Runtime.Versioning.SupportedOSPlatform("linux")]
+        public async Task Start_LinuxPlatformCapture_PortalWithoutAnImage_FallsBackToTheGeneratedPattern()
+        {
+            // The portal answers every request without a result: no stage can deliver, the area shows a generated pattern
+            // (FR-52) and no strip is left transparent.
+            using var dir = new TempDir();
+            using var env = await Hider.App.Tests.Platform.PortalEnv.StartAsync();
+            using var bus = new Hider.App.Tests.Platform.SessionBusOverride(env.Address);
+            using var app = StartWithThePlatformCapture(dir);
+
+            var area = app.Areas!.AddNew();
+            await FirstCaptureAsync(area);
+
+            Assert.True(area.CaptureFailed);
+            Assert.Contains(env.Portal.Calls, _c => _c.Member is "CreateSession" or "Screenshot");
+            Assert.Equal(PatternKind.Generated, area.Model.Pattern);
+            Assert.Null(area.Window.TransparentRows);
+        }
+
         [AvaloniaFact]
         public void Start_WithoutACapture_UsesThePlatformCapture()
         {
