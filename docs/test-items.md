@@ -10,7 +10,7 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案中、P-13 の予定）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT148（50）、GT41〜GT130（90）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT132（92）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
 
 ## 新しい ID（CT / GT）
 
@@ -66,6 +66,8 @@
 | CT146 | CT | ロックが取れない理由の判定: OS ごとのエラーコードで「他のインスタンスが保持」を判定し、名前が長すぎる・作るフォルダがないなどはエラーとして他インスタンス扱いにしない | FR-08 | Hider.Core.Tests/Persistence/StoragePathsSingleInstanceTests.cs（StoragePathsSingleInstanceTests、3 件） |
 | CT147 | CT | タイマーのスレッドと呼び出し側のスレッドが同時に tick と要求を出しても、実行が重ならない | D-10 | Hider.Core.Tests/Scheduling/RefreshSchedulerCasesTests.cs（RefreshSchedulerCasesTests、1 件） |
 | CT148 | CT | 投げっぱなしのタスク（Forget）: 失敗はちょうど 1 行でログへ、キャンセルは失敗としない、後で成功・未完了なら何も書かない、内側の原因ではなく最初の本当の例外を、複数の例外は集約として | — | Hider.Core.Tests/TaskExtensionsTests.cs（TaskExtensionsTests、6 件） |
+| CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない。areas.json と並んでいても無視される | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件） |
+| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt、HiderJsonContext を通らない JSON。走査がソースを見ていることとコメントを除くことも確認 | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、9 件） |
 | GT41 | GT | 版の表示: 版は InformationalVersion からリビジョンを除いたもの・アセンブリの版と一致・一度だけ読む。--version の出力とトレイメニューの版の行（区切り線はその前だけ） | P-10 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件）<br>Hider.App.Tests/Tray/TrayMenuModelTests.cs（TrayMenuModelTests、2 件）<br>Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、1 件） |
 | GT42 | GT | アイコン: トレイ用は 32 px で共有、窓のアイコンは多サイズの .ico と 48 px の PNG で毎回新しく、資産は埋め込み | FR-71 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、4 件） |
 | GT43 | GT | アプリの資源: Fluent と ColorPicker のテーマを Light で読み込む、等幅フォントは Windows 用を先頭にした代替つき | UI デザインキャンバス | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件） |
@@ -156,6 +158,8 @@
 | GT128 | GT | トレイがないときの代替窓（D-9）: 探索でトレイがあればログだけで窓を出さない、なければログを出し窓がコマンドを実行、探索の失敗はログで窓なし、破棄後の応答では窓を出さない。代替窓は普通の固定サイズの窓で説明の題とアイコン、項目と状態を示し、クリックでコマンドを出して開いたまま、ユーザーが閉じれば最小化・終了では閉じる、セッション・アプリの終了は妨げない、他の閉じ方は拒んで最小化 | D-9 | Hider.App.Tests/Tray/TrayControllerTests.cs（TrayControllerTests、4 件）<br>Hider.App.Tests/Tray/TrayWindowTests.cs（TrayWindowTests、7 件） |
 | GT129 | GT | トレイの破棄: 全窓を閉じエリアへの追従をやめる、何も開いていなくても投げない | FR-06 | Hider.App.Tests/Tray/TrayControllerTests.cs（TrayControllerTests、2 件） |
 | GT130 | GT | メニュー窓のデザイン: ボタンなしで始まり間隔はデザインどおり、アイコンのあるコマンドはパスを持ち左の余白が少ない、ボタンの体裁 | UI デザインキャンバス | Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、3 件） |
+| GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
+| GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す）、すべての窓が最前面 | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、2 件） |
 
 ## 既存 ID の細分化
 
@@ -385,10 +389,9 @@
 
 | FR・NFR | 内容 | 現状 |
 |---|---|---|
-| FR-10 | エリアは複数作れる、上限なし | 複数エリアを扱うテスト（GT15 の別 Id、GT70 の削除で他が残る、CT83 の重なり）はあるが、FR-10 として対応付けた項目はない |
-| FR-12 | 重なりの前後は最後に操作したエリアが上 | なし（窓の前後関係は headless では検証していない） |
-| FR-41 | Voronoi（Worley 方式、3×3 近傍） | なし（組み込み手法は pixelate / hexcell / blur / block / noise で、Voronoi の手法がない。CT-13 の既知集合にもない） |
-| FR-65 | 旧 setting.txt を読まない | なし（読まないことのテストはない） |
-| NFR-01 | 録画・画面共有に映る（除外 API を使わない） | PT-10 / PT-26 のみ |
+| FR-41 | Voronoi（Worley 方式、3×3 近傍） | なし。組み込み手法は pixelate / hexcell / blur / block / noise で、Voronoi の手法そのものが未実装（CT-13 の既知集合にもない）。テストではなく実装の欠けなので、ユーザーの判断を待つ |
+| NFR-01 | 録画・画面共有に映る（除外 API を使わない） | 映ることそのものは PT-10 / PT-26（実機）。除外 API を使わないことは CT150 でソースを検査 |
+
+以前この表にあった FR-10（GT131）、FR-12（GT132）、FR-65（CT149、CT150）はテストを足した。
 
 FR-71（アイコン）と FR-72（build.py / install.py）は GT42 / GT52 のほか ST で検証している。FR-02 と FR-06 はタブでは PT だけだったが、GT46 / GT47 で CT / GT が付いた。
