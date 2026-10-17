@@ -491,11 +491,7 @@ namespace Hider.App.Tests.Areas
             Assert.Equal((0, 8), area.Window.TransparentRows);
             Assert.NotNull(area.Window.Root.Clip);
             cts.Cancel();
-            var until = DateTime.UtcNow.AddSeconds(5);
-            while (!task.IsCompleted && DateTime.UtcNow < until)
-            {
-                Dispatcher.UIThread.RunJobs();
-            }
+            UiJobs.Complete(task);
             Assert.True(task.IsCanceled);
             Assert.Equal(0, area.Window.StripFrameTimeouts);
         }
@@ -565,11 +561,7 @@ namespace Hider.App.Tests.Areas
             var strip = window.SetTransparentRowsAsync(0, 8, TestContext.Current.CancellationToken);
             Assert.False(strip.IsCompleted);
             f.Time.Advance(AreaWindow.StripFrameTimeout);
-            var until = DateTime.UtcNow.AddSeconds(5);
-            while (!strip.IsCompleted && DateTime.UtcNow < until)
-            {
-                Dispatcher.UIThread.RunJobs();
-            }
+            UiJobs.Complete(strip);
             Assert.True(strip.IsCompletedSuccessfully);
             Assert.Equal(1, window.StripFrameTimeouts);
             window.CloseFromController();

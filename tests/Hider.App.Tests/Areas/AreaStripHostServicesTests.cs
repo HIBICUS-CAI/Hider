@@ -74,11 +74,7 @@ namespace Hider.App.Tests.Areas
 
         private static async Task WaitAsync(Task _task)
         {
-            var until = DateTime.UtcNow.AddSeconds(5);
-            while (!_task.IsCompleted && DateTime.UtcNow < until)
-            {
-                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-            }
+            UiJobs.Complete(_task);
             await _task;
         }
 
