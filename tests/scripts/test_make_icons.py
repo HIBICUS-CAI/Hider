@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import struct
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 import zlib
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 import common
@@ -296,23 +298,38 @@ class SvgTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.assets = temp_dir(self) / 'src' / 'Hider' / 'Assets'
+    """main as `python scripts/make_icons.py` runs it. Drawing every size takes about a second, so it is done once for
+    the class (into a scratch checkout); the overwrite test draws the 16 px size only."""
 
-    def written(self) -> dict[str, bytes]:
-        return {p.name: p.read_bytes() for p in sorted(self.assets.iterdir())}
+    root: ClassVar[Path]
+    output: ClassVar[str]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        holder = tempfile.TemporaryDirectory(prefix='hider-scripts-test-')
+        cls.addClassCleanup(holder.cleanup)
+        cls.root = Path(holder.name)
+        with mock.patch.object(common, 'ROOT_DIR', cls.root), captured() as output:
+            run_as_main('make_icons.py')
+        cls.output = output.out
+
+    @property
+    def assets(self) -> Path:
+        return self.root / 'src' / 'Hider' / 'Assets'
+
+    def written(self, folder: Path) -> dict[str, bytes]:
+        return {p.name: p.read_bytes() for p in sorted(folder.iterdir())}
 
     def test_writes_every_file_and_matches_the_committed_assets(self) -> None:
-        with mock.patch.object(make_icons, 'ASSETS', self.assets), captured() as output:
-            make_icons.main()
-        files = self.written()
+        files = self.written(self.assets)
         expected_names = {f'hider-{size}.png' for size in make_icons.PNG_SIZES} | {'hider.ico', 'hider.svg'}
         self.assertEqual(set(files), expected_names)
         self.assertEqual(
-            output.out, f'Wrote 8 PNG files, hider.ico (16, 20, 24, 32, 48, 256) and hider.svg to {self.assets}\n'
+            self.output, f'Wrote 8 PNG files, hider.ico (16, 20, 24, 32, 48, 256) and hider.svg to {self.assets}\n'
         )
         for size in make_icons.PNG_SIZES:
             self.assertEqual(decode_png(files[f'hider-{size}.png'])[:2], (size, size))
+        self.assertEqual(files['hider-16.png'], make_icons.png(16))
         self.assertEqual(files['hider.svg'], make_icons.svg().encode('utf-8'))
         self.assertEqual(
             files['hider.ico'], make_icons.ico([(size, files[f'hider-{size}.png']) for size in make_icons.ICO_SIZES])
@@ -324,21 +341,28 @@ class MainTest(unittest.TestCase):
                 self.assertEqual(committed[name], data, f'{name} differs: run python scripts/make_icons.py')
 
     def test_overwrites_into_an_existing_folder(self) -> None:
-        self.assets.mkdir(parents=True)
-        (self.assets / 'hider.svg').write_text('old\r\n', encoding='utf-8')
-        (self.assets / 'other.txt').write_text('kept', encoding='utf-8')
-        with mock.patch.object(make_icons, 'ASSETS', self.assets), captured():
+        assets = temp_dir(self) / 'Assets'
+        assets.mkdir()
+        (assets / 'hider.svg').write_text('old\r\n', encoding='utf-8')
+        (assets / 'hider-16.png').write_bytes(b'old')
+        (assets / 'other.txt').write_text('kept', encoding='utf-8')
+        with (
+            mock.patch.object(make_icons, 'ASSETS', assets),
+            mock.patch.object(make_icons, 'PNG_SIZES', [16]),
+            mock.patch.object(make_icons, 'ICO_SIZES', [16]),
+            captured() as output,
+        ):
             make_icons.main()
-        self.assertEqual((self.assets / 'hider.svg').read_bytes(), make_icons.svg().encode('utf-8'))
-        self.assertEqual((self.assets / 'other.txt').read_text(encoding='utf-8'), 'kept')
+        self.assertEqual(output.out, f'Wrote 1 PNG files, hider.ico (16) and hider.svg to {assets}\n')
+        self.assertEqual((assets / 'hider.svg').read_bytes(), make_icons.svg().encode('utf-8'))
+        self.assertEqual((assets / 'hider-16.png').read_bytes(), make_icons.png(16))
+        self.assertEqual((assets / 'hider.ico').read_bytes(), make_icons.ico([(16, make_icons.png(16))]))
+        self.assertEqual((assets / 'other.txt').read_text(encoding='utf-8'), 'kept')
 
     def test_as_a_script(self) -> None:
-        root = self.assets.parents[2]
-        with mock.patch.object(common, 'ROOT_DIR', root), captured() as output:
-            run_as_main('make_icons.py')
-        self.assertIn(f'and hider.svg to {self.assets}', output.out)
+        # setUpClass ran the file as __main__ with ROOT_DIR pointing at the scratch checkout: it wrote there.
+        self.assertIn(f'and hider.svg to {self.assets}', self.output)
         self.assertEqual(len(list(self.assets.iterdir())), 10)
-        self.assertEqual((self.assets / 'hider-16.png').read_bytes(), make_icons.png(16))
 
     def test_assets_path(self) -> None:
         self.assertIsInstance(make_icons.ASSETS, Path)
