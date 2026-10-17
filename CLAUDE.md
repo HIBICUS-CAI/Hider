@@ -16,7 +16,7 @@
 
 - ID は既存の最大番号 + 1（`git log --grep "pending: P-"` で一覧できる。P-1〜P-4 は archive/pr1-removed の docs/progress.md）。
 - ユーザーが承認・却下したら、その後のコミット本文に `resolved: <提案 ID>（承認 | 却下: 理由）` を書く（却下なら同じコミットで直す）。未決の提案 = pending にあって resolved にないもの（`git log --grep "resolved: P-"`）。
-- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1）、P-9（リリースは release.yml。書き込み権限は release ジョブだけ）。
+- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1。その後ユーザー指示で installer-windows ジョブを追加）、P-9（リリースは release.yml。書き込み権限は release ジョブだけ）。
 
 ## 構成
 

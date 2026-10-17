@@ -280,11 +280,40 @@ jobs:
           path: bin/publish/${{ matrix.rid }}/
           retention-days: 14
 
+  # install.bat on dummy publish outputs, started from PowerShell 7 as release.yml does (python-lint covers install.sh).
+  installer-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      HIDER_NO_LAUNCH: 1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Release packaging on dummy files
+        shell: bash
+        run: |
+          d=dummy
+          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid/Assets"; done
+          echo dummy > "$d/in/Hider-win-x64/Hider.exe"
+          for rid in linux-x64 linux-arm64; do echo dummy > "$d/in/Hider-$rid/Hider"; done
+          python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
+      - shell: pwsh
+        run: |
+          cmd.exe /c dummy\out\install.bat installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path installed\Hider.exe)) { throw 'Hider.exe not installed' }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+
   # The required status check of pull requests to main: red when any job failed or was cancelled (a job not chosen in a
   # manual run is skipped, which passes).
   summary:
     if: always()
-    needs: [plan, test-core, test-gui, native, publish, format, python-lint]
+    needs: [plan, test-core, test-gui, native, publish, format, python-lint, installer-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -301,5 +330,6 @@ jobs:
             echo "| publish | ${{ needs.publish.result }} |"
             echo "| format | ${{ needs.format.result }} |"
             echo "| python-lint | ${{ needs.python-lint.result }} |"
+            echo "| installer-windows | ${{ needs.installer-windows.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$FAILED" = true ]; then echo "::error::a job failed or was cancelled"; exit 1; fi
