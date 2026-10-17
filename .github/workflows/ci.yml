@@ -154,23 +154,15 @@ jobs:
           [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
           test -f "$d/data/applications/Hider.desktop"
           (cd "$d/out" && sha256sum -c SHA256SUMS.txt)
-      # The oldest Python the scripts support (pyproject.toml): the argument parsing of build.py and install.py, without
-      # building anything.
+      # The oldest Python the scripts support (pyproject.toml): every unit test again (they run the scripts' own code,
+      # their command lines included).
       - uses: actions/setup-python@v7
         with:
           python-version: "3.10"
-      - name: Scripts on Python 3.10
+      - name: Unit tests of scripts (Python 3.10)
         run: |
           python --version
-          python scripts/build.py --help > /dev/null
-          python scripts/install.py --help > /dev/null
-          python scripts/make_release.py --help > /dev/null
-          [ "$(python scripts/make_release.py bump minor 2.0.0)" = 2.1.0 ]
-          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', '--version', '2.1.0']; import build; print(build.parse_args())"
-          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py']; import build; print(build.parse_targets())"
-          python -c "import sys; sys.path.insert(0, 'scripts'); sys.argv = ['build.py', 'win-x64', 'all']; import build; print(build.parse_targets())"
-      - name: Unit tests of scripts (Python 3.10)
-        run: python -m unittest discover -s tests/scripts -t . -v
+          python -m unittest discover -s tests/scripts -t . -v
 
   test-gui:
     # Only a manual run can turn it off (the input is empty on pull_request and workflow_call).
