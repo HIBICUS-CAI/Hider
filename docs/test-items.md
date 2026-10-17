@@ -7,7 +7,7 @@
 - テストメソッド名の先頭に ID を置く（`CT99_FrameBuffer_Defaults`）。番号は既存の最大の次から振り、欠番は再利用しない。
 - 既存の項目の説明に含まれる振る舞いを細かく検証するテストは、その既存 ID を付ける（下の「既存 ID の細分化」）。説明にない振る舞い（失敗経路・寿命・境界の扱いなど）は新しい ID にする。同じテスト項目を検証するメソッド群は同じ ID を共有する。
 - CT は Core 側の項目、GT は Hider.App.Tests 側の項目（PipeWire 層の CT-89〜CT-91 のように、タブで CT とされた項目は App 側のテストでも CT のまま）。
-- **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案中、P-13 の予定）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
+- **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
 件数: 新しい ID は CT99〜CT150（52）、GT41〜GT132（92）、ST01〜ST51（51）、NT01〜NT09（9）。C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた。Python 336 件、C 17 関数。
@@ -389,7 +389,7 @@
 
 | FR・NFR | 内容 | 現状 |
 |---|---|---|
-| FR-41 | Voronoi（Worley 方式、3×3 近傍） | 対象外。Voronoi の生成パターンは実装しない（ユーザー決定 2026-10-17。設計書 D-5 では v2.1 に先送りしていた）。組み込み手法は pixelate / hexcell / blur / block / noise |
+| FR-41 | Voronoi（Worley 方式、3×3 近傍） | 本 PR の対象外。Voronoi の生成パターンは v2.0 では実装せず、別途対応（オーナー指示 2026-10-17。設計書 D-5）。組み込み手法は pixelate / hexcell / blur / block / noise |
 | NFR-01 | 録画・画面共有に映る（除外 API を使わない） | 映ることそのものは PT-10 / PT-26（実機）。除外 API を使わないことは CT150 でソースを検査 |
 
 以前この表にあった FR-10（GT131）、FR-12（GT132）、FR-65（CT149、CT150）はテストを足した。
