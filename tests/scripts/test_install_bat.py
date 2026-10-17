@@ -1,15 +1,20 @@
 """The Windows installer install.bat (scripts/release/install.bat.in as make_release.py renders it), run by cmd.exe.
 
 Windows only (proposal P-11: skipped elsewhere with the reason; CI runs it in the installer-windows job). Each test
-renders its own install.bat (version, base URL and SHA-256 of its case), starts `cmd.exe /c install.bat [folder]` with
-HIDER_NO_LAUNCH=1 and LOCALAPPDATA, TEMP and TMP in a scratch folder, and checks the exit code, the messages, the files
-and the desktop shortcut (which the installer writes to the real desktop: the test puts back what was there). The
+renders its own install.bat (version, base URL and SHA-256 of its case), runs `install.bat [folder]` through cmd.exe
+with HIDER_NO_LAUNCH=1 and LOCALAPPDATA, TEMP and TMP in a scratch folder, and checks the exit code, the messages, the
+files and the desktop shortcut (which the installer writes to the real desktop: the test puts back what was there). The
 installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. Not covered: the 64-bit check
 ([Environment]::Is64BitOperatingSystem), which a 64-bit runner can not fail.
+
+cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
+more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
+`&`, `%` and `!` reach the script intact.
 """
 
 from __future__ import annotations
 
+import codecs
 import functools
 import hashlib
 import http.server
@@ -38,6 +43,10 @@ VERSION = '9.8.7'
 NAME = f'Hider-{VERSION}-win-x64'
 ARCHIVE = f'{NAME}.zip'
 BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
+# Folder names as a Downloads folder or a user name may have them: spaces, cmd's `&` / `%` / `!` and non-ASCII letters.
+ODD_DOWNLOADS = 'Down loads & more % é!'
+ODD_DEST = 'a b & c % d ! ü'
+ODD_LOCAL_APP_DATA = 'Löcal & App % Data !'
 # The end of cmd's pause prompt ("Press any key to continue . . . " on an English Windows; the same dots elsewhere).
 PAUSE_END = '. . . '
 
@@ -61,6 +70,29 @@ def default_files() -> dict[str, bytes]:
         'Assets/x.png': b'png',
         'Assets/sub/y.txt': b'nested',
     }
+
+
+@functools.cache
+def console_encoding() -> str:
+    """The encoding PowerShell started by cmd.exe writes its redirected output in: the code page of the console it gets
+    (OEM, e.g. cp437, unless changed), asked through the same chain the installer runs in."""
+    result = subprocess.run(
+        'cmd.exe /s /c "powershell -NoProfile -NonInteractive -Command [Console]::OutputEncoding.CodePage"',
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
+    )
+    encoding = f'cp{int(result.stdout.strip())}'
+    codecs.lookup(encoding)
+    return encoding
+
+
+def quoted(value: str) -> str:
+    # Paths can not contain a double quote.
+    assert '"' not in value, value
+    return f'"{value}"'
 
 
 @unittest.skipUnless(WINDOWS, SKIP_REASON)
@@ -118,18 +150,24 @@ class InstallBatTest(unittest.TestCase):
                 variables.pop(key, None)
             else:
                 variables[key] = value
-        # stdin from NUL: the pause after a failed double-click run returns at once.
+        # stdin from NUL: the pause after a failed double-click run returns at once. A string, not a list: cmd.exe's
+        # quoting is not the C runtime's that subprocess would apply.
+        command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
         result = subprocess.run(
-            ['cmd.exe', '/c', str(bat or self.bat), *args],
+            f'cmd.exe /s /c "{command}"',
             env=variables,
             cwd=cwd or self.root,
             stdin=subprocess.DEVNULL,
             capture_output=True,
-            text=True,
             check=False,
             timeout=300,
         )
-        return Result(result.returncode, result.stdout, result.stderr)
+        encoding = console_encoding()
+
+        def decode(data: bytes) -> str:
+            return data.decode(encoding, errors='replace').replace('\r\n', '\n')
+
+        return Result(result.returncode, decode(result.stdout), decode(result.stderr))
 
     # Checks
 
@@ -155,6 +193,21 @@ class InstallBatTest(unittest.TestCase):
         # A successful run never waits for a key.
         self.assertNotIn(PAUSE_END, result.out)
         self.assert_cleaned_up()
+
+    def assert_lines(self, out: str, expected: list[str]) -> None:
+        """The output lines show these texts. A character the console's code page lacks comes out replaced ('?' or a
+        best-fit letter, as .NET encodes it), so there only its position is compared."""
+        lines = out.splitlines()
+        self.assertEqual(len(lines), len(expected), out)
+        encoding = console_encoding()
+        for line, text in zip(lines, expected, strict=True):
+            self.assertEqual(len(line), len(text), line)
+            for shown, char in zip(line, text, strict=True):
+                try:
+                    char.encode(encoding)
+                except UnicodeEncodeError:
+                    continue
+                self.assertEqual(shown, char, f'{line!r} != {text!r}')
 
     # C1: the failures
 
@@ -285,6 +338,46 @@ class InstallBatTest(unittest.TestCase):
         self.assert_installed(self.dest, result)
         # Overwrites, does not clean up: files the new version does not have stay.
         self.assertEqual((self.dest / 'Assets' / 'old.png').read_bytes(), b'kept')
+
+    # D4: the paths a user really double-clicks from
+
+    def test_st21_odd_characters_in_the_paths(self) -> None:
+        # The installer and the archive in such a folder, installed into another one: cmd passes both on (%~f0, %~1)
+        # and PowerShell gets them through environment variables, unchanged.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
+        dest = self.root / ODD_DEST / 'Hider'
+        result = self.run_bat(str(dest), bat=bat)
+        self.assert_installed(dest, result)
+        self.assert_lines(
+            result.out,
+            [
+                f'Using {downloads / ARCHIVE}',
+                f'Copying to {dest}',
+                f'Created shortcut: {self.link}',
+                f'Installed Hider {VERSION} to {dest}',
+            ],
+        )
+        self.assertTrue((downloads / ARCHIVE).is_file())
+
+    def test_st21_odd_characters_in_the_default_folder(self) -> None:
+        local_app_data = self.root / ODD_LOCAL_APP_DATA
+        local_app_data.mkdir()
+        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)})
+        dest = local_app_data / 'Programs' / 'Hider'
+        self.assert_installed(dest, result)
+        self.assert_lines(
+            result.out,
+            [
+                f'Using {self.release / ARCHIVE}',
+                f'Copying to {dest}',
+                f'Created shortcut: {self.link}',
+                f'Installed Hider {VERSION} to {dest}',
+            ],
+        )
+        self.assertEqual(list(self.local_app_data.iterdir()), [])
 
     def serve(self, folder: Path) -> tuple[str, list[str]]:
         """Serve folder over HTTP on 127.0.0.1; return the base URL and the list of requested paths."""

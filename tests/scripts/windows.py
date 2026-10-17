@@ -6,6 +6,7 @@ the installer-windows job.
 
 from __future__ import annotations
 
+import base64
 import os
 import subprocess
 import sys
@@ -45,13 +46,15 @@ def desktop() -> Path:
 
 
 def read_shortcut(link: Path) -> tuple[str, str]:
-    """TargetPath and WorkingDirectory of a .lnk, read back through WScript.Shell."""
+    """TargetPath and WorkingDirectory of a .lnk, read back through WScript.Shell. Passed as Base64 of UTF-8: PowerShell
+    writes its output in the console's code page, which may lack letters of the paths."""
     out = powershell(
         '$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:HIDER_TEST_LINK); '
-        "Write-Output ($s.TargetPath + '|' + $s.WorkingDirectory)",
+        "$v = $s.TargetPath + '|' + $s.WorkingDirectory; "
+        'Write-Output ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($v)))',
         {'HIDER_TEST_LINK': str(link)},
     )
-    target, working_dir = out.split('|', 1)
+    target, working_dir = base64.b64decode(out, validate=True).decode('utf-8').split('|', 1)
     return target, working_dir
 
 
