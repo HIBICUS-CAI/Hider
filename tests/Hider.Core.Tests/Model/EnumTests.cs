@@ -41,7 +41,17 @@ namespace Hider.Core.Tests.Model
         [Theory]
         [InlineData("\"generated\"")] // the C# name is not the JSON name
         [InlineData("\"bogus\"")]
-        public void PatternKind_UnknownName_IsAJsonError(string _value)
+        public void PatternKind_UnknownName_IsMosaic(string _value)
+        {
+            // Proposal P-12: an unknown name is read as mosaic, like an unknown number, instead of failing the file.
+            var back = AreasFile.FromJson($$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""")!;
+            Assert.Equal(PatternKind.Mosaic, back.Areas[0].Pattern);
+        }
+
+        [Theory]
+        [InlineData("null")]
+        [InlineData("true")]
+        public void PatternKind_NotAStringOrInteger_IsAJsonError(string _value)
         {
             Assert.ThrowsAny<System.Text.Json.JsonException>(() =>
                 AreasFile.FromJson($$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }"""));

@@ -243,24 +243,76 @@ namespace Hider.Core.Tests.Persistence
         }
 
         [Theory]
-        [InlineData("\"Fill\"")]
-        [InlineData("\"FILL\"")]
-        [InlineData("\"MOSAIC\"")]
-        [InlineData("\"Mosaic\"")]
-        [InlineData("\"Pattern\"")]
-        [InlineData("\"generated\"")] // the C# name, not the file's
-        [InlineData("\"image\"")]
-        [InlineData("\"\"")]
-        public void Load_Pattern_OtherCaseOrUnknownName_TheFileIsBroken(string _value)
+        [InlineData("\"Fill\"", PatternKind.Fill)]
+        [InlineData("\"FILL\"", PatternKind.Fill)]
+        [InlineData("\"MOSAIC\"", PatternKind.Mosaic)]
+        [InlineData("\"Mosaic\"", PatternKind.Mosaic)]
+        [InlineData("\"Pattern\"", PatternKind.Generated)]
+        [InlineData("\"PATTERN\"", PatternKind.Generated)]
+        public void Load_Pattern_OtherCase_IsTheSameName(string _value, PatternKind _expected)
         {
-            // The names are the spec's lower case ones (§4.7), matched exactly: with JsonStringEnumMemberName the converter
-            // does not ignore case. Any other string is no PatternKind, so the file is not a valid state (FR-64), unlike an
-            // unknown number, which Normalize turns into mosaic.
+            // Proposal P-12: a hand-edited name in another case is that pattern, not a broken file.
+            Assert.Equal(_expected, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
+        }
+
+        [Theory]
+        [InlineData("\"generated\"")] // the C# name, not the file's
+        [InlineData("\"image\"")]     // a pattern of a newer version
+        [InlineData("\"\"")]
+        [InlineData("\"   \"")]
+        [InlineData("\"fil\"")]
+        [InlineData("\"fill pattern\"")]
+        public void Load_Pattern_UnknownName_BecomesMosaic_AndTheOtherAreasStay(string _value)
+        {
+            // Proposal P-12: like an unknown number, an unknown name is mosaic (the content stays covered); the file is loaded,
+            // not moved to .broken with every area in it.
+            File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} }, { "id": "1a2b3c4d", "pattern": "fill" } ] }""");
+            var state = AreasFile.Load(FilePath, out var status);
+            Assert.Equal(LoadStatus.Loaded, status);
+            Assert.Equal(new[] { PatternKind.Mosaic, PatternKind.Fill }, state.Areas.Select(_a => _a.Pattern));
+            Assert.False(File.Exists(FilePath + ".broken"));
+        }
+
+        [Theory]
+        [InlineData("null")]
+        [InlineData("true")]
+        [InlineData("false")]
+        [InlineData("{}")]
+        [InlineData("[]")]
+        [InlineData("[\"fill\"]")]
+        [InlineData("1.5")]           // not an integer
+        [InlineData("4294967296")]   // beyond int
+        [InlineData("-2147483649")]
+        public void Load_Pattern_NotANameOrAnInteger_TheFileIsBroken(string _value)
+        {
+            // Only strings and integers can be a pattern; anything else is not a valid state (FR-64).
             File.WriteAllText(FilePath, $$"""{ "version": 1, "areas": [ { "id": "0f3b8d2e", "pattern": {{_value}} } ] }""");
             var state = AreasFile.Load(FilePath, out var status);
             Assert.Equal(LoadStatus.Broken, status);
             Assert.Empty(state.Areas);
             Assert.True(File.Exists(FilePath + ".broken"));
+        }
+
+        [Theory]
+        [InlineData("2147483647")]
+        [InlineData("-2147483648")]
+        public void Load_Pattern_IntegerAtTheIntLimits_BecomesMosaic(string _value)
+        {
+            Assert.Equal(PatternKind.Mosaic, LoadOne($$"""{ "id": "0f3b8d2e", "pattern": {{_value}} }""").Pattern);
+        }
+
+        [Theory]
+        [InlineData(PatternKind.Fill, "fill")]
+        [InlineData(PatternKind.Mosaic, "mosaic")]
+        [InlineData(PatternKind.Generated, "pattern")]
+        public void Save_Pattern_IsTheSpecsLowerCaseName(PatternKind _pattern, string _name)
+        {
+            var area = Area.CreateNew("0f3b8d2e", new PhysicalRect(0, 0, 100, 100), true);
+            area.Pattern = _pattern;
+            string json = AreasFile.ToJson(new AppState { Areas = { AreaState.FromArea(area, 1.0) } });
+            Assert.Contains($"\"pattern\": \"{_name}\"", json, StringComparison.Ordinal);
+            AreasFile.Save(FilePath, new AppState { Areas = { AreaState.FromArea(area, 1.0) } });
+            Assert.Equal(_pattern, AreasFile.Load(FilePath, out _).Areas[0].Pattern);
         }
 
         [Theory]
