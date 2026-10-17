@@ -9,6 +9,7 @@
 | 仕様書（Hider v2 仕様書） | https://claude.ai/artifact/QT9Dn8x6r69bx6FxD87q8P | 挙動・FR / NFR・露出の意味論・決定履歴 |
 | 作業指示書（Hider v2 実装作業指示書） | https://claude.ai/artifact/Cf2T1HM3yg78c6s5N8Crh7 | Step 0〜9 の順序・契約（§3）・完了条件・報告形式。タブ: 設計書 / テスト項目 / GitHub Actions / 付録: 現行コード |
 | 設計書 | docs/v2-implementation-plan.md | 方式比較・性能見積・スパイク定義・決定 D-1〜D-12 |
+| 追加したテスト項目 | docs/test-items.md | 作業指示書「テスト項目」タブ以降に足した CT / GT と、ST（scripts）・NT（native）の一覧と対応 FR（タブには未反映） |
 | UI デザインキャンバス | https://claude.ai/artifact/VKTc6PcAYtSMLHgfw5814y | 画面 8 枚。寸法・配色・項目名の正 |
 | 過去の進捗報告・スパイク | ブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050） | PR #1 の終わりに main から外した docs/progress.md（Step 0〜9 の報告、提案 P-1〜P-4）、docs/golden-diffs、spikes/。`git fetch origin archive/pr1-removed` の後 `git show FETCH_HEAD:docs/progress.md` |
 
