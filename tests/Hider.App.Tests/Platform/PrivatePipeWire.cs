@@ -150,7 +150,10 @@ namespace Hider.App.Tests.Platform
             }
             start.Environment["XDG_RUNTIME_DIR"] = RuntimeDir;
             start.Environment["DBUS_SESSION_BUS_ADDRESS"] = bus.Address;
+            // Nothing of the session's own PipeWire: its remote, runtime directory or configuration.
             start.Environment.Remove("PIPEWIRE_REMOTE");
+            start.Environment.Remove("PIPEWIRE_RUNTIME_DIR");
+            start.Environment.Remove("PIPEWIRE_CONFIG_DIR");
             start.Environment.Remove("DISPLAY");
             var process = Process.Start(start)!;
             process.ErrorDataReceived += (_, _) => { };

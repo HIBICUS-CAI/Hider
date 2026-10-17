@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Text;
 
 namespace Hider.App.Tests.Platform
 {
@@ -10,6 +11,7 @@ namespace Hider.App.Tests.Platform
     [SupportedOSPlatform("linux")]
     public sealed class PrivateBus : IDisposable
     {
+        private static readonly TimeSpan startTimeout = TimeSpan.FromSeconds(30);
         private readonly Process process;
         private readonly string dir;
 
@@ -58,16 +60,42 @@ namespace Hider.App.Tests.Platform
                 UseShellExecute = false,
             };
             var process = Process.Start(start)!;
-            // dbus-daemon prints the address once it listens. Its standard error (an fd limit it may not raise) is drained.
-            process.ErrorDataReceived += (_, _) => { };
+            // dbus-daemon prints the address once it listens. Its standard error (an fd limit it may not raise) is kept for
+            // the message should it not come up.
+            var errors = new StringBuilder();
+            process.ErrorDataReceived += (_, _e) =>
+            {
+                if (_e.Data is not null)
+                {
+                    lock (errors)
+                    {
+                        errors.AppendLine(_e.Data);
+                    }
+                }
+            };
             process.BeginErrorReadLine();
-            string? address = process.StandardOutput.ReadLine();
+            var line = process.StandardOutput.ReadLineAsync();
+            string? address = line.Wait(startTimeout) ? line.Result : null;
             if (string.IsNullOrEmpty(address))
             {
-                process.Kill();
+                string what = line.IsCompleted ? "exited without printing its address" : $"did not print its address within {startTimeout.TotalSeconds} s";
+                try
+                {
+                    process.Kill();
+                }
+                catch (InvalidOperationException)
+                {
+                    // Already gone.
+                }
+                process.WaitForExit(); // the rest of its standard error
                 process.Dispose();
                 Directory.Delete(dir, true);
-                throw new InvalidOperationException("dbus-daemon did not print its address");
+                string stderr;
+                lock (errors)
+                {
+                    stderr = errors.ToString().TrimEnd();
+                }
+                throw new InvalidOperationException($"dbus-daemon {what}; standard error: {(stderr.Length == 0 ? "(empty)" : stderr)}");
             }
             return new PrivateBus(process, dir, address);
         }
