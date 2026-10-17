@@ -234,8 +234,8 @@ jobs:
           libpipewire-0.3-modules pipewire-bin
       # A compile check on each architecture (-Werror, hardening flags); publish builds the helper it ships itself.
       - run: make -C native/hidercap RID=${{ matrix.rid }}
-      # CT-90: which frames a grab skips (frame_time.h), and the API's checks and error paths (test_hidercap.c), without a
-      # PipeWire daemon.
+      # CT-90: which frames a grab skips (frame_time.h), the API's checks and error paths (test_hidercap.c), and the
+      # internals with the PipeWire calls wrapped (test_hidercap_internal.c), without a PipeWire daemon.
       - run: make -C native/hidercap test RID=${{ matrix.rid }}
       - uses: actions/upload-artifact@v7
         with:
