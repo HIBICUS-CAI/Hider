@@ -247,8 +247,9 @@ namespace Hider.App.Tests.Areas
             area.Window.Activate();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.True(area.Window.IsActive);
-            typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-                .Invoke(area.Window, null);
+            var deactivated = typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.True(deactivated is not null, "WindowBase.HandleDeactivated was renamed or removed (checked with Avalonia 12.1.4): find the platform's deactivation callback again");
+            deactivated.Invoke(area.Window, null);
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.False(area.Window.IsActive);
             Assert.Equal(AreaMode.Editing, area.Mode);
