@@ -15,11 +15,13 @@ namespace Hider.Core
             // Startup (FR-08)
             ["startup.lockFailed"] = "Hider を起動できません。データフォルダのロックファイル（{0}）を開けませんでした。\n\n{1}",
 
-            // Tray menu (FR-03, FR-07)
+            // Tray menu (FR-03, FR-07; the version row: proposal P-10)
             ["tray.add"] = "新しいエリアを追加",
             ["tray.editAll"] = "すべてのエリアを編集",
             ["tray.endEdit"] = "編集を終了",
             ["tray.deleteAll"] = "すべてのエリアを削除…",
+            ["tray.version"] = "バージョン {0}",
+            ["tray.versionUnknown"] = "不明",
             ["tray.exit"] = "終了",
             ["tray.tooltip"] = "Hider — エリア {0} 個",
 
@@ -93,6 +95,7 @@ namespace Hider.Core
 
         // Parsed once (after the tables above: static fields initialise in order).
         private static readonly CompositeFormat trayTooltip = CompositeFormat.Parse(Get("tray.tooltip"));
+        private static readonly CompositeFormat trayVersion = CompositeFormat.Parse(Get("tray.version"));
         private static readonly CompositeFormat toolbarSize = CompositeFormat.Parse(SizeFormat);
         private static readonly CompositeFormat pickColorWithValue = CompositeFormat.Parse(Get("settings.pickColorWithValue"));
         private static readonly CompositeFormat confirmDeleteAll = CompositeFormat.Parse(Get("confirm.deleteAll"));
@@ -161,6 +164,15 @@ namespace Hider.Core
         public static string TrayTooltip(int _count)
         {
             return string.Format(CultureInfo.InvariantCulture, trayTooltip, _count);
+        }
+
+        /// <summary>
+        /// "バージョン 2.0.0": the tray menu's information row, with the version <c>--version</c> prints (proposal P-10);
+        /// "バージョン 不明" when the build has no version.
+        /// </summary>
+        public static string TrayVersion(string? _version)
+        {
+            return string.Format(CultureInfo.InvariantCulture, trayVersion, _version ?? Get("tray.versionUnknown"));
         }
 
         /// <summary>The size shown on the edit toolbar, in physical pixels (FR-34).</summary>

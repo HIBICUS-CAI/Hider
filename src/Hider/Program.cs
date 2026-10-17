@@ -17,7 +17,7 @@ namespace Hider
             }
             if (_args.Contains("--version"))
             {
-                Console.WriteLine($"Hider {AppInfo.Version}");
+                Console.WriteLine($"Hider {AppInfo.Version ?? "unknown"}");
                 return 0;
             }
             if (_args.Contains("--selftest"))

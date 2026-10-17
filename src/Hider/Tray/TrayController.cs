@@ -58,7 +58,7 @@ namespace Hider.Tray
             fallback.Show();
         }
 
-        public IReadOnlyList<TrayMenuItem> Items => TrayMenuModel.Build(areas.Areas.Count, areas.AnyEditing);
+        public IReadOnlyList<TrayMenuItem> Items => TrayMenuModel.Build(areas.Areas.Count, areas.AnyEditing, AppInfo.Version);
 
         public string ToolTip => Strings.TrayTooltip(areas.Areas.Count);
 
