@@ -5,10 +5,15 @@ namespace Hider.Core.Tests
 {
     public class StringsTests
     {
-        /// <summary>Every UI text (FR-70). A change of wording must change this table too.</summary>
+        /// <summary>
+        /// Every UI text (FR-70). A change of wording must change this table too. A deliberate copy of Strings.texts (a change
+        /// detector); the comments name the screen of the UI design canvas each group appears on, where the wording is checked.
+        /// </summary>
         private static readonly Dictionary<string, string> expectedTexts = new()
         {
+            // No screen of the UI design canvas: the message box when the lock cannot be taken (FR-08).
             ["startup.lockFailed"] = "Hider を起動できません。データフォルダのロックファイル（{0}）を開けませんでした。\n\n{1}",
+            // Canvas 1 "トレイアイコンとメニュー" (the tooltip is the tray icon's; the version row is proposal P-10, after the canvas).
             ["tray.add"] = "新しいエリアを追加",
             ["tray.editAll"] = "すべてのエリアを編集",
             ["tray.endEdit"] = "編集を終了",
@@ -17,11 +22,13 @@ namespace Hider.Core.Tests
             ["tray.versionUnknown"] = "不明",
             ["tray.exit"] = "終了",
             ["tray.tooltip"] = "Hider — エリア {0} 個",
+            // Canvas 5 "全削除の確認".
             ["confirm.deleteAll"] = "{0} 個のエリアをすべて削除します。",
             ["confirm.cannotUndo"] = "この操作は元に戻せません。",
             ["confirm.cancel"] = "キャンセル",
             ["confirm.delete"] = "削除",
             ["confirm.close"] = "閉じる",
+            // Canvas 3 "編集モード": the toolbar, its pattern menu and the capture-failed badge.
             ["pattern.fill"] = "塗りつぶし",
             ["pattern.mosaic"] = "モザイク",
             ["pattern.generated"] = "パターン",
@@ -30,6 +37,7 @@ namespace Hider.Core.Tests
             ["toolbar.delete"] = "このエリアを削除",
             ["toolbar.done"] = "完了",
             ["toolbar.captureFailed"] = "取得できません",
+            // Canvas 4a / 4b / 4c "設定 — 塗りつぶし / モザイク / パターン": the settings popup.
             ["settings.opacity"] = "透明度",
             ["settings.method"] = "手法",
             ["settings.fillSection"] = "塗りつぶし",
@@ -41,6 +49,7 @@ namespace Hider.Core.Tests
             ["settings.seed"] = "シード",
             ["settings.reseed"] = "シードを振り直す",
             ["settings.pickColorWithValue"] = "色を選ぶ: {0}",
+            // Canvas 4b (rows of the mosaic settings) and 6 "モザイク手法".
             ["method.pixelate"] = "ピクセル化",
             ["method.hexcell"] = "六角セル平均",
             ["method.blur"] = "ガウスぼかし",
@@ -50,6 +59,7 @@ namespace Hider.Core.Tests
             ["param.levels"] = "色数",
             ["param.intervalMs"] = "更新間隔",
             ["param.stripPx"] = "帯の高さ",
+            // Canvas 4c (rows of the pattern settings).
             ["method.block"] = "ブロック",
             ["method.noise"] = "ノイズ",
             ["param.cellSize"] = "セルサイズ",
@@ -57,6 +67,7 @@ namespace Hider.Core.Tests
             ["param.gap"] = "目地幅",
             ["param.noiseScale"] = "ノイズスケール",
             ["param.noiseLevels"] = "段階数",
+            // No screen of the canvas: the resident window used when there is no tray (D-9).
             ["fallback.title"] = "Hider（トレイが使えないため窓で表示しています）",
         };
 
