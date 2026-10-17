@@ -1,0 +1,338 @@
+using Hider.Core.Capture;
+using Hider.Core.Model;
+using Hider.Core.Tests.Fakes;
+
+namespace Hider.Core.Tests.Capture
+{
+    /// <summary>The branches of <see cref="UnderlayComposer"/> that the CT-61 .. CT-70 tests do not reach.</summary>
+    public class UnderlayComposerEdgeTests
+    {
+        private const nint Area = 100, Progman = 999;
+        private static readonly PhysicalRect screen = new(0, 0, 1920, 1080);
+        private static readonly (byte, byte, byte) red = (200, 0, 0), green = (0, 200, 0), blue = (0, 0, 200), desktop = (30, 60, 90);
+        private static readonly nint[] onlyWindowOne = { 1 };
+        private static readonly nint[] onlyWindowTwo = { 2 };
+        private static readonly nint[] onlyWindowThree = { 3 };
+        private static readonly nint[] oneThenTwo = { 1, 2 };
+
+        /// <summary>Windows with images given by a function (any size, null, any failure).</summary>
+        private sealed class ScriptedSource : IWindowSource
+        {
+            public List<WindowInfo> Windows { get; } = new();
+            public Func<WindowInfo, WindowImage> Image { get; set; } = _ => new WindowImage(null, CaptureFailure.None);
+            public int Enumerations { get; private set; }
+            public List<TimeSpan> Timeouts { get; } = new();
+
+            public IReadOnlyList<WindowInfo> EnumerateTopDown()
+            {
+                Enumerations++;
+                return Windows;
+            }
+
+            public WindowImage Capture(WindowInfo _window, TimeSpan _timeout)
+            {
+                Timeouts.Add(_timeout);
+                return Image(_window);
+            }
+        }
+
+        private static CaptureRequest Request(PhysicalRect _rect, params nint[] _exclude)
+        {
+            return new CaptureRequest(_rect, _exclude, 8);
+        }
+
+        private static (byte R, byte G, byte B, byte A) At(FrameBuffer _f, int _x, int _y)
+        {
+            int i = _y * _f.Stride + _x * 4;
+            var px = _f.Bgra.Span;
+            return (px[i + 2], px[i + 1], px[i], px[i + 3]);
+        }
+
+        private static FrameBuffer Solid(int _w, int _h, (byte R, byte G, byte B) _color, byte _alpha = 255)
+        {
+            var image = FrameBuffer.Allocate(_w, _h);
+            var px = image.Bgra.Span;
+            for (int i = 0; i < px.Length; i += 4)
+            {
+                (px[i], px[i + 1], px[i + 2], px[i + 3]) = (_color.B, _color.G, _color.R, _alpha);
+            }
+            return image;
+        }
+
+        private static WindowInfo Window(nint _handle, PhysicalRect _rect, bool _visible = true, bool _cloaked = false)
+        {
+            return new WindowInfo(_handle, _rect, _rect, _visible, _cloaked, "App");
+        }
+
+        [Fact]
+        public void Timeouts_DefaultAndCustom()
+        {
+            Assert.Equal(TimeSpan.FromMilliseconds(250), UnderlayComposer.DefaultTimeout);
+            Assert.Equal(UnderlayComposer.DefaultTimeout, new UnderlayComposer(new FakeWindowSource()).Timeout);
+            Assert.Equal(TimeSpan.FromSeconds(3), new UnderlayComposer(new FakeWindowSource(), TimeSpan.FromSeconds(3)).Timeout);
+        }
+
+        [Fact]
+        public void Capture_GetsTheComposersTimeout()
+        {
+            var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, red), CaptureFailure.None) };
+            source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
+            new UnderlayComposer(source, TimeSpan.FromMilliseconds(77)).Compose(Request(new PhysicalRect(0, 0, 10, 10)));
+            Assert.Equal(TimeSpan.FromMilliseconds(77), Assert.Single(source.Timeouts));
+        }
+
+        [Fact]
+        public void LastCaptured_EmptyAtFirst_ThenTheWindowsOfTheLastCall()
+        {
+            var source = new FakeWindowSource()
+                .Add(Area, new PhysicalRect(0, 0, 10, 10), (9, 9, 9), "Hider")
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red)
+                .Add(2, new PhysicalRect(0, 0, 100, 100), green);
+            var composer = new UnderlayComposer(source);
+            Assert.Empty(composer.LastCaptured);
+            composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(oneThenTwo, composer.LastCaptured);
+            composer.Compose(Request(new PhysicalRect(60, 0, 40, 40), Area));
+            Assert.Equal(onlyWindowTwo, composer.LastCaptured);
+        }
+
+        [Theory]
+        [InlineData(0, 10)]
+        [InlineData(10, 0)]
+        [InlineData(-1, -1)]
+        public void EmptyRect_UnavailableWithoutEnumerating(int _w, int _h)
+        {
+            var source = new ScriptedSource();
+            var composer = new UnderlayComposer(source);
+            var result = composer.Compose(Request(new PhysicalRect(5, 5, _w, _h), Area));
+            Assert.Equal(CaptureFailure.Unavailable, result.Failure);
+            Assert.Null(result.Frame);
+            Assert.Equal(0, source.Enumerations);
+            Assert.Empty(composer.LastCaptured);
+        }
+
+        [Fact]
+        public void NoExcludedWindows_EveryWindowFromTheTopCounts()
+        {
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red)
+                .Add(2, new PhysicalRect(0, 0, 100, 100), green);
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 100, 100)));
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 10, 10));
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 80, 10));
+        }
+
+        [Fact]
+        public void NoExcludedWindows_TimeoutSkipStillWorks()
+        {
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: CaptureFailure.Timeout)
+                .Add(Progman, screen, desktop, "Progman");
+            var composer = new UnderlayComposer(source);
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100))).Failure);
+            Assert.Equal(CaptureFailure.None, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100))).Failure);
+            Assert.Equal(CaptureFailure.Timeout, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100))).Failure);
+        }
+
+        [Fact]
+        public void OwnWindowNotListed_StartsAtTheTop()
+        {
+            // The area's window is not (yet) in the Z order: nothing is known to be above it, so every window counts.
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 100, 100), red)
+                .Add(2, new PhysicalRect(0, 0, 100, 100), green);
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 50, 50));
+            Assert.DoesNotContain((nint)2, source.Captured); // covered by window 1
+        }
+
+        [Fact]
+        public void OwnWindowLast_NothingBelow_OpaqueBlack()
+        {
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 100, 100), red)
+                .Add(Area, new PhysicalRect(0, 0, 100, 100), (9, 9, 9), "Hider");
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((0, 0, 0, 255), At(result.Frame!, 50, 50));
+            Assert.Empty(source.Captured);
+        }
+
+        [Theory]
+        [InlineData(CaptureFailure.Denied)]
+        [InlineData(CaptureFailure.Unavailable)]
+        [InlineData(CaptureFailure.Black)]
+        public void OtherFailures_FailTheCapture_NotSkippedNextTime(CaptureFailure _failure)
+        {
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: _failure)
+                .Add(2, new PhysicalRect(0, 0, 100, 100), green);
+            var composer = new UnderlayComposer(source);
+            var result = composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(_failure, result.Failure);
+            Assert.Null(result.Frame);
+            Assert.DoesNotContain((nint)2, source.Captured); // stopped at the failing window
+            source.Captured.Clear();
+            Assert.Equal(_failure, composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area)).Failure);
+            Assert.Contains((nint)1, source.Captured);
+        }
+
+        [Fact]
+        public void NoImageWithoutAFailure_IsBlack()
+        {
+            var source = new ScriptedSource();
+            source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
+            Assert.Equal(CaptureFailure.Black, new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 10, 10))).Failure);
+        }
+
+        [Fact]
+        public void TimeoutStopsTheWalk_TheTimedOutWindowIsInLastCaptured()
+        {
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: CaptureFailure.Timeout)
+                .Add(2, new PhysicalRect(50, 0, 50, 100), green);
+            var composer = new UnderlayComposer(source);
+            composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(onlyWindowOne, composer.LastCaptured);
+        }
+
+        [Fact]
+        public void SkippedWindow_ItsPartComesFromBelow()
+        {
+            // Window 1 timed out last time: this time it is skipped and the window below shows through.
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red, _failure: CaptureFailure.Timeout)
+                .Add(2, new PhysicalRect(0, 0, 100, 100), green);
+            var composer = new UnderlayComposer(source);
+            composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            var result = composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 10, 10));
+            Assert.Equal(onlyWindowTwo, composer.LastCaptured);
+        }
+
+        [Fact]
+        public void WindowWhosePartIsAlreadyCovered_IsSkipped_LowerWindowsStillFillTheRest()
+        {
+            // Window 2 lies inside window 1; window 3 fills the right half. Window 2 is never captured.
+            var source = new FakeWindowSource()
+                .Add(1, new PhysicalRect(0, 0, 50, 100), red)
+                .Add(2, new PhysicalRect(10, 10, 20, 20), blue)
+                .Add(3, new PhysicalRect(0, 0, 100, 100), green);
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(oneAndThree, source.Captured);
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 20, 20));
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 70, 20));
+        }
+
+        private static readonly nint[] oneAndThree = { 1, 3 };
+
+        [Fact]
+        public void EmptyWindowRect_OrDisjointFrame_IsSkipped()
+        {
+            var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, _w.Handle == 3 ? green : red), CaptureFailure.None) };
+            source.Windows.Add(new WindowInfo(1, default, new PhysicalRect(0, 0, 100, 100), true, false, "NoWindowRect"));
+            source.Windows.Add(new WindowInfo(2, new PhysicalRect(0, 0, 40, 40), new PhysicalRect(60, 60, 40, 40), true, false, "FrameOutsideItsRect"));
+            source.Windows.Add(Window(3, new PhysicalRect(0, 0, 100, 100)));
+            var composer = new UnderlayComposer(source);
+            var result = composer.Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(onlyWindowThree, composer.LastCaptured);
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 70, 70));
+        }
+
+        [Fact]
+        public void ImageSmallerThanTheWindow_MissingPixelsComeFromBelow()
+        {
+            // PrintWindow returned a 30 x 20 image for a 50 x 50 window: the rest of its part is left to lower windows.
+            var source = new ScriptedSource
+            {
+                Image = _w => _w.Handle == 1
+                    ? new WindowImage(Solid(30, 20, red), CaptureFailure.None)
+                    : new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, green), CaptureFailure.None),
+            };
+            source.Windows.Add(Window(1, new PhysicalRect(10, 10, 50, 50)));
+            source.Windows.Add(Window(2, new PhysicalRect(0, 0, 100, 100)));
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 100, 100), Area));
+            Assert.Equal(CaptureFailure.None, result.Failure);
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 10, 10));
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 39, 29));
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 40, 10)); // x past the image
+            Assert.Equal((0, 200, 0, 255), At(result.Frame!, 10, 30)); // y past the image
+        }
+
+        [Fact]
+        public void TranslucentPixels_StoredOpaque()
+        {
+            var source = new ScriptedSource { Image = _w => new WindowImage(Solid(_w.WindowRect.Width, _w.WindowRect.Height, red, 10), CaptureFailure.None) };
+            source.Windows.Add(Window(1, new PhysicalRect(0, 0, 10, 10)));
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 10, 10), Area));
+            Assert.Equal((200, 0, 0, 255), At(result.Frame!, 5, 5));
+        }
+
+        [Fact]
+        public void Target_IsReusedAndResized()
+        {
+            var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red);
+            var target = FrameBuffer.Allocate(200, 200);
+            var memory = target.Bgra;
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 30, 20), Area), target);
+            Assert.Same(target, result.Frame);
+            Assert.Equal((30, 20, 120), (target.Width, target.Height, target.Stride));
+            Assert.True(memory.Equals(target.Bgra));
+            Assert.Equal((200, 0, 0, 255), At(target, 29, 19));
+        }
+
+        [Fact]
+        public void TargetTooSmall_GrowsAndIsStillReturned()
+        {
+            var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red);
+            var target = new FrameBuffer();
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 30, 20), Area), target);
+            Assert.Same(target, result.Frame);
+            Assert.Equal(30 * 20 * 4, target.Bgra.Length);
+        }
+
+        [Fact]
+        public void Failure_LeavesTheTargetButReturnsNoFrame()
+        {
+            var source = new FakeWindowSource().Add(1, new PhysicalRect(0, 0, 100, 100), red, _black: true);
+            var target = FrameBuffer.Allocate(10, 10);
+            var result = new UnderlayComposer(source).Compose(Request(new PhysicalRect(0, 0, 10, 10), Area), target);
+            Assert.Equal(CaptureFailure.Black, result.Failure);
+            Assert.Null(result.Frame);
+        }
+
+        [Fact]
+        public void IsBlack_RgbZeroWhateverTheAlpha()
+        {
+            Assert.True(UnderlayComposer.IsBlack(Solid(4, 3, (0, 0, 0), 255)));
+            Assert.True(UnderlayComposer.IsBlack(Solid(4, 3, (0, 0, 0), 0)));
+            Assert.True(UnderlayComposer.IsBlack(new FrameBuffer()));
+            Assert.True(UnderlayComposer.IsBlack(FrameBuffer.Allocate(0, 7)));
+        }
+
+        [Theory]
+        [InlineData(0)] // blue
+        [InlineData(1)] // green
+        [InlineData(2)] // red
+        public void IsBlack_AnyColorChannel_NotBlack(int _channel)
+        {
+            var image = Solid(4, 3, (0, 0, 0));
+            image.Bgra.Span[(2 * 4 + 3) * 4 + _channel] = 1; // the last pixel
+            Assert.False(UnderlayComposer.IsBlack(image));
+        }
+
+        [Fact]
+        public void IsBlack_IgnoresTheRowPadding()
+        {
+            // Stride 24 for 4 pixels: the 8 padding bytes per row are not pixels.
+            var image = new FrameBuffer { Width = 4, Height = 2, Stride = 24, Bgra = new byte[48] };
+            image.Bgra.Span.Slice(16, 8).Fill(0xFF);
+            image.Bgra.Span.Slice(40, 8).Fill(0xFF);
+            Assert.True(UnderlayComposer.IsBlack(image));
+            image.Bgra.Span[24] = 5; // first pixel of row 1
+            Assert.False(UnderlayComposer.IsBlack(image));
+        }
+    }
+}
