@@ -1,52 +1,30 @@
-using System.Reflection;
 using System.Runtime.Versioning;
 using Hider.Core.Model;
 using Hider.Platform.Linux;
-using Tmds.DBus.Protocol;
 
 namespace Hider.App.Tests.Platform
 {
-    /// <summary>Tests that change the process-wide session bus address: run alone, after the parallel ones.</summary>
-    [CollectionDefinition(nameof(SessionBusAddressGroup), DisableParallelization = true)]
-    public sealed class SessionBusAddressGroup
-    {
-    }
-
     // A null address means the session bus (DBusAddress.Session); without one there is nothing to connect to, and every
-    // user of the bus gives up quietly (CI, minimal sessions). Tmds.DBus.Protocol reads the address once (from
-    // DBUS_SESSION_BUS_ADDRESS, or the X11 root window when DISPLAY is set) and keeps it in DBusAddress._sessionAddress:
-    // the tests set that cache, with both variables cleared, so a developer's real session bus and portal are never used.
+    // user of the bus gives up quietly (CI, minimal sessions). SessionBusOverride sets Tmds.DBus.Protocol's cached address,
+    // so a developer's real session bus and portal are never used.
     [Collection(nameof(SessionBusAddressGroup))]
     [SupportedOSPlatform("linux")]
     public sealed class SessionBusAddressTests : IDisposable
     {
         private static readonly PhysicalRect needed = new(0, 0, 10, 10);
-        private static readonly FieldInfo cache = typeof(DBusAddress).GetField("_sessionAddress", BindingFlags.Static | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("Tmds.DBus.Protocol no longer caches the session bus address in DBusAddress._sessionAddress: update these tests");
-        private readonly string? savedAddress = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
-        private readonly string? savedDisplay = Environment.GetEnvironmentVariable("DISPLAY");
-        private readonly object? savedCache = cache.GetValue(null);
-
-        public SessionBusAddressTests()
-        {
-            Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", null);
-            Environment.SetEnvironmentVariable("DISPLAY", null);
-        }
+        private readonly SessionBusOverride sessionBus = new();
 
         public void Dispose()
         {
-            cache.SetValue(null, savedCache);
-            Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", savedAddress);
-            Environment.SetEnvironmentVariable("DISPLAY", savedDisplay);
+            sessionBus.Dispose();
         }
 
         private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
         /// <summary>The session bus as the process sees it from now on; null: none.</summary>
-        private static void SessionBus(string? _address)
+        private void SessionBus(string? _address)
         {
-            cache.SetValue(null, _address);
-            Assert.Equal(_address, DBusAddress.Session);
+            sessionBus.Set(_address);
         }
 
         [DbusFact]

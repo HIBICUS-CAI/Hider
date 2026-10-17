@@ -13,11 +13,16 @@ namespace Hider.App.Tests.Tray
 
         private static void Click(Button _button) => _button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
-        /// <summary>What the platform calls when another window takes the focus (hidden from user code, reached by reflection).</summary>
+        /// <summary>
+        /// What the platform calls when another window takes the focus: IWindowBaseImpl.Deactivated (checked on Avalonia
+        /// 12.1.4) is hidden from user code, so it is reached by reflection.
+        /// </summary>
         private static void RaiseDeactivated(Window _window)
         {
-            var callback = (Action?)typeof(IWindowBaseImpl).GetProperty("Deactivated")!.GetValue(_window.PlatformImpl);
-            Assert.NotNull(callback);
+            var property = typeof(IWindowBaseImpl).GetProperty("Deactivated")
+                ?? throw new InvalidOperationException("IWindowBaseImpl.Deactivated was renamed: update RaiseDeactivated");
+            var callback = (Action?)property.GetValue(_window.PlatformImpl);
+            Assert.NotNull(callback); // the window subscribes when it is created
             callback!();
         }
 

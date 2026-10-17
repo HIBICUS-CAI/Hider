@@ -34,11 +34,17 @@ namespace Hider.App.Tests.Tray
             return _tray.Menu.Items.Where(_i => _i is not NativeMenuItemSeparator).Cast<NativeMenuItem>().ToList();
         }
 
-        /// <summary>What a native menu does on a click (the exporter bridge; hidden from user code, so through reflection).</summary>
+        /// <summary>
+        /// What a native menu does on a click: the exporter bridge (Avalonia.Controls.INativeMenuItemExporterEventsImplBridge.
+        /// RaiseClicked, checked on Avalonia 12.1.4) is hidden from user code, so it is reached by reflection.
+        /// </summary>
         private static void ClickNative(NativeMenuItem _item)
         {
-            var bridge = typeof(NativeMenuItem).Assembly.GetType("Avalonia.Controls.INativeMenuItemExporterEventsImplBridge")!;
-            bridge.GetMethod("RaiseClicked")!.Invoke(_item, null);
+            var bridge = typeof(NativeMenuItem).Assembly.GetType("Avalonia.Controls.INativeMenuItemExporterEventsImplBridge")
+                ?? throw new InvalidOperationException("Avalonia no longer has INativeMenuItemExporterEventsImplBridge: find what a native menu calls on a click and update ClickNative");
+            var raise = bridge.GetMethod("RaiseClicked")
+                ?? throw new InvalidOperationException("INativeMenuItemExporterEventsImplBridge.RaiseClicked was renamed: update ClickNative");
+            raise.Invoke(_item, null);
         }
 
         /// <summary>Lets the controller's continuation after the probe run (it resumes on the UI thread).</summary>

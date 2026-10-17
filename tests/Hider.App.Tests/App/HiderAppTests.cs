@@ -123,11 +123,6 @@ namespace Hider.App.Tests.App
             }
         }
 
-        private static object? Sigterm(HiderApp _app)
-        {
-            return typeof(HiderApp).GetField("sigterm", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(_app);
-        }
-
         private static (HiderApp, FakeLifetime) Start(TempDir _dir, IUnderlayCapture? _capture, bool _handleSignals = false, Func<Task<bool>>? _probe = null)
         {
             var app = new HiderApp();
@@ -255,11 +250,14 @@ namespace Hider.App.Tests.App
             using var dir = new TempDir();
             var capture = new OwnedCapture();
             var (app, lifetime) = Start(dir, capture);
+            using var stopAnyway = app; // a failed assert must not leave the tray icon behind
             var tray = app.Tray!;
             var areas = app.Areas!;
             areas.AddNew();
             tray.ShowPopup();
             var popup = tray.PopupWindow!;
+            bool probeClosed = false;
+            app.ScreenProbe!.Closed += (_, _) => probeClosed = true;
 
             lifetime.RaiseExit();
 
@@ -268,6 +266,7 @@ namespace Hider.App.Tests.App
             Assert.Empty(areas.Areas);
             Assert.False(popup.IsVisible);
             Assert.True(capture.Disposed);
+            Assert.True(probeClosed);
         }
 
         [AvaloniaFact]
@@ -310,6 +309,7 @@ namespace Hider.App.Tests.App
         {
             using var dir = new TempDir();
             var (app, _) = Start(dir, new FakeUnderlayCapture());
+            using var stopAnyway = app;
 
             app.Stop();
             app.Stop();
@@ -325,6 +325,7 @@ namespace Hider.App.Tests.App
             using var dir = new TempDir();
             var capture = new OwnedCapture();
             var (app, _) = Start(dir, capture);
+            using var stopAnyway = app;
 
             app.Dispose();
 
@@ -351,7 +352,7 @@ namespace Hider.App.Tests.App
             var (app, _) = Start(dir, new FakeUnderlayCapture(), true);
             try
             {
-                Assert.Equal(!OperatingSystem.IsWindows(), Sigterm(app) is not null);
+                Assert.Equal(!OperatingSystem.IsWindows(), app.HandlesSignals);
             }
             finally
             {
@@ -366,7 +367,7 @@ namespace Hider.App.Tests.App
             var (app, _) = Start(dir, new FakeUnderlayCapture(), false);
             try
             {
-                Assert.Null(Sigterm(app));
+                Assert.False(app.HandlesSignals);
             }
             finally
             {
@@ -374,7 +375,7 @@ namespace Hider.App.Tests.App
             }
         }
 
-        [AvaloniaFact(Skip = "Linux 専用（SIGTERM。Windows は登録しない）", SkipUnless = nameof(IsLinux))]
+        [AvaloniaFact(Skip = OsOnly.Sigterm, SkipUnless = nameof(IsLinux))]
         public async Task Sigterm_ShutsDownCleanly_InsteadOfKillingTheProcess()
         {
             // A logout or `kill` sends SIGTERM: the areas must be saved by the normal shutdown, not lost.
@@ -383,7 +384,7 @@ namespace Hider.App.Tests.App
             try
             {
                 // Guard: without the registration the signal would end the test process itself.
-                Assert.NotNull(Sigterm(app));
+                Assert.True(app.HandlesSignals);
                 using (var kill = Process.Start(new ProcessStartInfo("kill", ["-TERM", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)]) { UseShellExecute = false })!)
                 {
                     await kill.WaitForExitAsync();
@@ -424,17 +425,17 @@ namespace Hider.App.Tests.App
             app.ApplicationLifetime = desktop;
             string homeVariable = OperatingSystem.IsWindows() ? "USERPROFILE" : "HOME";
             string? home = Environment.GetEnvironmentVariable(homeVariable);
-            string? bus = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+            // Tmds.DBus.Protocol resolves the session bus once per process: a variable alone would not reach the probe when
+            // another test resolved it first (and a real tray on the machine would then show no menu window).
+            using var noBus = new Hider.App.Tests.Platform.SessionBusOverride("unix:path=" + Path.Combine(dir.Path, "no-bus"));
             try
             {
                 Environment.SetEnvironmentVariable(homeVariable, dir.Path);
-                Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", "unix:path=" + Path.Combine(dir.Path, "no-bus"));
                 app.OnFrameworkInitializationCompleted();
             }
             finally
             {
                 Environment.SetEnvironmentVariable(homeVariable, home);
-                Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", bus);
             }
             try
             {
@@ -443,7 +444,7 @@ namespace Hider.App.Tests.App
                 Assert.IsType(OperatingSystem.IsWindows() ? typeof(Hider.Platform.Windows.Win32UnderlayCapture) : typeof(StripCoordinator), services.Capture);
                 var area = app.Areas.AddNew();
                 Assert.IsType(OperatingSystem.IsWindows() ? typeof(Hider.Platform.Windows.Win32WindowHost) : typeof(Hider.Platform.Linux.X11WindowHost), area.Host);
-                Assert.Equal(!OperatingSystem.IsWindows(), Sigterm(app) is not null);
+                Assert.Equal(!OperatingSystem.IsWindows(), app.HandlesSignals);
 
                 await Task.Yield();
                 for (int i = 0; i < 500 && OperatingSystem.IsLinux() && app.Tray!.FallbackWindow is null; i++)

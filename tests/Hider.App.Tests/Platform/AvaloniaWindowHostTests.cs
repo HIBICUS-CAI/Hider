@@ -46,18 +46,24 @@ namespace Hider.App.Tests.Platform
         }
 
         // Avalonia's platform callbacks are hidden from user code (private API in the reference assemblies) but are what the
-        // platform calls: they are reached by reflection to raise the events a real DPI or monitor change raises.
+        // platform calls: they are reached by reflection to raise the events a real DPI or monitor change raises
+        // (ITopLevelImpl.ScalingChanged and IScreenImpl.Changed, checked on Avalonia 12.1.4).
         private static void RaiseScalingChanged(Window _window, double _scaling)
         {
-            var callback = (Action<double>?)typeof(ITopLevelImpl).GetProperty("ScalingChanged")!.GetValue(_window.PlatformImpl);
+            var property = typeof(ITopLevelImpl).GetProperty("ScalingChanged")
+                ?? throw new InvalidOperationException("ITopLevelImpl.ScalingChanged was renamed: update RaiseScalingChanged");
+            var callback = (Action<double>?)property.GetValue(_window.PlatformImpl);
             Assert.NotNull(callback);
             callback!(_scaling);
         }
 
         private static Action? ScreensChangedCallback(Window _window)
         {
-            object impl = _window.PlatformImpl!.TryGetFeature(typeof(IScreenImpl))!;
-            return (Action?)typeof(IScreenImpl).GetProperty("Changed")!.GetValue(impl);
+            object impl = _window.PlatformImpl!.TryGetFeature(typeof(IScreenImpl))
+                ?? throw new InvalidOperationException("the headless window no longer has an IScreenImpl feature: update ScreensChangedCallback");
+            var property = typeof(IScreenImpl).GetProperty("Changed")
+                ?? throw new InvalidOperationException("IScreenImpl.Changed was renamed: update ScreensChangedCallback");
+            return (Action?)property.GetValue(impl);
         }
 
         [AvaloniaFact]
