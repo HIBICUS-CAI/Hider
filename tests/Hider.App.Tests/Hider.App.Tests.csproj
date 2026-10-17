@@ -5,6 +5,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Hider.App.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- LibraryImport of the Win32 calls the Windows tests make themselves (a window of their own, a message box). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Hider.Core;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 
@@ -17,6 +18,19 @@ namespace Hider.Platform.Windows
         private readonly Dictionary<nint, FrameBuffer> images = new();
         // PrintWindow calls per window handle that have not returned yet (a hung window blocks them indefinitely).
         private readonly Dictionary<nint, Task<WindowImage>> inFlight = new();
+        // PrintWindow below; in tests a stand-in that may block or throw (the internal constructor).
+        private readonly Func<WindowInfo, WindowImage> print;
+
+        public Win32WindowSource()
+        {
+            print = PrintWindow;
+        }
+
+        /// <param name="_print">Captures one window, blocking; it runs on its own task as PrintWindow does.</param>
+        internal Win32WindowSource(Func<WindowInfo, WindowImage> _print)
+        {
+            print = _print;
+        }
 
         /// <summary>Handles of every top-level window seen by the last enumeration.</summary>
         public IReadOnlyList<nint> LastEnumerated { get; private set; } = Array.Empty<nint>();
@@ -61,7 +75,9 @@ namespace Hider.Platform.Windows
         /// One PrintWindow per window at a time: while an earlier, abandoned call for a hung window has not returned, the
         /// window times out at once instead of starting another call. Otherwise every capture (10 per second) would leave a
         /// blocked thread-pool thread, a DC and a DIB section behind, and the late calls would write the shared bitmap cache
-        /// while later captures read it.
+        /// while later captures read it. A call that throws (a bug, or no memory for the copy) fails that window as
+        /// <see cref="CaptureFailure.Unavailable"/> rather than the whole capture with an exception: the composer then ends
+        /// the capture as for any window it cannot read, and the caller still trims the caches.
         /// </summary>
         public WindowImage Capture(WindowInfo _window, TimeSpan _timeout)
         {
@@ -72,12 +88,21 @@ namespace Hider.Platform.Windows
                 {
                     return new WindowImage(null, CaptureFailure.Timeout);
                 }
-                task = Task.Run(() => PrintWindow(_window));
+                task = Task.Run(() => print(_window));
                 inFlight[_window.Handle] = task;
             }
-            if (!task.Wait(_timeout))
+            try
             {
-                return new WindowImage(null, CaptureFailure.Timeout);
+                if (!task.Wait(_timeout))
+                {
+                    return new WindowImage(null, CaptureFailure.Timeout);
+                }
+            }
+            catch (AggregateException e)
+            {
+                var inner = e.InnerException ?? e;
+                Log.Verbose($"capture: PrintWindow of a {_window.ClassName} window failed: {inner.GetType().Name}: {inner.Message}");
+                return new WindowImage(null, CaptureFailure.Unavailable);
             }
             return task.Result;
         }

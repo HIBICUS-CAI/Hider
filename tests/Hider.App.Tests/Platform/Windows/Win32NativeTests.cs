@@ -67,7 +67,7 @@ namespace Hider.App.Tests.Platform.Windows
             Assert.Equal(0, Win32Native.MDT_EFFECTIVE_DPI);             // shellscalingapi.h
         }
 
-        [Fact(Skip = "Windows 専用（user32 / gdi32 / shcore の呼び出し）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
         public void Calls_OnNoWindow_FailWithoutThrowing()
         {
             // The declarations bind (LibraryImport entry points exist) and a bogus handle fails cleanly. (The pointer taking
@@ -82,7 +82,7 @@ namespace Hider.App.Tests.Platform.Windows
             Assert.False(Win32Native.DeleteDC(0));
         }
 
-        [Fact(Skip = "Windows 専用（user32 / gdi32 / shcore の呼び出し）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
         public void Calls_ScreenAndMemoryDc_Work()
         {
             nint screen = Win32Native.GetDC(0);
@@ -94,7 +94,7 @@ namespace Hider.App.Tests.Platform.Windows
             Assert.Equal(1, Win32Native.ReleaseDC(0, screen));
         }
 
-        [Fact(Skip = "Windows 専用（user32 / gdi32 / shcore の呼び出し）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
         public void Calls_MonitorAndDpi_AnswerForAnyRect()
         {
             // MONITOR_DEFAULTTONEAREST always finds a monitor, even far off every screen.
@@ -108,7 +108,7 @@ namespace Hider.App.Tests.Platform.Windows
             }
         }
 
-        [Fact(Skip = "Windows 専用（user32 / gdi32 / shcore の呼び出し）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.Win32Calls, SkipUnless = nameof(IsWindows))]
         public void Cursor_PositionIsKnownInADesktopSession()
         {
             Assert.True(Win32Cursor.TryGetPosition(out int x, out int y));

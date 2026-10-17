@@ -22,7 +22,7 @@ namespace Hider.App.Tests.App
             Assert.Matches(@"^\[ok\]   libhidercap: loaded, last sequence \d+\r?\n$", output.ToString());
         }
 
-        [Fact(Skip = "Windows 専用（Win32 のウィンドウ列挙と PrintWindow）", SkipUnless = nameof(IsWindows))]
+        [Fact(Skip = OsOnly.WindowCapture, SkipUnless = nameof(IsWindows))]
         public void Windows_EnumeratesAndComposesTheDesktopCorner()
         {
             var output = new StringWriter();

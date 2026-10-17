@@ -21,7 +21,7 @@ namespace Hider.App.Tests.Platform.Windows
             return dpi / 96.0;
         }
 
-        [AvaloniaFact(Skip = "Windows 専用（MonitorFromRect / GetDpiForMonitor）", SkipUnless = nameof(IsWindows))]
+        [AvaloniaFact(Skip = OsOnly.MonitorDpi, SkipUnless = nameof(IsWindows))]
         public void ScaleFor_IsTheDpiOfTheMonitorWindowsPicks()
         {
             var window = new Window();
@@ -34,7 +34,7 @@ namespace Hider.App.Tests.Platform.Windows
             window.Close();
         }
 
-        [AvaloniaFact(Skip = "Windows 専用（MonitorFromRect / GetDpiForMonitor）", SkipUnless = nameof(IsWindows))]
+        [AvaloniaFact(Skip = OsOnly.MonitorDpi, SkipUnless = nameof(IsWindows))]
         public void Place_SizeSurvivesTheWin32RoundTrip()
         {
             // The window takes the shortest length not shorter than the area that Avalonia's WM_SIZE / Resize keep (px / scale).
