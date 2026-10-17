@@ -55,6 +55,22 @@ namespace Hider.Core.Tests.Persistence
             Assert.Equal("a", store.Load());
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData(" ")]
+        [InlineData("\r\n\t")]
+        public void Save_EmptyOrBlankToken_ForgetsTheOldOne_LikeNull(string _token)
+        {
+            // Load reads such a file as no token: writing one would only leave an empty file behind. The old token is single
+            // use and gone either way (CT-91), so it is forgotten as for null.
+            var store = new RestoreTokenStore(FilePath);
+            store.Save("old");
+            store.Save(_token);
+            Assert.False(File.Exists(FilePath));
+            Assert.False(File.Exists(FilePath + ".tmp"));
+            Assert.Null(store.Load());
+        }
+
         [Fact]
         public void Save_Null_WithoutAFile_DoesNothing()
         {
