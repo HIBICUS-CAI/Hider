@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Hider.Areas;
+using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Tests.Fakes;
 
@@ -413,6 +414,57 @@ namespace Hider.App.Tests.Areas
             Assert.Single(area.Window.Root.Children.OfType<EditChrome>());
             area.Layout(); // laid out again in edit mode: the chrome is not added twice
             Assert.Single(area.Window.Root.Children.OfType<EditChrome>());
+        }
+
+        [AvaloniaFact]
+        public void ExitEdit_ClosingTheSettings_RunsTheHeldLinuxCapture()
+        {
+            // The popup closed by leaving edit mode (ApplyLayout), not by ⚙: the capture held for it runs then. ExitEdit
+            // itself asks for no capture (it only saves), so this is the one place that takes it.
+            var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaHarness(_capture: capture, _isWindows: false);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Window.ToggleSettings();
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(calls, capture.Calls); // held while the popup is open
+            area.ExitEdit();
+            Assert.False(area.Window.PopupOpen);
+            Assert.False(f.Manager.AnyPopupOpen);
+            Assert.Equal(calls + 1, capture.Calls);
+            Assert.Equal(AreaMode.Hidden, area.Mode);
+        }
+
+        [AvaloniaFact]
+        public void ExitEdit_ClosingThePatternMenu_RunsTheHeldLinuxCapture()
+        {
+            var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaHarness(_capture: capture, _isWindows: false);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Window.Toolbar.PatternMenu.ShowAt(area.Window.Toolbar.PatternButton);
+            int calls = capture.Calls;
+            area.Refresh();
+            Assert.Equal(calls, capture.Calls);
+            area.ExitEdit();
+            Assert.False(area.Window.Toolbar.PatternMenu.IsOpen);
+            Assert.False(f.Manager.AnyPopupOpen);
+            Assert.Equal(calls + 1, capture.Calls);
+        }
+
+        [AvaloniaFact]
+        public void ExitEdit_ClosingBothPopups_RunsTheHeldLinuxCaptureOnce_AfterTheLastOne()
+        {
+            // The settings popup closes first while the menu is still open: the capture waits for the menu too.
+            var capture = new FakeUnderlayCapture { Traits = CaptureTraits.NeedsStripCooperation };
+            using var f = new AreaHarness(_capture: capture, _isWindows: false);
+            var area = f.Add(areaRect, PatternKind.Mosaic);
+            area.Window.ToggleSettings();
+            area.Window.Toolbar.PatternMenu.ShowAt(area.Window.Toolbar.PatternButton);
+            int calls = capture.Calls;
+            area.Refresh();
+            area.ExitEdit();
+            Assert.False(f.Manager.AnyPopupOpen);
+            Assert.Equal(calls + 1, capture.Calls);
         }
 
         [AvaloniaFact]
