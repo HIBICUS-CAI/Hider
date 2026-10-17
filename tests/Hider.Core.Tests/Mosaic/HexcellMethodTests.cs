@@ -239,6 +239,28 @@ namespace Hider.Core.Tests.Mosaic
             }
         }
 
+        [Theory]
+        [InlineData(10, 7, 12, 2.0)]   // level 1
+        [InlineData(10, 7, 4, 10.0)]   // level 3 of the 10 x 7 pyramid
+        [InlineData(37, 23, 64, 2.0)]
+        [InlineData(1, 1, 12, 2.0)]
+        [InlineData(1, 9, 4, 10.0)]
+        public void TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _radius)
+        {
+            // ICpuRenderer takes any pixmap: rows longer than w * 4 are written row by row, the padding is left alone.
+            using var source = SyntheticImage.CreateImage(_w, _h);
+            var p = Values(_radius);
+            var inputs = MosaicPipeline.Prepare(source, default, p, null, method);
+            try
+            {
+                PaddedTarget.AssertSameAsTight(method, inputs, p, _w, _h, _padding);
+            }
+            finally
+            {
+                MosaicPipeline.Release(inputs, source);
+            }
+        }
+
         [Fact]
         public void RadiusBelowOneWithoutSpec_ShaderIsTheIdentity()
         {

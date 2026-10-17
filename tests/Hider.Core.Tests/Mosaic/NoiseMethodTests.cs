@@ -160,6 +160,18 @@ namespace Hider.Core.Tests.Mosaic
             Assert.All(Colors(small), _c => Assert.Equal(255, _c.Alpha));
         }
 
+        [Theory]
+        [InlineData(10, 7, 12, 1)]
+        [InlineData(10, 7, 4, 64)]
+        [InlineData(37, 23, 64, 3)]
+        [InlineData(1, 1, 12, 1)]
+        [InlineData(1, 9, 4, 1)]
+        public void TryRender_PaddedRows_WritesEachRowAndLeavesThePadding(int _w, int _h, int _padding, double _scale)
+        {
+            // ICpuRenderer takes any pixmap: rows longer than w * 4 are written row by row, the padding is left alone.
+            PaddedTarget.AssertSameAsTight(method, new MosaicInputs { AreaSize = new SKSizeI(_w, _h) }, Values(_scale: _scale), _w, _h, _padding);
+        }
+
         [Fact]
         public void TryRender_OverwritesEveryPixelOfTheTarget()
         {
