@@ -193,12 +193,14 @@ namespace Hider.App.Tests.App
 
         /// <summary>
         /// Runs the UI thread's jobs, rendering frames, until the area's first capture has ended (a frame, or the fallback).
-        /// The rendered frames are what the strip host waits for before each strip is taken.
+        /// The rendered frames are what the strip host waits for before each strip is taken. The capture's bus round trips and
+        /// image decoding run off the UI thread and slow down on a loaded runner, hence the larger limit (unloaded: about
+        /// 1.5 s).
         /// </summary>
         private static void FirstCapture(AreaController _area)
         {
-            Assert.True(Hider.App.Tests.Areas.UiJobs.RunUntil(() => _area.Frames.Version > 0 || _area.CaptureFailed, _renderFrames: true),
-                "the first capture did not end");
+            Assert.True(Hider.App.Tests.Areas.UiJobs.RunUntil(() => _area.Frames.Version > 0 || _area.CaptureFailed, _renderFrames: true,
+                _limit: TimeSpan.FromSeconds(60), _workOffThread: true), "the first capture did not end");
         }
 
         [AvaloniaFact(Skip = Hider.App.Tests.Platform.LinuxTestEnvironment.DbusReason, SkipType = typeof(Hider.App.Tests.Platform.LinuxTestEnvironment),

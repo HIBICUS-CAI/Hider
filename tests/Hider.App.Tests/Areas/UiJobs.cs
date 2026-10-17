@@ -11,20 +11,24 @@ namespace Hider.App.Tests.Areas
     /// </summary>
     internal static class UiJobs
     {
-        /// <summary>Upper bound for one wait: far above what the jobs need (they are all queued or due at once).</summary>
+        /// <summary>Default upper bound for one wait: far above what queued or due jobs need.</summary>
         public static readonly TimeSpan Limit = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// Runs jobs (and, with <paramref name="_renderFrames"/>, render timer ticks) until <paramref name="_done"/> is true;
-        /// returns whether it became true.
+        /// returns whether it became true within <paramref name="_limit"/> (default <see cref="Limit"/>). Pass a larger
+        /// limit when the condition waits on work outside the UI thread (a bus round trip, decoding), which a loaded runner
+        /// can slow down; <paramref name="_workOffThread"/> then sleeps 1 ms between rounds instead of spinning while that
+        /// work runs.
         /// </summary>
-        public static bool RunUntil(Func<bool> _done, bool _renderFrames = false)
+        public static bool RunUntil(Func<bool> _done, bool _renderFrames = false, TimeSpan? _limit = null, bool _workOffThread = false)
         {
+            var limit = _limit ?? Limit;
             var clock = Stopwatch.StartNew();
             var cancel = TestContext.Current.CancellationToken;
             while (!_done())
             {
-                if (clock.Elapsed >= Limit || cancel.IsCancellationRequested)
+                if (clock.Elapsed >= limit || cancel.IsCancellationRequested)
                 {
                     return false;
                 }
@@ -33,6 +37,10 @@ namespace Hider.App.Tests.Areas
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                 }
                 Dispatcher.UIThread.RunJobs();
+                if (_workOffThread)
+                {
+                    Thread.Sleep(1);
+                }
             }
             return true;
         }
