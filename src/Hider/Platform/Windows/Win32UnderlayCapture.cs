@@ -13,7 +13,7 @@ namespace Hider.Platform.Windows
     [SupportedOSPlatform("windows")]
     public sealed class Win32UnderlayCapture : IUnderlayCapture
     {
-        private readonly Win32WindowSource source = new();
+        private readonly Win32WindowSource source;
         private readonly UnderlayComposer composer;
         private readonly object gate = new();
         // One output buffer per area window: an area never runs two captures at once (its scheduler merges requests) and copies
@@ -21,8 +21,16 @@ namespace Hider.Platform.Windows
         private readonly Dictionary<nint, FrameBuffer> outputs = new();
 
         public Win32UnderlayCapture()
+            : this(new Win32WindowSource(), null)
         {
-            composer = new UnderlayComposer(source);
+        }
+
+        /// <param name="_source">The source whose caches are trimmed after each capture.</param>
+        /// <param name="_windows">What the composer reads (in tests a fixed window list over <paramref name="_source"/>); null: <paramref name="_source"/>.</param>
+        internal Win32UnderlayCapture(Win32WindowSource _source, IWindowSource? _windows)
+        {
+            source = _source;
+            composer = new UnderlayComposer(_windows ?? _source);
         }
 
         public CaptureTraits Traits => CaptureTraits.Live | CaptureTraits.ExposureFree;

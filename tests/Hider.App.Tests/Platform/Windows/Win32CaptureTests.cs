@@ -2,6 +2,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Versioning;
+using Hider.Core;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Platform.Windows;
@@ -309,11 +310,18 @@ namespace Hider.App.Tests.Platform.Windows
             using var printer = new Printer { Throw = new InsufficientMemoryException("boom") };
             var source = new Win32WindowSource(printer.Print);
             var window = Window(1, 16, 8);
+            using var log = new StringWriter();
 
-            var failed = source.Capture(window, longWait);
+            WindowImage failed;
+            using (Log.CaptureTo(log))
+            {
+                failed = source.Capture(window, longWait);
+            }
 
             Assert.Equal(CaptureFailure.Unavailable, failed.Failure);
             Assert.Null(failed.Image);
+            // The reason is not lost: it goes to the --verbose log, naming the window's class and the exception.
+            Assert.Equal("capture: PrintWindow of a test window failed: InsufficientMemoryException: boom" + Environment.NewLine, log.ToString());
             printer.Throw = null;
             var image = source.Capture(window, longWait); // the faulted call is finished: it does not block the window
             Assert.Equal(CaptureFailure.None, image.Failure);
@@ -332,6 +340,33 @@ namespace Hider.App.Tests.Platform.Windows
 
             Assert.Equal(CaptureFailure.Unavailable, result.Failure);
             Assert.Equal(new nint[] { 1 }, composer.LastCaptured);
+        }
+
+        [Fact]
+        public async Task GT112_UnderlayCapture_CallThatThrows_StillTrimsTheCaches()
+        {
+            // Why a throwing call is Unavailable and not an exception: the capture still trims after it. The fixed window list
+            // leaves the source's last enumeration empty (window 1 is gone), so its finished, faulted call is forgotten, and
+            // the output of an area no longer listed (101) too.
+            using var printer = new Printer { Throw = new InvalidOperationException("boom") };
+            var source = new Win32WindowSource(printer.Print);
+            using var capture = new Win32UnderlayCapture(source, new ListedSource(source, Window(1, 16, 8)));
+            var rect = new PhysicalRect(0, 0, 16, 8);
+            var ct = TestContext.Current.CancellationToken;
+
+            var first = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 101 }, 0), ct);
+
+            Assert.Equal(CaptureFailure.Unavailable, first.Failure);
+            Assert.Equal(1, printer.Calls(1));
+            Assert.Equal(0, Count(source, "inFlight"));
+            Assert.Equal(1, Count(capture, "outputs"));
+
+            var second = await capture.CaptureAsync(new CaptureRequest(rect, new nint[] { 202 }, 0), ct);
+
+            Assert.Equal(CaptureFailure.Unavailable, second.Failure);
+            Assert.Equal(2, printer.Calls(1)); // the faulted call did not block the window
+            Assert.Equal(0, Count(source, "inFlight"));
+            Assert.Equal(new nint[] { 202 }, Map(capture, "outputs").Keys.Cast<nint>());
         }
 
         /// <summary>The source with a fixed window list (EnumWindows is native).</summary>
