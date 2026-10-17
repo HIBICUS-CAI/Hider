@@ -294,6 +294,7 @@ namespace Hider.App.Tests.Areas
         [AvaloniaFact]
         public void Disposed_DrawsNoMosaicOrPattern_AndDisposingTwiceIsFine()
         {
+            // No new images once disposed; the area is covered with its fill color instead (MosaicPresenterCoverTests).
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = WithFrame() };
             Draw(presenter).Dispose();
             presenter.Dispose();
@@ -302,7 +303,8 @@ namespace Hider.App.Tests.Areas
             using var bitmap = Draw(presenter);
             Assert.Equal(1, presenter.MosaicRenderCount);
             Assert.Equal(0, presenter.GeneratedRenderCount);
-            Assert.True(AllTransparent(bitmap));
+            Assert.False(AllTransparent(bitmap));
+            Assert.Equal(new SKColor(0x68, 0x76, 0x8A), bitmap.GetPixel(W / 2, H / 2));
         }
 
         [AvaloniaFact]

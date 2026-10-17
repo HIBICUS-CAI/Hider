@@ -17,7 +17,8 @@ namespace Hider.Areas
     /// through <see cref="ISkiaSharpApiLeaseFeature"/>, on the GPU when Avalonia renders there and on the CPU raster otherwise.
     /// Results are kept in offscreen images and only redrawn when the frame, values or size change (FR-42, proposal P-1);
     /// a repaint just copies the cached image. Until the first frame arrives a mosaic area shows its generated pattern so the
-    /// content stays covered (NFR-05).
+    /// content stays covered (NFR-05). When a pattern cannot be drawn (an exception, no Skia, the window closing) the area is
+    /// filled with its fill color instead, never left see-through.
     /// </summary>
     public sealed class MosaicPresenter : Control, IDisposable
     {
@@ -52,6 +53,9 @@ namespace Hider.Areas
 
         public int MosaicRenderCount { get; private set; }
 
+        /// <summary>How a draw gets Skia from Avalonia's context (tests replace it: no lease, a lease that fails).</summary>
+        internal Func<ImmediateDrawingContext, ISkiaSharpApiLease?> LeaseSkia { get; set; } = _c => _c.TryGetFeature<ISkiaSharpApiLeaseFeature>()?.Lease();
+
         private ImmutableSolidColorBrush? fillBrush;
 
         public override void Render(DrawingContext _context)
@@ -62,14 +66,15 @@ namespace Hider.Areas
                 return;
             }
             var bounds = new Rect(Bounds.Size);
+            // The fill pattern, and the cover of the other patterns when they cannot be drawn.
+            var (r, g, b) = ColorText.Parse(model.Fill.Color);
+            var color = Color.FromRgb(r, g, b);
+            if (fillBrush?.Color != color)
+            {
+                fillBrush = new ImmutableSolidColorBrush(color);
+            }
             if (model.Pattern == PatternKind.Fill)
             {
-                var (r, g, b) = ColorText.Parse(model.Fill.Color);
-                var color = Color.FromRgb(r, g, b);
-                if (fillBrush?.Color != color)
-                {
-                    fillBrush = new ImmutableSolidColorBrush(color);
-                }
                 _context.FillRectangle(fillBrush, bounds);
                 return;
             }
@@ -83,16 +88,16 @@ namespace Hider.Areas
             {
                 var method = MethodRegistry.Find(model.Mosaic.Method, MethodKind.Mosaic) ?? MethodRegistry.Find(AreaDefaults.MosaicMethod)!;
                 var values = ParamValues.ForMosaic(method, model.Mosaic, model.Opacity);
-                op = new DrawOp(this, bounds, size, origin, generatedMethod, generatedValues, method, values, model.Mosaic.Common.Levels);
+                op = new DrawOp(this, bounds, size, origin, generatedMethod, generatedValues, method, values, model.Mosaic.Common.Levels, fillBrush);
             }
             else
             {
-                op = new DrawOp(this, bounds, size, origin, generatedMethod, generatedValues, null, null, 256);
+                op = new DrawOp(this, bounds, size, origin, generatedMethod, generatedValues, null, null, 256, fillBrush);
             }
             _context.Custom(op);
         }
 
-        /// <summary>Draws into <paramref name="_canvas"/> (render thread). Returns false when nothing could be drawn.</summary>
+        /// <summary>Draws into <paramref name="_canvas"/> (render thread); throws when the pattern cannot be drawn.</summary>
         private void Draw(SKCanvas _canvas, DrawOp _op)
         {
             FreeRetired();
@@ -108,7 +113,10 @@ namespace Hider.Areas
             {
                 if (disposed)
                 {
-                    return; // the window is closing: making new images here would leak them (GPU) past the retire list
+                    // The window is closing: making new images here would leak them (GPU) past the retire list. Its last frames
+                    // still cover the content.
+                    Cover(_canvas, _op);
+                    return;
                 }
                 if (_op.Method is not null && Frames is { } frames)
                 {
@@ -167,18 +175,26 @@ namespace Hider.Areas
             return mosaicImage;
         }
 
+        /// <summary>Fills the area with its fill color, opaque (the pattern could not be drawn).</summary>
+        private static void Cover(SKCanvas _canvas, DrawOp _op)
+        {
+            var c = _op.CoverBrush.Color;
+            using var paint = new SKPaint { BlendMode = SKBlendMode.Src, Color = new SKColor(c.R, c.G, c.B) };
+            _canvas.DrawRect(SKRect.Create((float)_op.Bounds.Width, (float)_op.Bounds.Height), paint);
+        }
+
         private static SKSurface MosaicSurface(SKImageInfo _info, GRRecordingContext? _context)
         {
             return (_context is not null ? SKSurface.Create(_context, false, _info) : null) ?? SKSurface.Create(_info)
                 ?? throw new InvalidOperationException("Cannot create the mosaic surface");
         }
 
-        private sealed class DrawOp : ICustomDrawOperation
+        internal sealed class DrawOp : ICustomDrawOperation
         {
             private readonly MosaicPresenter owner;
 
             public DrawOp(MosaicPresenter _owner, Rect _bounds, SKSizeI _size, SKPointI _origin, IMosaicMethod _generatedMethod,
-                ParamValues _generatedValues, IMosaicMethod? _method, ParamValues? _values, int _levels)
+                ParamValues _generatedValues, IMosaicMethod? _method, ParamValues? _values, int _levels, ImmutableSolidColorBrush _cover)
             {
                 owner = _owner;
                 Bounds = _bounds;
@@ -189,6 +205,7 @@ namespace Hider.Areas
                 Method = _method;
                 Values = _values;
                 Levels = _levels;
+                CoverBrush = _cover;
             }
 
             public Rect Bounds { get; }
@@ -200,26 +217,52 @@ namespace Hider.Areas
             public ParamValues? Values { get; }
             public int Levels { get; }
 
+            /// <summary>The area's fill color, for when the pattern cannot be drawn (immutable: safe on the render thread).</summary>
+            public ImmutableSolidColorBrush CoverBrush { get; }
+
             public bool HitTest(Point _p) => Bounds.Contains(_p);
 
             public bool Equals(ICustomDrawOperation? _other) => false;
 
             public void Render(ImmediateDrawingContext _context)
             {
-                var lease = _context.TryGetFeature<ISkiaSharpApiLeaseFeature>()?.Lease();
-                if (lease is null)
+                if (!TryDraw(owner.LeaseSkia(_context)))
                 {
-                    return;
+                    // No Skia, or even the cover fill through it failed: Avalonia's own drawing covers the area (NFR-05).
+                    _context.FillRectangle(CoverBrush, Bounds);
                 }
-                using (lease)
+            }
+
+            /// <summary>
+            /// Draws the pattern through <paramref name="_lease"/> (disposed here), or the cover when the pattern fails. False:
+            /// nothing could be drawn through it (no lease, or the cover failed too).
+            /// </summary>
+            internal bool TryDraw(ISkiaSharpApiLease? _lease)
+            {
+                if (_lease is null)
+                {
+                    return false;
+                }
+                using (_lease)
                 {
                     try
                     {
-                        owner.Draw(lease.SkCanvas, this);
+                        owner.Draw(_lease.SkCanvas, this);
+                        return true;
                     }
                     catch (Exception e)
                     {
-                        Log.Verbose($"mosaic draw failed: {e.Message}");
+                        Log.Verbose($"pattern draw failed: {e.Message}; the area is covered with its fill color");
+                    }
+                    try
+                    {
+                        Cover(_lease.SkCanvas, this);
+                        return true;
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Verbose($"cover through Skia failed: {e.Message}");
+                        return false;
                     }
                 }
             }
