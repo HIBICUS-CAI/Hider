@@ -22,8 +22,6 @@ namespace Hider.Areas
     /// </summary>
     public sealed class MosaicPresenter : Control, IDisposable
     {
-        /// <summary>GPU images of closed areas, freed by the next draw on the render thread (where the GrContext lives).</summary>
-        private static readonly List<SKImage> retired = new();
         private static int backendLogged;
 
         private readonly object cacheGate = new();
@@ -55,6 +53,15 @@ namespace Hider.Areas
 
         /// <summary>How a draw gets Skia from Avalonia's context (tests replace it: no lease, a lease that fails).</summary>
         internal Func<ImmediateDrawingContext, ISkiaSharpApiLease?> LeaseSkia { get; set; } = _c => _c.TryGetFeature<ISkiaSharpApiLeaseFeature>()?.Lease();
+
+        /// <summary>
+        /// Whether a cached image is a GPU texture, which must wait in <see cref="Retired"/> to be freed on the render thread
+        /// (tests replace it: the headless renderer only makes raster images).
+        /// </summary>
+        internal Func<SKImage, bool> IsTextureBacked { get; set; } = _i => _i.IsTextureBacked;
+
+        /// <summary>Where this presenter's GPU images wait to be freed (every presenter shares one; tests use their own).</summary>
+        internal RetiredImages Retired { get; set; } = RetiredImages.Shared;
 
         private ImmutableSolidColorBrush? fillBrush;
 
@@ -100,7 +107,7 @@ namespace Hider.Areas
         /// <summary>Draws into <paramref name="_canvas"/> (render thread); throws when the pattern cannot be drawn.</summary>
         private void Draw(SKCanvas _canvas, DrawOp _op)
         {
-            FreeRetired();
+            Retired.FreeAll();
             var context = _canvas.Context;
             if (Interlocked.Exchange(ref backendLogged, 1) == 0)
             {
@@ -302,33 +309,61 @@ namespace Hider.Areas
             }
         }
 
-        private static void Retire(SKImage? _image)
+        private void Retire(SKImage? _image)
         {
             if (_image is null)
             {
                 return;
             }
-            if (!_image.IsTextureBacked)
+            if (!IsTextureBacked(_image))
             {
                 _image.Dispose();
                 return;
             }
-            lock (retired)
-            {
-                retired.Add(_image);
-            }
+            Retired.Add(_image);
         }
 
-        /// <summary>Render thread, inside the Skia lease.</summary>
-        private static void FreeRetired()
+        /// <summary>
+        /// GPU images of closed areas: added on the UI thread (under a lock), freed by the next draw of any area on the render
+        /// thread, inside its Skia lease, where the GrContext lives.
+        /// </summary>
+        internal sealed class RetiredImages
         {
-            lock (retired)
+            private readonly List<SKImage> images = new();
+
+            public static RetiredImages Shared { get; } = new();
+
+            /// <summary>Images waiting to be freed.</summary>
+            public int Count
             {
-                foreach (var image in retired)
+                get
                 {
-                    image.Dispose();
+                    lock (images)
+                    {
+                        return images.Count;
+                    }
                 }
-                retired.Clear();
+            }
+
+            public void Add(SKImage _image)
+            {
+                lock (images)
+                {
+                    images.Add(_image);
+                }
+            }
+
+            /// <summary>Render thread, inside the Skia lease.</summary>
+            public void FreeAll()
+            {
+                lock (images)
+                {
+                    foreach (var image in images)
+                    {
+                        image.Dispose();
+                    }
+                    images.Clear();
+                }
             }
         }
     }

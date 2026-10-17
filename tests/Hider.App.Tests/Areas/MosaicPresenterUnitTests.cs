@@ -308,6 +308,116 @@ namespace Hider.App.Tests.Areas
         }
 
         [AvaloniaFact]
+        public void Retire_Defaults_AreTheSharedListAndSkiasOwnTest()
+        {
+            using var presenter = new MosaicPresenter();
+            Assert.Same(MosaicPresenter.RetiredImages.Shared, presenter.Retired);
+            using var raster = SKImage.Create(new SKImageInfo(4, 4));
+            Assert.False(presenter.IsTextureBacked(raster));
+        }
+
+        /// <summary>A presenter whose cached images all count as GPU textures, retired into <paramref name="_retired"/>.</summary>
+        private static MosaicPresenter AsGpu(PatternKind _pattern, MosaicPresenter.RetiredImages _retired, List<SKImage> _asked)
+        {
+            return new MosaicPresenter
+            {
+                Model = NewArea(_pattern),
+                Frames = _pattern == PatternKind.Mosaic ? WithFrame() : null,
+                Retired = _retired,
+                IsTextureBacked = _i =>
+                {
+                    _asked.Add(_i);
+                    return true;
+                },
+            };
+        }
+
+        [AvaloniaTheory]
+        [InlineData(PatternKind.Mosaic)]
+        [InlineData(PatternKind.Generated)]
+        public void Dispose_GpuImage_WaitsInTheRetireList_UntilTheNextDrawOfAnyArea(PatternKind _pattern)
+        {
+            // GPU textures are freed on the render thread (with the GrContext), never on the UI thread where Dispose runs
+            // (crashes seen on Windows otherwise): the next draw of any area frees them.
+            var retired = new MosaicPresenter.RetiredImages();
+            var asked = new List<SKImage>();
+            var closing = AsGpu(_pattern, retired, asked);
+            Draw(closing).Dispose();
+            Assert.Empty(asked);
+            Assert.Equal(0, retired.Count);
+            closing.Dispose();
+            var image = Assert.Single(asked); // the one cached image (no frame: no mosaic; a frame: no generated pattern)
+            Assert.Equal(1, retired.Count);
+            Assert.NotEqual(IntPtr.Zero, image.Handle); // still alive on the UI thread
+
+            using var other = new MosaicPresenter { Model = NewArea(PatternKind.Generated), Retired = retired };
+            Draw(other).Dispose();
+            Assert.Equal(0, retired.Count);
+            Assert.Equal(IntPtr.Zero, image.Handle);
+            Draw(other).Dispose(); // nothing left to free
+            Assert.Equal(0, retired.Count);
+        }
+
+        [AvaloniaFact]
+        public void ReleaseCaches_GpuImages_AreRetired_AndTheDisposedPresentersOwnDrawFreesThem()
+        {
+            var retired = new MosaicPresenter.RetiredImages();
+            var asked = new List<SKImage>();
+            using var presenter = AsGpu(PatternKind.Mosaic, retired, asked);
+            presenter.Frames!.Clear();
+            Draw(presenter).Dispose(); // no frame: the generated pattern
+            Publish(presenter.Frames, W, H);
+            Draw(presenter).Dispose(); // then the mosaic: both images are cached
+            presenter.ReleaseCaches();
+            Assert.Equal(2, asked.Count);
+            Assert.Equal(2, retired.Count);
+            Assert.All(asked, _i => Assert.NotEqual(IntPtr.Zero, _i.Handle));
+            presenter.Dispose();
+            Draw(presenter).Dispose(); // a closing window's last frame still frees the list first
+            Assert.Equal(0, retired.Count);
+            Assert.All(asked, _i => Assert.Equal(IntPtr.Zero, _i.Handle));
+        }
+
+        [AvaloniaFact]
+        public void Dispose_RasterImage_IsFreedAtOnce_WithoutTheRetireList()
+        {
+            var retired = new MosaicPresenter.RetiredImages();
+            var asked = new List<SKImage>();
+            var presenter = new MosaicPresenter
+            {
+                Model = NewArea(PatternKind.Generated),
+                Retired = retired,
+                IsTextureBacked = _i =>
+                {
+                    asked.Add(_i);
+                    return false;
+                },
+            };
+            Draw(presenter).Dispose();
+            presenter.Dispose();
+            var image = Assert.Single(asked);
+            Assert.Equal(0, retired.Count);
+            Assert.Equal(IntPtr.Zero, image.Handle);
+        }
+
+        [AvaloniaFact]
+        public void RetiredImages_FreeAll_DisposesEachOnce_AndEmptiesTheList()
+        {
+            var retired = new MosaicPresenter.RetiredImages();
+            var a = SKImage.Create(new SKImageInfo(4, 4));
+            var b = SKImage.Create(new SKImageInfo(2, 2));
+            retired.Add(a);
+            retired.Add(b);
+            Assert.Equal(2, retired.Count);
+            retired.FreeAll();
+            Assert.Equal(0, retired.Count);
+            Assert.Equal(IntPtr.Zero, a.Handle);
+            Assert.Equal(IntPtr.Zero, b.Handle);
+            retired.FreeAll();
+            Assert.Equal(0, retired.Count);
+        }
+
+        [AvaloniaFact]
         public void DrawnArea_IsWhatThePointerHits()
         {
             // The custom draw operation answers hit tests for the presenter's whole rectangle.
