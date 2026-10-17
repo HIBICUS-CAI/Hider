@@ -66,8 +66,8 @@
 | CT146 | CT | ロックが取れない理由の判定: OS ごとのエラーコードで「他のインスタンスが保持」を判定し、名前が長すぎる・作るフォルダがないなどはエラーとして他インスタンス扱いにしない | FR-08 | Hider.Core.Tests/Persistence/StoragePathsSingleInstanceTests.cs（StoragePathsSingleInstanceTests、3 件） |
 | CT147 | CT | タイマーのスレッドと呼び出し側のスレッドが同時に tick と要求を出しても、実行が重ならない | D-10 | Hider.Core.Tests/Scheduling/RefreshSchedulerCasesTests.cs（RefreshSchedulerCasesTests、1 件） |
 | CT148 | CT | 投げっぱなしのタスク（Forget）: 失敗はちょうど 1 行でログへ、キャンセルは失敗としない、後で成功・未完了なら何も書かない、内側の原因ではなく最初の本当の例外を、複数の例外は集約として | — | Hider.Core.Tests/TaskExtensionsTests.cs（TaskExtensionsTests、6 件） |
-| CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない（バイトと更新時刻が不変）。areas.json と並んでいても、v1 の場所（LocalApplicationData/hider_setting/setting.txt、FileShare.None で開いたまま）にあっても無視される | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件。V1SettingPlaceTests、1 件） |
-| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt / hider_setting、HiderJsonContext を通らない JSON、許可リスト外の NuGet（Avalonia は 12.1.x、SkiaSharp・Tmds.DBus.Protocol は Avalonia の依存と同じ版、テスト専用は tests/ だけ）。各パターンを当たる行・当たらない行で検査、走査の対象（src の .cs / .csproj / .axaml / .props / .targets / packages.lock.json と直下のビルドファイル）、C# と XML のコメント除去（文字列は残す）も確認 | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、10 件） |
+| CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない（バイトと更新時刻が不変）。areas.json と並んでいても、v1 の場所（LocalApplicationData/hider_setting/setting.txt、FileShare.None で開いたままの回と開かない回の 2 回）にあっても無視される。v1 の場所を使うテストは 1 つずつ（プロセス間の Mutex）、消すのはテストが書いたバイトと時刻のファイルだけ | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件。V1SettingPlaceTests、3 件） |
+| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt / hider_setting、HiderJsonContext を通らない JSON、許可リスト外の NuGet（Avalonia は 12.1.x、SkiaSharp・Tmds.DBus.Protocol は Avalonia の依存と同じ版、テスト専用は tests/ だけ）。各パターンを当たる行・当たらない行で検査、走査の対象（src の .cs / .csproj / .axaml / .props / .targets / packages.lock.json と直下のビルドファイル）、C# と XML のコメント除去（文字列・補間の書式部・CDATA は残し、プリプロセッサ指令の行は除く）も確認。照合はファイル全体（行をまたぐ書き方、変数経由、using static も捕まえる）、パッケージの版は属性と子要素の両方を読み、中央のファイルで免除するのは PackageVersion だけ | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、12 件） |
 | GT41 | GT | 版の表示: 版は InformationalVersion からリビジョンを除いたもの・アセンブリの版と一致・一度だけ読む。--version の出力とトレイメニューの版の行（区切り線はその前だけ） | P-10 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件）<br>Hider.App.Tests/Tray/TrayMenuModelTests.cs（TrayMenuModelTests、2 件）<br>Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、1 件） |
 | GT42 | GT | アイコン: トレイ用は 32 px で共有、窓のアイコンは多サイズの .ico と 48 px の PNG で毎回新しく、資産は埋め込み | FR-71 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、4 件） |
 | GT43 | GT | アプリの資源: Fluent と ColorPicker のテーマを Light で読み込む、等幅フォントは Windows 用を先頭にした代替つき | UI デザインキャンバス | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件） |
@@ -160,7 +160,7 @@
 | GT130 | GT | メニュー窓のデザイン: ボタンなしで始まり間隔はデザインどおり、アイコンのあるコマンドはパスを持ち左の余白が少ない、ボタンの体裁 | UI デザインキャンバス | Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、3 件） |
 | GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す） | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
-| GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣、FileShare.None で開いたまま）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変 | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
+| GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣、FileShare.None で開いたまま）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変（FileShare.None で開いたままの回と開かない回の 2 回） | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
 
 ## 既存 ID の細分化
 
@@ -340,7 +340,7 @@
 | ST18 | ST | install.py のインストール先: Linux は XDG_DATA_HOME（なし・空なら ~/.local/share）、--dest（相対は絶対に）、Windows は LOCALAPPDATA（なければ終了）か --dest、空の --dest は既定 | FR-72 | scripts/test_install.py（MainTest、9 件） |
 | ST19 | ST | install.py のコマンドライン: 未知の引数、ヘルプ、スクリプトとして直接実行 | FR-72 | scripts/test_install.py（MainTest、2 件）<br>scripts/test_install.py（ScriptTest、1 件） |
 | ST20 | ST | install.bat の検査で止まる: 改ざんされたアーカイブ、実行ファイルのないアーカイブ、Hider の実行中、フォルダの指定も LOCALAPPDATA もない、コピーの失敗。ダブルクリック時の失敗は一時停止して終了コードを保つ、フォルダ指定時は止めない | P-9 | scripts/test_install_bat.py（InstallBatTest、7 件） |
-| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き、空白・記号（& % !）・非 ASCII を含むパス（インストーラの置き場所・インストール先・LOCALAPPDATA） | P-9 | scripts/test_install_bat.py（InstallBatTest、7 件） |
+| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き、空白・記号（& % ! ' ( ) ^）・非 ASCII を含むパス（インストーラの置き場所・インストール先・LOCALAPPDATA）、遅延展開が有効な cmd（/v:on）からの起動 | P-9 | scripts/test_install_bat.py（InstallBatTest、9 件） |
 | ST22 | ST | install.bat の取得と起動: 隣にアーカイブがなければダウンロード（見つからなければ失敗）、指定がなければ Hider を起動・HIDER_NO_LAUNCH なら起動しない | P-9 | scripts/test_install_bat.py（InstallBatTest、4 件） |
 | ST23 | ST | install.sh の引数: ヘルプ、未知の引数、-d はフォルダが必要、-d（相対は絶対に、空は既定）、--dest=x は未知の引数、-d の後のヘルプ、最後の -d が勝つ | P-9 | scripts/test_install_sh.py（OptionsTest、9 件） |
 | ST24 | ST | install.sh の既定の場所: XDG_DATA_HOME、なければ HOME の下、HOME がなくても XDG_DATA_HOME、どちらもなければ理由を示して終了 | P-9 | scripts/test_install_sh.py（DefaultFolderTest、4 件） |
@@ -350,7 +350,7 @@
 | ST28 | ST | install.sh の既存のインストール: 置き換える、2 回入れても同じ、実行属性を付ける、コピーの失敗・インストール先がファイルなら終了 | P-9 | scripts/test_install_sh.py（ExistingInstallTest、5 件） |
 | ST29 | ST | install.sh の .desktop: パスのエスケープは install.py と同じ、エントリの行 | P-9, FR-72 | scripts/test_install_sh.py（DesktopEntryTest、2 件） |
 | ST30 | ST | install.sh の起動と中断: 表示があれば起動、空の HIDER_NO_LAUNCH でも起動、HIDER_NO_LAUNCH なら起動しない、表示がなければ起動しない、ダウンロード中に終了させても後始末する | P-9 | scripts/test_install_sh.py（LaunchTest、4 件）<br>scripts/test_install_sh.py（InterruptTest、1 件） |
-| ST31 | ST | install.sh のシェルの違い: 求めたシェル（dash / bash / busybox 等）で動く、何かが残ればハングではなく失敗、変わったフォルダ名と起動 | P-9 | scripts/test_install_sh.py（ShellsTest、3 件） |
+| ST31 | ST | install.sh のシェルの違い: 求めたシェル（dash / bash / busybox 等）で動く、何かが残ればハングではなく失敗、変わったフォルダ名と起動、InstallerTest の孫クラスまで全シェルに展開 | P-9 | scripts/test_install_sh.py（ShellsTest、3 件。ParametrisationTest、1 件） |
 | ST32 | ST | スクリプトの構文: install.sh と xvfb-strip-smoke.sh はシェルとして、windows-stress.ps1 は PowerShell として | P-8, P-9 | scripts/test_install_sh.py（SyntaxTest、3 件） |
 | ST33 | ST | Windows の実機での install.py: ショートカットを作る・既存を置き換える、LOCALAPPDATA へのインストール | FR-72 | scripts/test_install_windows.py（InstallWindowsRealTest、3 件） |
 | ST34 | ST | アイコンの定数とモザイク柄: 資産のフォルダ、アプリの灰青のパレット、サイズ、配置はパレットの番号の格子、セルの色は配置に従う（角、格子の外は例外） | FR-71 | scripts/test_make_icons.py（ConstantsTest、4 件）<br>scripts/test_make_icons.py（CellColorTest、3 件） |
