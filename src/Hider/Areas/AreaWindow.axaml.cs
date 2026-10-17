@@ -36,7 +36,8 @@ namespace Hider.Areas
             AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Bubble);
             AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Bubble);
             AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Bubble);
-            AddHandler(PointerCaptureLostEvent, OnPointerCaptureLost, RoutingStrategies.Bubble);
+            // Capture loss is raised directly on the element that had the capture (this window), never bubbled.
+            AddHandler(PointerCaptureLostEvent, OnPointerCaptureLost, RoutingStrategies.Direct);
             AddHandler(PointerWheelChangedEvent, (_, _e) => _e.Handled = true, RoutingStrategies.Bubble, handledEventsToo: true);
 
             chrome.Toolbar.PatternSelected += _p => controller.SetPattern(_p);
