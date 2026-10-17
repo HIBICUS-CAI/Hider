@@ -1,14 +1,9 @@
-using Avalonia;
 using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
-using Avalonia.Skia;
 using Hider.Areas;
 using Hider.Core;
-using Hider.Core.Capture;
 using Hider.Core.Model;
-using Hider.Core.Tests.Fakes;
-using Hider.Core.Tests.Imaging;
 using SkiaSharp;
+using static Hider.App.Tests.Areas.CoverKit;
 
 namespace Hider.App.Tests.Areas
 {
@@ -19,138 +14,6 @@ namespace Hider.App.Tests.Areas
     /// </summary>
     public class MosaicPresenterCoverTests
     {
-        private const int W = 64, H = 48;
-        private static readonly SKColor defaultFill = new(0x68, 0x76, 0x8A);
-
-        private static Area NewArea(PatternKind _pattern, string _fill = AreaDefaults.FillColor)
-        {
-            var area = Area.CreateNew("0f3b8d2e", new PhysicalRect(10, 20, W, H), true);
-            Hider.Core.Persistence.AreasFile.FillDefaults(area.Mosaic.Params, Hider.Core.Mosaic.MethodKind.Mosaic);
-            Hider.Core.Persistence.AreasFile.FillDefaults(area.Generated.Params, Hider.Core.Mosaic.MethodKind.Generated);
-            area.Pattern = _pattern;
-            area.Fill.Color = _fill;
-            return area;
-        }
-
-        private static void Publish(FrameExchange _frames, int _w, int _h)
-        {
-            _frames.Back.Resize(_w, _h);
-            SyntheticImage.CreatePixels(_w, _h).AsSpan().CopyTo(_frames.Back.Bgra.Span);
-            _frames.Publish();
-        }
-
-        private static FrameExchange GoodFrame()
-        {
-            var frames = new FrameExchange();
-            Publish(frames, W, H);
-            return frames;
-        }
-
-        /// <summary>A front frame without pixels: no capture makes one, and drawing a mosaic of it throws.</summary>
-        private static FrameExchange BrokenFrame()
-        {
-            var frames = new FrameExchange();
-            frames.Back.Resize(0, 0);
-            frames.Publish();
-            return frames;
-        }
-
-        /// <summary>Lays the presenter out at <paramref name="_w"/> x <paramref name="_h"/> and draws it into a bitmap.</summary>
-        private static SKBitmap Draw(MosaicPresenter _presenter, double _w = W, double _h = H, int _pw = W, int _ph = H)
-        {
-            _presenter.Measure(new Size(_w, _h));
-            _presenter.Arrange(new Rect(0, 0, _w, _h));
-            using var target = new RenderTargetBitmap(new PixelSize(_pw, _ph));
-            using (var context = target.CreateDrawingContext())
-            {
-                _presenter.Render(context);
-            }
-            var colorType = target.Format == Avalonia.Platform.PixelFormat.Rgba8888 ? SKColorType.Rgba8888 : SKColorType.Bgra8888;
-            using var bitmap = new SKBitmap(new SKImageInfo(_pw, _ph, colorType, SKAlphaType.Premul));
-            target.CopyPixels(new PixelRect(0, 0, _pw, _ph), bitmap.GetPixels(), bitmap.ByteCount, bitmap.RowBytes);
-            using var image = SKImage.FromBitmap(bitmap);
-            return Render.ToBitmap(image);
-        }
-
-        /// <summary>The pixels in [0, w) x [0, h) that are not exactly <paramref name="_color"/> (opaque).</summary>
-        private static int CountOther(SKBitmap _b, SKColor _color, int _w = W, int _h = H)
-        {
-            int n = 0;
-            for (int y = 0; y < _h; y++)
-            {
-                for (int x = 0; x < _w; x++)
-                {
-                    if (_b.GetPixel(x, y) != _color)
-                    {
-                        n++;
-                    }
-                }
-            }
-            return n;
-        }
-
-        private static bool AllCovered(SKBitmap _b, SKColor _color) => CountOther(_b, _color, _b.Width, _b.Height) == 0;
-
-        /// <summary>
-        /// A Skia lease on a raster surface of its own. Its canvas throws on the first <c>failures</c> reads (negative: on
-        /// every read), standing in for a canvas that fails mid-draw.
-        /// </summary>
-        private sealed class FakeLease : ISkiaSharpApiLease
-        {
-            private readonly SKSurface surface;
-            private int failures;
-
-            public FakeLease(int _failures, SKColor _background)
-            {
-                failures = _failures;
-                surface = SKSurface.Create(new SKImageInfo(W, H, SKColorType.Bgra8888, SKAlphaType.Premul))!;
-                surface.Canvas.Clear(_background);
-            }
-
-            public int Disposals { get; private set; }
-
-            public int CanvasReads { get; private set; }
-
-            public SKCanvas SkCanvas
-            {
-                get
-                {
-                    CanvasReads++;
-                    if (failures != 0)
-                    {
-                        failures--;
-                        throw new InvalidOperationException("canvas lost");
-                    }
-                    return surface.Canvas;
-                }
-            }
-
-            public GRContext GrContext => null!;
-
-            public SKSurface SkSurface => surface;
-
-            public double CurrentOpacity => 1;
-
-            public ISkiaSharpPlatformGraphicsApiLease TryLeasePlatformGraphicsApi() => null!;
-
-            public SKBitmap Pixels()
-            {
-                var bitmap = new SKBitmap(new SKImageInfo(W, H, SKColorType.Bgra8888, SKAlphaType.Premul));
-                surface.ReadPixels(bitmap.Info, bitmap.GetPixels(), bitmap.RowBytes, 0, 0);
-                return bitmap;
-            }
-
-            public void Dispose()
-            {
-                Disposals++;
-            }
-
-            public void Free()
-            {
-                surface.Dispose();
-            }
-        }
-
         [AvaloniaTheory]
         [InlineData("#68768A", 0x68, 0x76, 0x8A)]
         [InlineData("#000000", 0x00, 0x00, 0x00)]
@@ -175,7 +38,7 @@ namespace Hider.App.Tests.Areas
             area.Opacity = _opacity;
             using var presenter = new MosaicPresenter { Model = area, Frames = BrokenFrame() };
             using var bitmap = Draw(presenter);
-            Assert.True(AllCovered(bitmap, defaultFill));
+            Assert.True(AllCovered(bitmap, DefaultFill));
         }
 
         [AvaloniaFact]
@@ -198,7 +61,7 @@ namespace Hider.App.Tests.Areas
             // A presenter smaller than the target: the cover is its rectangle, nothing outside.
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = BrokenFrame() };
             using var bitmap = Draw(presenter, 40, 30, W, H);
-            Assert.Equal(0, CountOther(bitmap, defaultFill, 40, 30));
+            Assert.Equal(0, CountOther(bitmap, DefaultFill, 40, 30));
             Assert.Equal(0, bitmap.GetPixel(40, 0).Alpha);
             Assert.Equal(0, bitmap.GetPixel(0, 30).Alpha);
             Assert.Equal(0, bitmap.GetPixel(W - 1, H - 1).Alpha);
@@ -211,12 +74,12 @@ namespace Hider.App.Tests.Areas
             using var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Mosaic), Frames = frames };
             using (var covered = Draw(presenter))
             {
-                Assert.True(AllCovered(covered, defaultFill));
+                Assert.True(AllCovered(covered, DefaultFill));
             }
             Publish(frames, W, H);
             using var bitmap = Draw(presenter);
             Assert.Equal(1, presenter.MosaicRenderCount);
-            Assert.False(AllCovered(bitmap, defaultFill));
+            Assert.False(AllCovered(bitmap, DefaultFill));
             Assert.Equal(255, bitmap.GetPixel(W / 2, H / 2).Alpha);
         }
 
@@ -245,7 +108,7 @@ namespace Hider.App.Tests.Areas
                 using var presenter = new MosaicPresenter { Model = NewArea(_pattern), Frames = GoodFrame(), LeaseSkia = _ => lease };
                 Draw(presenter).Dispose();
                 using var pixels = lease.Pixels();
-                Assert.True(AllCovered(pixels, defaultFill));
+                Assert.True(AllCovered(pixels, DefaultFill));
                 Assert.Equal(2, lease.CanvasReads);
                 Assert.Equal(1, lease.Disposals);
                 Assert.Equal(0, presenter.MosaicRenderCount);
@@ -268,8 +131,8 @@ namespace Hider.App.Tests.Areas
                 using var presenter = new MosaicPresenter { Model = NewArea(_pattern), Frames = GoodFrame(), LeaseSkia = _ => lease };
                 Draw(presenter).Dispose();
                 using var pixels = lease.Pixels();
-                Assert.NotEqual(0, CountOther(pixels, SKColors.Red)); // drawn over the red
-                Assert.False(AllCovered(pixels, defaultFill));
+                Assert.NotEqual(0, CountOther(pixels, SKColors.Red, W, H)); // drawn over the red
+                Assert.False(AllCovered(pixels, DefaultFill));
                 Assert.Equal(1, lease.CanvasReads);
                 Assert.Equal(1, lease.Disposals);
                 Assert.Equal(_pattern == PatternKind.Mosaic ? 1 : 0, presenter.MosaicRenderCount);
@@ -310,7 +173,7 @@ namespace Hider.App.Tests.Areas
                 }
                 using (bitmap)
                 {
-                    Assert.True(AllCovered(bitmap, defaultFill));
+                    Assert.True(AllCovered(bitmap, DefaultFill));
                 }
                 Assert.Equal(2, lease.CanvasReads); // the pattern, then the cover through Skia
                 Assert.Equal(1, lease.Disposals);
@@ -343,7 +206,7 @@ namespace Hider.App.Tests.Areas
             var presenter = new MosaicPresenter { Model = NewArea(PatternKind.Generated) };
             presenter.Dispose();
             using var bitmap = Draw(presenter);
-            Assert.True(AllCovered(bitmap, defaultFill));
+            Assert.True(AllCovered(bitmap, DefaultFill));
             Assert.Equal(0, presenter.GeneratedRenderCount);
         }
 
@@ -364,7 +227,7 @@ namespace Hider.App.Tests.Areas
             Assert.NotNull(presenter.LeaseSkia);
             using var bitmap = Draw(presenter);
             Assert.Equal(1, presenter.GeneratedRenderCount);
-            Assert.False(AllCovered(bitmap, defaultFill));
+            Assert.False(AllCovered(bitmap, DefaultFill));
         }
     }
 }
