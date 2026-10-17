@@ -917,8 +917,32 @@ class SyntaxTest(unittest.TestCase):
         self.assertEqual(text.count('('), text.count(')'))
 
 
+class ParametrisationTest(unittest.TestCase):
+    def test_st31_installer_cases_reach_every_depth(self) -> None:
+        # A class derived from an installer test class runs under every shell too, not only under the first one.
+        class Child(InstallerTest):
+            pass
+
+        class Grandchild(Child):
+            pass
+
+        cases = installer_cases(InstallerTest)
+        self.assertLess(cases.index(Child), cases.index(Grandchild))
+        self.assertEqual(installer_cases(Child), [Grandchild])
+        self.assertEqual(installer_cases(Grandchild), [])
+        self.assertEqual(set(INSTALLER_CASES) - set(cases), set())
+
+
+def installer_cases(base: type[InstallerTest]) -> list[type[InstallerTest]]:
+    """Every class derived from base, at any depth (a subclass of a subclass runs once per shell too)."""
+    cases: list[type[InstallerTest]] = []
+    for case in base.__subclasses__():
+        cases += [case, *installer_cases(case)]
+    return cases
+
+
 # Every class with installer runs, collected before load_tests adds the per-shell subclasses.
-INSTALLER_CASES = InstallerTest.__subclasses__()
+INSTALLER_CASES = installer_cases(InstallerTest)
 
 
 def per_shell(case: type[InstallerTest], shell: Shell) -> type[InstallerTest]:
