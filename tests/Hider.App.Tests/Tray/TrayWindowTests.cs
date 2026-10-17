@@ -181,5 +181,51 @@ namespace Hider.App.Tests.Tray
             Assert.False(window.IsVisible);
             Assert.Equal(1, closed);
         }
+
+        /// <summary>
+        /// What the platform asks before closing a window for <paramref name="_reason"/> (sign-out, the app's own shutdown):
+        /// IWindowImpl.Closing (checked on Avalonia 12.1.4) is hidden from user code, so it is reached by reflection. True:
+        /// the window refused.
+        /// </summary>
+        private static bool RaiseClosing(Window _window, WindowCloseReason _reason)
+        {
+            var property = typeof(IWindowImpl).GetProperty("Closing")
+                ?? throw new InvalidOperationException("IWindowImpl.Closing was renamed: update RaiseClosing");
+            var callback = (Func<WindowCloseReason, bool>?)property.GetValue(_window.PlatformImpl);
+            Assert.NotNull(callback); // the window subscribes when it is created
+            return callback!(_reason);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(WindowCloseReason.OSShutdown)]
+        [InlineData(WindowCloseReason.ApplicationShutdown)]
+        public void Fallback_SessionOrAppShutdown_IsNotHeldUp_NorMinimised(WindowCloseReason _reason)
+        {
+            // Refusing a sign-out would make the desktop report Hider as blocking it (AreaWindow.KeepOpen).
+            var window = new TrayFallbackWindow();
+            window.Show();
+
+            bool refused = RaiseClosing(window, _reason);
+
+            Assert.False(refused);
+            Assert.Equal(WindowState.Normal, window.WindowState);
+            window.CloseForExit();
+        }
+
+        [AvaloniaTheory]
+        [InlineData(WindowCloseReason.WindowClosing)]
+        [InlineData(WindowCloseReason.OwnerWindowClosing)]
+        [InlineData(WindowCloseReason.Undefined)]
+        public void Fallback_OtherCloses_AreRefused_AndMinimise(WindowCloseReason _reason)
+        {
+            var window = new TrayFallbackWindow();
+            window.Show();
+
+            bool refused = RaiseClosing(window, _reason);
+
+            Assert.True(refused);
+            Assert.Equal(WindowState.Minimized, window.WindowState);
+            window.CloseForExit();
+        }
     }
 }

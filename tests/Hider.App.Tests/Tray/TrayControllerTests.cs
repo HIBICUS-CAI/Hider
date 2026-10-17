@@ -262,6 +262,10 @@ namespace Hider.App.Tests.Tray
             Assert.True(popup.IsVisible);
             Assert.Equal(new PixelPoint(0, 0), popup.Position); // not placed: Manual startup location at the origin
             Assert.Equal(tray.Items.Select(_i => _i.Command), popup.Buttons.Select(_b => (TrayCommand)_b.Tag!));
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            // Active, so a click elsewhere (deactivation) closes it. Headless Show() activates already; the extra Activate()
+            // is for a real tray click while another app has the foreground, which only PT-01 can show.
+            Assert.True(popup.IsActive);
             popup.Close();
         }
 
@@ -345,7 +349,7 @@ namespace Hider.App.Tests.Tray
             Assert.Equal(new PixelPoint(_x, _y), place);
         }
 
-        [AvaloniaFact(Skip = "Windows 以外専用（Windows では左クリックでポップアップを開く）", SkipWhen = nameof(IsWindows))]
+        [AvaloniaFact(Skip = OsOnly.NotWindowsTrayLeftClick, SkipWhen = nameof(IsWindows))]
         public void IconClick_NotWindows_OpensNothing()
         {
             // Linux AppIndicator opens the native menu itself for both buttons.
@@ -357,18 +361,94 @@ namespace Hider.App.Tests.Tray
             Assert.Null(tray.PopupWindow);
         }
 
-        [AvaloniaFact(Skip = "Windows 専用（左クリックのポップアップと GetCursorPos）", SkipUnless = nameof(IsWindows))]
-        public void IconClick_Windows_OpensThePopupNearTheCursor()
+        [AvaloniaFact]
+        public void Click_NotWindows_OpensNothing_AndAsksNoCursor()
+        {
+            using var f = new AreaFixture();
+            using var tray = CreateTray(f);
+            int asked = 0;
+
+            tray.OnClicked(false, () =>
+            {
+                asked++;
+                return new PixelPoint(10, 10);
+            });
+
+            Assert.Null(tray.PopupWindow);
+            Assert.Equal(0, asked);
+        }
+
+        [AvaloniaFact]
+        public void Click_Windows_OpensThePopupAboveLeftOfTheCursor()
+        {
+            // The cursor near the bottom-right corner of the primary screen's working area (where the taskbar's tray is): the
+            // popup's bottom-right corner is at the cursor.
+            using var f = new AreaFixture();
+            using var tray = CreateTray(f);
+            var probe = new Window();
+            var screen = probe.Screens.Primary!;
+            var cursor = new PixelPoint(screen.WorkingArea.Right - 10, screen.WorkingArea.Bottom - 10);
+            int asked = 0;
+
+            tray.OnClicked(true, () =>
+            {
+                asked++;
+                return cursor;
+            });
+
+            var popup = tray.PopupWindow!;
+            Assert.True(popup.IsVisible);
+            Assert.Equal(1, asked);
+            var size = PixelSize.FromSize(popup.DesiredSize, screen.Scaling);
+            Assert.True(size.Width > 200 && size.Height > 100);
+            Assert.Equal(new PixelPoint(cursor.X - size.Width, cursor.Y - size.Height), popup.Position);
+            Assert.Equal(tray.Items.Select(_i => _i.Command), popup.Buttons.Select(_b => (TrayCommand)_b.Tag!));
+            popup.Close();
+            probe.Close();
+        }
+
+        [AvaloniaFact]
+        public void Click_Windows_WithoutACursor_OpensThePopupUnplaced()
         {
             using var f = new AreaFixture();
             using var tray = CreateTray(f);
 
+            tray.OnClicked(true, () => null);
+
+            var popup = tray.PopupWindow!;
+            Assert.True(popup.IsVisible);
+            Assert.Equal(new PixelPoint(0, 0), popup.Position);
+            popup.Close();
+        }
+
+        [AvaloniaFact(Skip = OsOnly.TrayLeftClick, SkipUnless = nameof(IsWindows))]
+        [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+        public void IconClick_Windows_OpensThePopupNearTheCursor()
+        {
+            // The real cursor: when it did not move during the click, the popup is above-left of it, kept in the working area
+            // of its monitor; when it did, the popup is at least inside a monitor's working area.
+            using var f = new AreaFixture();
+            using var tray = CreateTray(f);
+            var before = Hider.Platform.Windows.Win32Cursor.Position();
+
             tray.OnClicked();
 
+            var after = Hider.Platform.Windows.Win32Cursor.Position();
             var popup = tray.PopupWindow;
             Assert.NotNull(popup);
             Assert.True(popup!.IsVisible);
             Assert.Equal(tray.Items.Select(_i => _i.Command), popup.Buttons.Select(_b => (TrayCommand)_b.Tag!));
+            Assert.NotNull(before); // a desktop session always has a cursor
+            var screen = popup.Screens.ScreenFromPoint(before!.Value) ?? popup.Screens.Primary!;
+            var size = PixelSize.FromSize(popup.DesiredSize, screen.Scaling);
+            if (before == after)
+            {
+                Assert.Equal(TrayController.PlaceAboveLeft(before.Value, size, screen.WorkingArea), popup.Position);
+            }
+            else
+            {
+                Assert.Contains(popup.Screens.All, _s => _s.WorkingArea.Contains(popup.Position));
+            }
             popup.Close();
         }
 
@@ -412,6 +492,27 @@ namespace Hider.App.Tests.Tray
                 window.Buttons[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(1, exits.Count);
                 Assert.False(window.Buttons.Single(_b => (TrayCommand)_b.Tag! == TrayCommand.Version).IsEnabled);
+            }
+        }
+
+        [AvaloniaFact]
+        public async Task Probe_Fails_LogsIt_AndShowsNoWindow()
+        {
+            // A probe that throws (it catches its own D-Bus errors, so a bug) is logged, not taken as "no tray".
+            using var f = new AreaFixture();
+            var log = new StringWriter();
+            TrayController tray;
+            using (Log.CaptureTo(log))
+            {
+                tray = CreateTray(f, null, () => Task.FromException<bool>(new IOException("boom")));
+            }
+            using (tray)
+            {
+                await AnswerAsync();
+
+                Assert.Null(tray.FallbackWindow);
+                Assert.Contains("tray: probing for a StatusNotifierWatcher failed: IOException: boom", log.ToString());
+                Assert.DoesNotContain("showing the menu window", log.ToString());
             }
         }
 

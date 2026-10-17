@@ -170,12 +170,21 @@ namespace Hider.Tray
         /// <summary>The tray icon's click (internal for tests: a headless platform has no tray icon to click).</summary>
         internal void OnClicked()
         {
-            // Linux AppIndicator opens the native menu for both buttons; only Windows needs the custom popup.
-            if (!OperatingSystem.IsWindows())
+            OnClicked(OperatingSystem.IsWindows(), () => OperatingSystem.IsWindows() ? Platform.Windows.Win32Cursor.Position() : null);
+        }
+
+        /// <summary>
+        /// The click on <paramref name="_isWindows"/>: Linux AppIndicator opens the native menu for both buttons, so only
+        /// Windows needs the custom popup, placed near the cursor (<paramref name="_cursor"/>, asked only then; null when
+        /// the system cannot tell it).
+        /// </summary>
+        internal void OnClicked(bool _isWindows, Func<PixelPoint?> _cursor)
+        {
+            if (!_isWindows)
             {
                 return;
             }
-            ShowPopup(Platform.Windows.Win32Cursor.TryGetPosition(out int x, out int y) ? new PixelPoint(x, y) : null);
+            ShowPopup(_cursor());
         }
 
         public void Dispose()
