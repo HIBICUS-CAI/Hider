@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Hider.Core;
 using Hider.Core.Capture;
 using Hider.Core.Model;
 using Hider.Core.Persistence;
@@ -68,10 +69,13 @@ namespace Hider.App.Tests.Platform
                 return Task.FromResult<ScreenCastSession?>(new ScreenCastSession("/session/1", 42, StreamRect, token, new SafeFileHandle(77, false)));
             }
 
+            /// <summary>What closing does after it is logged (default: done at once).</summary>
+            public Func<Task>? OnClose { get; set; }
+
             public Task CloseAsync(ScreenCastSession _session)
             {
                 _log.Add("portal close");
-                return Task.CompletedTask;
+                return OnClose?.Invoke() ?? Task.CompletedTask;
             }
 
             public void Dispose()
@@ -86,6 +90,7 @@ namespace Hider.App.Tests.Platform
             public int StartResult { get; set; }
             public int GrabResult { get; set; }
             public (int W, int H) Size { get; set; } = (1920, 1080);
+            public int PtsFromMeta { get; set; } = 1;
             public List<long> NotBeforeNs { get; } = new();
             public List<(int Row0, int Row1)> Rows { get; } = new();
             public List<int> TimeoutsMs { get; } = new();
@@ -111,7 +116,7 @@ namespace Hider.App.Tests.Platform
                 NotBeforeNs.Add(_notBeforeNs);
                 Rows.Add((_row0, _row1));
                 TimeoutsMs.Add(_timeoutMs);
-                _frame = new HidercapFrame { Width = Size.W, Height = Size.H, Stride = Size.W * 4, PtsFromMeta = 1, PtsNs = _notBeforeNs + 16_000_000, Sequence = 3 };
+                _frame = new HidercapFrame { Width = Size.W, Height = Size.H, Stride = Size.W * 4, PtsFromMeta = PtsFromMeta, PtsNs = _notBeforeNs + 16_000_000, Sequence = 3 };
                 if (GrabResult != 0)
                 {
                     return GrabResult;
@@ -444,6 +449,287 @@ namespace Hider.App.Tests.Platform
             await Assert.ThrowsAsync<CaptureDeniedException>(() => g.PrepareAsync(new PhysicalRect(1, 1, 10, 10), ct));
             Assert.False(await g.PrepareAsync(new PhysicalRect(1, 1, 10, 10), ct));
             Assert.Single(log, "portal start");
+        }
+
+        [Fact]
+        public void Constants_AreTheDesignValues()
+        {
+            Assert.Equal(TimeSpan.FromSeconds(3), PipeWireGrabber.IdleClose);
+            Assert.Equal(TimeSpan.FromMinutes(1), PipeWireGrabber.RetryAfterFailure);
+            Assert.Equal(1000, PipeWireGrabber.GrabTimeoutMs);
+            Assert.Equal(3000, PipeWireGrabber.FirstFrameTimeoutMs);
+            Assert.Equal(TimeSpan.FromSeconds(3), PipeWireGrabber.DisposeTimeout);
+            using var g = Create();
+            Assert.Equal(PipeWireGrabber.DisposeTimeout, g.DisposeWait);
+        }
+
+        [Fact]
+        public async Task WithoutAClock_TheSystemClockIsUsed()
+        {
+            using var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary });
+            Assert.True(await Prepare(g));
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            Assert.NotNull(await g.GrabAfterAsync(now, defaultNeeded, TestContext.Current.CancellationToken));
+            // The system clock's timestamps, converted to ns.
+            Assert.Equal((long)(now * (1_000_000_000.0 / System.Diagnostics.Stopwatch.Frequency)), helper.NotBeforeNs[^1]);
+        }
+
+        [Fact]
+        public async Task ReadyWithoutPrepare_OnlyWhileASessionIsOpen()
+        {
+            var g = Create();
+            Assert.False(g.ReadyWithoutPrepare);
+            Assert.True(await Prepare(g));
+            Assert.True(g.ReadyWithoutPrepare);
+            time.Advance(PipeWireGrabber.IdleClose);
+            Assert.False(g.ReadyWithoutPrepare);
+            Assert.True(await Prepare(g));
+            g.Dispose();
+            Assert.False(g.ReadyWithoutPrepare);
+        }
+
+        [Fact]
+        public async Task AfterDispose_PrepareAndGrabDoNothing()
+        {
+            var g = Create();
+            g.Dispose();
+            log.Clear();
+            Assert.False(await Prepare(g));
+            Assert.Null(await Grab(g));
+            Assert.Empty(log);
+            Assert.False(g.IsOpen);
+        }
+
+        [Fact]
+        public async Task Dispose_WhileAGrabRuns_TheSessionStaysButIsNotReady_AndNoIdleTimer()
+        {
+            var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary }, time) { DisposeWait = TimeSpan.FromMilliseconds(50) };
+            using var block = new ManualResetEventSlim();
+            helper.Block = block;
+            var prepare = Prepare(g);
+            Assert.True(helper.Entered.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                g.Dispose();
+            }
+            Assert.Contains("a grab is still running at exit", captured.ToString(), StringComparison.Ordinal);
+            block.Set();
+            await prepare;
+            // Left to the process exit: open, but never offered again, and no idle timer to close it later.
+            Assert.True(g.IsOpen);
+            Assert.False(g.ReadyWithoutPrepare);
+            long generation = g.IdleGeneration;
+            time.Advance(PipeWireGrabber.IdleClose * 2);
+            Assert.Equal(generation, g.IdleGeneration);
+            Assert.DoesNotContain("stop", log);
+        }
+
+        [Fact]
+        public async Task SharedMonitorUnknown_PrepareIsFalse_GrabIsNullAndSaysSo()
+        {
+            // The stream's origin matches no X11 monitor (two monitors, so no single-monitor guess).
+            portal.StreamRect = new PhysicalRect(500, 500, 1920, 1080);
+            using var g = Create(primary, right);
+            Assert.False(await Prepare(g));
+            Assert.True(g.IsOpen); // the session is fine; this area just is not on a monitor it knows
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                Assert.Null(await Grab(g));
+            }
+            Assert.Contains("is not on the shared monitor (unknown)", captured.ToString(), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public async Task Grab_AreaPartlyOffTheSharedMonitor_IsNull()
+        {
+            using var g = Create(primary, right);
+            Assert.True(await Prepare(g));
+            int grabs = helper.Rows.Count;
+            var across = new PhysicalRect(1900, 100, 100, 10);
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                Assert.Null(await Grab(g, 0, across));
+            }
+            Assert.Contains($"is not on the shared monitor ({primary.Bounds})", captured.ToString(), StringComparison.Ordinal);
+            Assert.Equal(grabs, helper.Rows.Count); // the helper was not asked
+            Assert.False(await Prepare(g, across));
+        }
+
+        [Theory]
+        [InlineData(0L, 1, "pts", "0.0 ms after the strip")]
+        [InlineData(5_000_000L, 1, "pts", "16.0 ms after the strip")]
+        [InlineData(5_000_000L, 0, "receive time", "16.0 ms after the strip")]
+        public async Task Grab_LogsTheFramesAgeAndTimeSource(long _notBeforeNs, int _ptsFromMeta, string _source, string _age)
+        {
+            // FakeTimeProvider counts 100 ns ticks; the fake helper stamps each frame 16 ms after not_before.
+            helper.PtsFromMeta = _ptsFromMeta;
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                Assert.NotNull(await Grab(g, _notBeforeNs / 100));
+            }
+            string text = captured.ToString();
+            Assert.Contains("screencast: frame 1920x1080 seq 3, ", text, StringComparison.Ordinal);
+            Assert.Contains(_age, text, StringComparison.Ordinal);
+            Assert.Contains($"({_source})", text, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public async Task Grab_Timeout_IsLoggedWithTheLastSequence()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            helper.GrabResult = Hidercap.Timeout;
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                Assert.Null(await Grab(g));
+            }
+            Assert.Contains($"screencast: no frame within {PipeWireGrabber.GrabTimeoutMs} ms (last seq 3)", captured.ToString(), StringComparison.Ordinal);
+        }
+
+        [Theory]
+        [InlineData(Hidercap.NotStarted)]
+        [InlineData(Hidercap.StreamError)]
+        [InlineData(Hidercap.AlreadyStarted)]
+        public async Task Grab_HelperError_ClosesAndBacksOff(int _code)
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            helper.GrabResult = _code;
+            Assert.Null(await Grab(g));
+            Assert.False(g.IsOpen);
+            helper.GrabResult = Hidercap.Ok;
+            Assert.False(await Prepare(g)); // backed off
+            time.Advance(PipeWireGrabber.RetryAfterFailure);
+            Assert.True(await Prepare(g));
+        }
+
+        [Fact]
+        public async Task Grab_CancelledWhileTheHelperWaits_Throws_AndKeepsTheSession()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            using var cts = new CancellationTokenSource();
+            using var block = new ManualResetEventSlim();
+            helper.Block = block;
+            helper.Entered.Reset();
+            var grab = g.GrabAfterAsync(0, defaultNeeded, cts.Token);
+            Assert.True(helper.Entered.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            cts.Cancel();
+            block.Set();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => grab);
+            Assert.True(g.IsOpen);
+            helper.Block = null;
+            Assert.NotNull(await Grab(g));
+        }
+
+        [Fact]
+        public async Task AlreadyCancelled_PrepareAndGrabThrow()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => g.PrepareAsync(defaultNeeded, cts.Token));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => g.GrabAfterAsync(0, defaultNeeded, cts.Token));
+            Assert.NotNull(await Grab(g)); // the gate was not taken
+        }
+
+        [Fact]
+        public async Task CloseIdleAsync_CloseFails_IsLogged_AndTheGrabberGoesOn()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            portal.OnClose = () => Task.FromException(new InvalidOperationException("close failed (test)"));
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                await g.CloseIdleAsync(g.IdleGeneration);
+            }
+            Assert.Contains("screencast: idle close failed: InvalidOperationException: close failed (test)", captured.ToString(), StringComparison.Ordinal);
+            Assert.False(g.IsOpen);
+            Assert.Contains("stop", log);
+            portal.OnClose = null;
+            Assert.True(await Prepare(g)); // the gate was released
+        }
+
+        [Fact]
+        public async Task CloseIdleAsync_NothingOpen_DoesNothing()
+        {
+            using var g = Create();
+            await g.CloseIdleAsync(g.IdleGeneration);
+            Assert.Empty(log);
+        }
+
+        [Fact]
+        public async Task Dispose_CloseHangs_GivesUpAfterTheWait()
+        {
+            var g = new PipeWireGrabber(portal, helper, tokens, () => new[] { primary }, time) { DisposeWait = TimeSpan.FromMilliseconds(50) };
+            Assert.True(await Prepare(g));
+            var never = new TaskCompletionSource();
+            portal.OnClose = () => never.Task;
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                g.Dispose();
+            }
+            Assert.Contains("screencast: closing the session at exit timed out", captured.ToString(), StringComparison.Ordinal);
+            Assert.Contains("portal dispose", log);
+            never.SetResult();
+        }
+
+        [Fact]
+        public async Task Dispose_CloseFails_IsLogged()
+        {
+            var g = Create();
+            Assert.True(await Prepare(g));
+            portal.OnClose = () => throw new InvalidOperationException("close failed (test)");
+            using var captured = new StringWriter();
+            using (Log.CaptureTo(captured))
+            {
+                g.Dispose();
+            }
+            Assert.Contains("screencast: closing the session at exit failed: close failed (test)", captured.ToString(), StringComparison.Ordinal);
+            Assert.Contains("portal dispose", log);
+            Assert.False(g.IsOpen);
+        }
+
+        [Fact]
+        public async Task Prepare_FirstGrabNeedsABiggerBuffer_AsksAgain_ThenKeepsIt()
+        {
+            using var g = Create();
+            Assert.True(await Prepare(g));
+            // Prepare: buffer too small, then again with the grown buffer (both all rows).
+            Assert.Equal(2, helper.Rows.Count);
+            Assert.All(helper.Rows, _r => Assert.Equal((0, int.MaxValue), _r));
+            await Grab(g);
+            Assert.Equal(3, helper.Rows.Count); // the buffer is kept: one call
+        }
+
+        [Fact]
+        public void Rows_ShownHeightZero_UsesScaleOne()
+        {
+            Assert.Equal((4, 9), PipeWireGrabber.Rows(new PhysicalRect(0, 0, 100, 0), new PhysicalRect(10, 5, 10, 3), 100));
+        }
+
+        [Fact]
+        public void Rows_ClampedToTheFrame()
+        {
+            // Above and below the frame: empty ranges at its edges.
+            Assert.Equal((0, 0), PipeWireGrabber.Rows(new PhysicalRect(0, 0, 100, 100), new PhysicalRect(0, -50, 10, 10), 100));
+            Assert.Equal((100, 100), PipeWireGrabber.Rows(new PhysicalRect(0, 0, 100, 100), new PhysicalRect(0, 500, 10, 10), 100));
+        }
+
+        [Fact]
+        public void MapStream_NoScreens_IsNull()
+        {
+            Assert.Null(PipeWireGrabber.MapStream(new PhysicalRect(0, 0, 10, 10), Array.Empty<ScreenInfo>()));
         }
     }
 }
