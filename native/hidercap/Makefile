@@ -2,7 +2,11 @@
 #
 #   make RID=linux-x64      -> out/linux-x64/libhidercap.so
 #   make RID=linux-arm64    -> out/linux-arm64/libhidercap.so
-#   make test               -> builds and runs the unit test of frame_time.h (no PipeWire needed; host RID only)
+#   make test               -> builds and runs the unit tests (host RID only): frame_time.h (CT-90, no PipeWire needed),
+#                              hidercap.c's argument checks and error paths (test_hidercap.c) and its internals with the
+#                              PipeWire calls wrapped at link time (test_hidercap_internal.c); the last two need
+#                              libpipewire-0.3-dev and its client modules (libpipewire-0.3-modules, pipewire-bin), but no
+#                              running daemon. The tests are compiled with the flags of the shipped library.
 #
 # RID defaults to the host. Needs libpipewire-0.3-dev (pkg-config). Building for the other architecture needs a cross
 # compiler (picked automatically unless CC is given) and that architecture's libpipewire-0.3-dev; point pkg-config at
@@ -38,9 +42,18 @@ OUT_DIR := out/$(RID)
 TARGET  := $(OUT_DIR)/libhidercap.so
 SRCS    := hidercap.c
 TEST    := $(OUT_DIR)/test_frame_time
+TEST_HC := $(OUT_DIR)/test_hidercap
+TEST_HCI := $(OUT_DIR)/test_hidercap_internal
+# The PipeWire calls test_hidercap_internal.c replaces with its own __wrap_* (forwarding to __real_* unless it fakes them).
+WRAPPED := pw_stream_dequeue_buffer pw_stream_queue_buffer pw_thread_loop_signal pw_stream_update_params \
+           pw_thread_loop_new pw_context_new pw_thread_loop_start pw_stream_new pw_stream_connect
+empty :=
+space := $(empty) $(empty)
+comma := ,
+WRAP_LDFLAGS := -Wl,--wrap=$(subst $(space),$(comma)--wrap=,$(strip $(WRAPPED)))
 
 PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
-ifeq ($(filter clean test,$(MAKECMDGOALS)),)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
   ifneq ($(shell $(PKG_CONFIG) --exists libpipewire-0.3 && echo yes),yes)
     $(error libpipewire-0.3 not found by $(PKG_CONFIG): install libpipewire-0.3-dev (for $(RID)))
   endif
@@ -65,13 +78,19 @@ $(TARGET): $(SRCS) hidercap.h frame_time.h Makefile
 	@mkdir -p $(OUT_DIR)
 	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) $(SRCS) -o $@ $(HIDERCAP_LDFLAGS) $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
 
-test: test_frame_time.c frame_time.h Makefile
+test: test_frame_time.c test_hidercap.c test_hidercap_internal.c $(SRCS) hidercap.h frame_time.h Makefile
 ifneq ($(RID),$(HOST_RID))
 	$(error make test runs the test on this machine: use the host RID ($(HOST_RID)))
 endif
 	@mkdir -p $(OUT_DIR)
-	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Werror $(CFLAGS) test_frame_time.c -o $(TEST) $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) test_frame_time.c -o $(TEST) $(LDFLAGS)
 	./$(TEST)
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) test_hidercap.c $(SRCS) -o $(TEST_HC) \
+	    $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
+	./$(TEST_HC)
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) test_hidercap_internal.c -o $(TEST_HCI) \
+	    $(WRAP_LDFLAGS) $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
+	./$(TEST_HCI)
 
 clean:
 	rm -rf out

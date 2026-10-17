@@ -44,7 +44,7 @@ namespace Hider.Core.Mosaic.Methods
                 colors[k] = 0xFF000000u | (Unorm((float)_p.Raw(CommonParams.BaseColorR) + shift) << 16)
                     | (Unorm((float)_p.Raw(CommonParams.BaseColorG) + shift) << 8) | Unorm((float)_p.Raw(CommonParams.BaseColorB) + shift);
             }
-            var pixels = _dst.GetPixelSpan();
+            var pixels = PixmapRows.All(_dst);
             for (int y = 0; y < h; y++)
             {
                 var row = MemoryMarshal.Cast<byte, uint>(pixels.Slice(y * _dst.RowBytes, w * 4));

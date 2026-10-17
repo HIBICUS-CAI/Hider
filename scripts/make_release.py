@@ -3,14 +3,17 @@
 
     python scripts/make_release.py version
     python scripts/make_release.py bump minor 2.1.0
+    git ls-remote --tags origin 'refs/tags/v*' | python scripts/make_release.py next-version --bump minor --head <sha>
     python scripts/make_release.py package 2.2.0 --repo OWNER/NAME --input-dir artifacts --out-dir release
 
 version prints <Version> of Directory.Build.props (the version of the first release, while there is no tag, and of
 builds from source). bump prints the version after the given one (minor: 2.1.0 -> 2.2.0, patch: 2.1.0 -> 2.1.1,
-major: 2.1.0 -> 3.0.0); the release workflow gives it the latest tag. package turns the publish outputs (one folder per
-target, named Hider-<rid> as CI's publish artifacts are, or bin/publish/<rid>) into the release assets: one archive per
-target, the installers install.bat / install.sh (they download that release's archive and check its SHA-256),
-SHA256SUMS.txt and release-notes.md.
+major: 2.1.0 -> 3.0.0). next-version prints the version the release workflow releases a commit as: the latest tag
+v<MAJOR.MINOR.PATCH> in the `git ls-remote --tags` listing on standard input, bumped (minor by default); <Version> of
+Directory.Build.props when there is no such tag; an error when the commit has a tag v* already. package turns the
+publish outputs (one folder per target, named Hider-<rid> as CI's publish artifacts are, or bin/publish/<rid>) into the
+release assets: one archive per target, the installers install.bat / install.sh (they download that release's archive
+and check its SHA-256), SHA256SUMS.txt and release-notes.md.
 """
 
 from __future__ import annotations
@@ -21,16 +24,26 @@ import re
 import sys
 import tarfile
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 
 from common import ROOT_DIR, TARGETS, publish_dir
 
 PROPS_FILE = ROOT_DIR / 'Directory.Build.props'
 TEMPLATE_DIR = ROOT_DIR / 'scripts' / 'release'
-VERSION_PATTERN = re.compile(r'(\d+)\.(\d+)\.(\d+)')
+# ASCII digits only: \d alone also matches other scripts' digits, and the version goes into file names and URLs.
+VERSION_PATTERN = re.compile(r'(\d+)\.(\d+)\.(\d+)', re.ASCII)
 PROPS_VERSION = re.compile(r'<Version>([^<]*)</Version>')
 BUMPS = ['minor', 'patch', 'major']
 PLACEHOLDER = re.compile(r'@HIDER_[A-Z0-9_]+@')
+# A full object name (SHA-1 or SHA-256 repositories).
+COMMIT = re.compile(r'[0-9a-f]{40}|[0-9a-f]{64}', re.ASCII)
+# A line of `git ls-remote`: the object name, a tab and the ref. Annotated tags are listed twice, the second time peeled
+# (^{}) to their commit.
+LS_REMOTE_LINE = re.compile(r'([0-9a-f]{40}|[0-9a-f]{64})\t(\S+)', re.ASCII)
+RELEASE_TAG = re.compile(r'refs/tags/v(\d+\.\d+\.\d+)(?:\^\{\})?', re.ASCII)
+# Each half of GitHub's OWNER/NAME: ASCII letters, digits, _ . - (not dots only: . and .. are paths).
+REPO_PART = re.compile(r'(?!\.+$)[A-Za-z0-9_.-]+', re.ASCII)
 
 
 def tag_name(version: str) -> str:
@@ -67,6 +80,40 @@ def bump(part: str, current: str) -> str:
     if part == 'minor':
         return f'{major}.{minor + 1}.0'
     return f'{major}.{minor}.{patch + 1}'
+
+
+def choose_version(ls_remote: str, head: str, part: str, read_props: Callable[[], str] = props_version) -> str:
+    """The version to release the commit head as, from the tags listed by `git ls-remote --tags` (see next-version).
+
+    Directory.Build.props is read only when there is no release tag yet.
+    """
+    if COMMIT.fullmatch(head) is None:
+        sys.exit(f'invalid commit "{head}" (expected a full object name)')
+    released: list[str] = []
+    versions: list[tuple[int, int, int]] = []
+    for line in ls_remote.splitlines():
+        if not line.strip():
+            continue
+        match = LS_REMOTE_LINE.fullmatch(line)
+        if match is None:
+            sys.exit(f'unexpected line from git ls-remote: "{line}"')
+        sha, ref = match.groups()
+        if sha == head and ref.startswith('refs/tags/'):
+            released.append(ref.removeprefix('refs/tags/').removesuffix('^{}'))
+        tag = RELEASE_TAG.fullmatch(ref)
+        if tag is not None:
+            versions.append(parse_version(tag.group(1)))
+    if released:
+        # Run workflow pressed twice: the second run would release the same commit again.
+        sys.exit(f'main ({head}) is released already as {released[0]}')
+    if not versions:
+        version = read_props()
+        print(f'No release yet: {version} (Directory.Build.props)', file=sys.stderr)
+        return version
+    latest = '.'.join(str(number) for number in max(versions))
+    version = bump(part, latest)
+    print(f'v{latest} -> v{version} ({part})', file=sys.stderr)
+    return version
 
 
 def find_input(input_dir: Path | None, target: str) -> Path:
@@ -155,6 +202,11 @@ def main() -> None:
     bump_parser = commands.add_parser('bump', help='Print the version after the given one.')
     bump_parser.add_argument('part', choices=BUMPS)
     bump_parser.add_argument('current', metavar='version')
+    next_parser = commands.add_parser(
+        'next-version', help='Print the version to release a commit as (`git ls-remote --tags` output on stdin).'
+    )
+    next_parser.add_argument('--bump', choices=BUMPS, default=BUMPS[0], help='Part to increase (default: minor).')
+    next_parser.add_argument('--head', required=True, help='Full object name of the commit to release.')
     package_parser = commands.add_parser('package', help='Make the release assets.')
     package_parser.add_argument('version')
     package_parser.add_argument('--repo', required=True, help='GitHub repository OWNER/NAME the release belongs to.')
@@ -171,11 +223,16 @@ def main() -> None:
         part: str = args.part
         current: str = args.current
         print(bump(part, current))
+    elif command == 'next-version':
+        bump_part: str = args.bump
+        head: str = args.head
+        print(choose_version(sys.stdin.read(), head, bump_part))
     else:
         version: str = args.version
         parse_version(version)
         repo: str = args.repo
-        if re.fullmatch(r'[\w.-]+/[\w.-]+', repo) is None:
+        halves = repo.split('/')
+        if len(halves) != 2 or not all(REPO_PART.fullmatch(half) for half in halves):
             sys.exit(f'invalid repository "{repo}" (expected OWNER/NAME)')
         input_dir: Path | None = args.input_dir
         out_dir: Path = args.out_dir

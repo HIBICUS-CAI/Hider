@@ -4,8 +4,9 @@ using SkiaSharp;
 namespace Hider.Core.Mosaic
 {
     /// <summary>
-    /// Reads a raster image the way the methods' child shader samples it: area pixel coordinates divided by
-    /// <c>scale</c> (a pyramid level), clamped at the edges, nearest or linear. For <see cref="ICpuRenderer"/> implementations.
+    /// Reads a raster image the way the methods' child shader samples it on Skia's CPU raster: area pixel coordinates divided
+    /// by <c>scale</c> (a pyramid level), clamped at the edges, nearest or linear. For <see cref="ICpuRenderer"/> implementations
+    /// (which run on CPU canvases only; a GPU may round a coordinate exactly on a texel edge either way).
     /// </summary>
     public sealed class RasterSampler : IDisposable
     {
@@ -57,7 +58,10 @@ namespace Hider.Core.Mosaic
             int w = width, h = height;
             if (!linear)
             {
-                return Texel(Math.Clamp((int)MathF.Floor(u), 0, w - 1), Math.Clamp((int)MathF.Floor(v), 0, h - 1));
+                // Skia's raster takes texel ceil(u) - 1: floor(u) except on a texel edge (u whole), where it is the texel
+                // before the edge. Hexagon centres lie on edges often (hexcell at level 0). Computed in float so that a huge
+                // or NaN coordinate saturates instead of wrapping.
+                return Texel(Math.Clamp((int)(MathF.Ceiling(u) - 1f), 0, w - 1), Math.Clamp((int)(MathF.Ceiling(v) - 1f), 0, h - 1));
             }
             u -= 0.5f;
             v -= 0.5f;

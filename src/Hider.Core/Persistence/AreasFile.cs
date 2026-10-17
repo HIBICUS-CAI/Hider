@@ -22,7 +22,7 @@ namespace Hider.Core.Persistence
         /// version 1 JSON is renamed to &lt;path&gt;.broken (an older .broken is kept under a time-stamped name) and an empty
         /// state is returned (<see cref="LoadStatus.Broken"/>, FR-64). A file that cannot be read or renamed at all gives an
         /// empty state with <see cref="LoadStatus.Unreadable"/>: the caller must not save over it in this session.
-        /// Missing values are filled with defaults and invalid ones replaced (see <see cref="Normalize"/>).
+        /// Missing values are filled with defaults and invalid ones replaced (see <see cref="Normalize(AppState)"/>).
         /// </summary>
         public static AppState Load(string _path, out LoadStatus _status)
         {
@@ -108,12 +108,21 @@ namespace Hider.Core.Persistence
         /// </summary>
         public static void Normalize(AppState _state)
         {
+            Normalize(_state, null);
+        }
+
+        /// <summary>
+        /// <see cref="Normalize(AppState)"/> with the source of replacement ids (Random.Shared when null; tests pass a
+        /// scripted one). A replacement is unique among the ids before it; a later valid id that equals it is replaced in turn.
+        /// </summary>
+        internal static void Normalize(AppState _state, Random? _random)
+        {
             var ids = new HashSet<string>();
             foreach (var area in _state.Areas)
             {
                 if (!AreaId.IsValid(area.Id) || !ids.Add(area.Id))
                 {
-                    area.Id = AreaId.New(ids.Contains);
+                    area.Id = AreaId.New(ids.Contains, _random);
                     ids.Add(area.Id);
                 }
                 // Beyond any desktop, and small enough that a rectangle's right / bottom edge never overflows.

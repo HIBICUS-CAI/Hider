@@ -62,10 +62,11 @@ static void release_held(void)
     g.held_data = NULL;
 }
 
-/* The row stride of a buffer's chunk (the format's width * 4 when the producer leaves it 0). */
+/* The row stride of a buffer's chunk (the format's width * 4 when the producer leaves it 0). A negative one (rows bottom
+ * up) is returned as it is, for usable to refuse. */
 static int32_t chunk_stride(const struct spa_data *_d)
 {
-    return _d->chunk->stride > 0 ? _d->chunk->stride : (int32_t)g.format.size.width * 4;
+    return _d->chunk->stride != 0 ? _d->chunk->stride : (int32_t)g.format.size.width * 4;
 }
 
 /* A buffer copy_held can read whole: mapped, not corrupted, and large enough for the current format (a short chunk from
@@ -153,8 +154,10 @@ static void on_param_changed(void *_data, uint32_t _id, const struct spa_pod *_p
     }
     struct spa_video_info_raw format;
     spa_zero(format);
-    if (spa_format_video_raw_parse(_param, &format) < 0) {
-        return; /* keep the previous format whole rather than a half-parsed one */
+    /* Keep the previous format whole rather than a half-parsed one, or one without a frame size (every field of raw video
+     * is optional to the parser, so a size missing from the pod would read as 0 x 0). */
+    if (spa_format_video_raw_parse(_param, &format) < 0 || format.size.width == 0 || format.size.height == 0) {
+        return;
     }
     release_held(); /* its layout belongs to the old format */
     g.format = format;

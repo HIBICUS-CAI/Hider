@@ -122,7 +122,8 @@ namespace Hider.Core.Scheduling
 
         /// <summary>
         /// Ends the run that the last <see cref="Due"/> started (also when the handler decided not to capture) and raises the
-        /// merged request, if any.
+        /// merged request, if any. A merged timer tick is dropped while <see cref="TimerPaused"/>: it may have arrived before
+        /// the pause began, and would otherwise capture in the middle of a drag.
         /// </summary>
         public void EndRun()
         {
@@ -130,7 +131,7 @@ namespace Hider.Core.Scheduling
             lock (gate)
             {
                 running = false;
-                next = pending;
+                next = pending == RefreshReason.Timer && timerPaused ? null : pending;
                 pending = null;
             }
             if (next is { } reason)

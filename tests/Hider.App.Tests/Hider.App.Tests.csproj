@@ -5,6 +5,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Hider.App.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- LibraryImport of the Win32 calls the Windows tests make themselves (a window of their own, a message box). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +23,16 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Hider/Hider.csproj" />
+  </ItemGroup>
+
+  <!-- libhidercap.so of this machine (make -C native/hidercap before the build) next to the tests, for the tests of the real
+       helper (Platform/HidercapNativeTests, PipeWireIntegrationTests). Without it they are skipped, except on Linux CI. -->
+  <PropertyGroup>
+    <HidercapRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">linux-x64</HidercapRid>
+    <HidercapRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</HidercapRid>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) And Exists('../../native/hidercap/out/$(HidercapRid)/libhidercap.so')">
+    <None Include="../../native/hidercap/out/$(HidercapRid)/libhidercap.so" Link="libhidercap.so" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
