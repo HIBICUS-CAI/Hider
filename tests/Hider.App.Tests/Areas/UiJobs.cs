@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
 
@@ -43,6 +44,19 @@ namespace Hider.App.Tests.Areas
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Runs the platform's deactivation callback of <paramref name="_window"/> and the jobs it posts, as Windows / X11 do
+        /// on a click elsewhere: the headless platform never deactivates a window when another is activated. The callback is
+        /// private (WindowBase.HandleDeactivated, checked with Avalonia 12.1.4), hence reflection, kept in this one place.
+        /// </summary>
+        public static void Deactivate(Window _window)
+        {
+            var deactivated = typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.True(deactivated is not null, "WindowBase.HandleDeactivated was renamed or removed (checked with Avalonia 12.1.4): find the platform's deactivation callback again");
+            deactivated.Invoke(_window, null);
+            Dispatcher.UIThread.RunJobs();
         }
 
         /// <summary>Runs jobs until <paramref name="_task"/> has completed, and fails the test if it does not.</summary>

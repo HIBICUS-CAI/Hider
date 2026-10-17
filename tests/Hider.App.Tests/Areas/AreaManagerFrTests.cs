@@ -1,4 +1,3 @@
-using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Hider.Areas;
@@ -89,19 +88,16 @@ namespace Hider.App.Tests.Areas
             Assert.Equal("a,b,a", string.Join(',', order));
         }
 
-        /// <summary>Runs the platform's deactivation for each active area window (WindowBase.HandleDeactivated, Avalonia 12.1.4).</summary>
+        /// <summary>Runs the platform's deactivation for each active area window (UiJobs.Deactivate).</summary>
         private static void Deactivate(params AreaController[] _areas)
         {
-            var deactivated = typeof(WindowBase).GetMethod("HandleDeactivated", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.True(deactivated is not null, "WindowBase.HandleDeactivated was renamed or removed (checked with Avalonia 12.1.4): find the platform's deactivation callback again");
             foreach (var area in _areas)
             {
                 if (area.Window.IsActive)
                 {
-                    deactivated.Invoke(area.Window, null);
+                    UiJobs.Deactivate(area.Window);
                 }
             }
-            Dispatcher.UIThread.RunJobs();
             Assert.All(_areas, _a => Assert.False(_a.Window.IsActive));
         }
 
