@@ -6,7 +6,7 @@ namespace Hider.Core.Tests.Capture
     /// <summary>A grabber whose answers are functions, for the paths <see cref="Fakes.FakeScreenGrabber"/> cannot take.</summary>
     internal sealed class ScriptedGrabber : IScreenGrabber
     {
-        public Func<PhysicalRect, Task<bool>> Prepare { get; set; } = _ => Task.FromResult(true);
+        public Func<PhysicalRect, CancellationToken, Task<bool>> Prepare { get; set; } = (_, _) => Task.FromResult(true);
         public Func<long, PhysicalRect, CancellationToken, Task<ScreenFrame?>> Grab { get; set; } = (_, _, _) => Task.FromResult<ScreenFrame?>(null);
         public bool Ready { get; set; }
         public int Disposed { get; private set; }
@@ -17,7 +17,7 @@ namespace Hider.Core.Tests.Capture
 
         public Task<bool> PrepareAsync(PhysicalRect _needed, CancellationToken _ct)
         {
-            return Prepare(_needed);
+            return Prepare(_needed, _ct);
         }
 
         public Task<ScreenFrame?> GrabAfterAsync(long _notBeforeTimestamp, PhysicalRect _needed, CancellationToken _ct)

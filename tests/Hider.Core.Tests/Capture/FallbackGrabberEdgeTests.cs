@@ -88,7 +88,7 @@ namespace Hider.Core.Tests.Capture
             using var grabber = new FallbackGrabber(first, second);
             Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
             await Assert.ThrowsAsync<IOException>(() => grabber.GrabAfterAsync(0, needed, TestContext.Current.CancellationToken));
-            var preparing = new FallbackGrabber(new ScriptedGrabber { Prepare = _ => Task.FromException<bool>(new OperationCanceledException()) });
+            var preparing = new FallbackGrabber(new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(new OperationCanceledException()) });
             using (preparing)
             {
                 await Assert.ThrowsAsync<OperationCanceledException>(() => preparing.PrepareAsync(needed, TestContext.Current.CancellationToken));
@@ -99,19 +99,19 @@ namespace Hider.Core.Tests.Capture
         public async Task PrepareRefusals_FirstThrownOnlyWhenNoneIsReady()
         {
             var firstRefusal = new CaptureDeniedException("first");
-            var deniedFirst = new ScriptedGrabber { Prepare = _ => Task.FromException<bool>(firstRefusal) };
-            var deniedSecond = new ScriptedGrabber { Prepare = _ => Task.FromException<bool>(new CaptureDeniedException("second")) };
+            var deniedFirst = new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(firstRefusal) };
+            var deniedSecond = new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(new CaptureDeniedException("second")) };
             using (var grabber = new FallbackGrabber(deniedFirst, deniedSecond))
             {
                 Assert.Same(firstRefusal, await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.PrepareAsync(needed, TestContext.Current.CancellationToken)));
             }
             var ready = new ScriptedGrabber();
-            using (var grabber = new FallbackGrabber(new ScriptedGrabber { Prepare = _ => Task.FromException<bool>(firstRefusal) }, ready))
+            using (var grabber = new FallbackGrabber(new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(firstRefusal) }, ready))
             {
                 Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken)); // the refusal is not reported
             }
-            var notReady = new ScriptedGrabber { Prepare = _ => Task.FromResult(false) };
-            using (var grabber = new FallbackGrabber(new ScriptedGrabber { Prepare = _ => Task.FromException<bool>(firstRefusal) }, notReady))
+            var notReady = new ScriptedGrabber { Prepare = (_, _) => Task.FromResult(false) };
+            using (var grabber = new FallbackGrabber(new ScriptedGrabber { Prepare = (_, _) => Task.FromException<bool>(firstRefusal) }, notReady))
             {
                 Assert.Same(firstRefusal, await Assert.ThrowsAsync<CaptureDeniedException>(() => grabber.PrepareAsync(needed, TestContext.Current.CancellationToken)));
             }
@@ -120,11 +120,45 @@ namespace Hider.Core.Tests.Capture
         [Fact]
         public async Task PrepareArguments_PassedThrough()
         {
+            // The token reaches the grabber: a prepare may wait for the portal's dialog and must end on cancellation (NFR-05).
             PhysicalRect seen = default;
-            var only = new ScriptedGrabber { Prepare = _r => { seen = _r; return Task.FromResult(true); } };
+            CancellationToken seenToken = default;
+            using var cancel = new CancellationTokenSource();
+            var only = new ScriptedGrabber { Prepare = (_r, _c) => { (seen, seenToken) = (_r, _c); return Task.FromResult(true); } };
             using var grabber = new FallbackGrabber(only);
-            Assert.True(await grabber.PrepareAsync(new PhysicalRect(-5, 6, 7, 8), TestContext.Current.CancellationToken));
-            Assert.Equal(new PhysicalRect(-5, 6, 7, 8), seen);
+            Assert.True(await grabber.PrepareAsync(new PhysicalRect(-5, 6, 7, 8), cancel.Token));
+            Assert.Equal((new PhysicalRect(-5, 6, 7, 8), cancel.Token), (seen, seenToken));
+        }
+
+        [Fact]
+        public async Task PrepareArguments_PassedToEveryGrabberAskedInTurn()
+        {
+            var seen = new List<(string, PhysicalRect, CancellationToken)>();
+            using var cancel = new CancellationTokenSource();
+            ScriptedGrabber Recording(string _name, bool _ready) => new()
+            {
+                Prepare = (_r, _c) =>
+                {
+                    seen.Add((_name, _r, _c));
+                    return _ready ? Task.FromResult(true) : Task.FromException<bool>(new CaptureDeniedException(_name));
+                },
+            };
+            using var grabber = new FallbackGrabber(Recording("first", false), Recording("second", true), Recording("third", true));
+            Assert.True(await grabber.PrepareAsync(needed, cancel.Token));
+            Assert.Equal(new[] { ("first", needed, cancel.Token), ("second", needed, cancel.Token) }, seen);
+        }
+
+        [Fact]
+        public async Task Prepare_CancelledWhileWaiting_EndsWithTheCancellation()
+        {
+            // A prepare that only ends through its token (the portal's dialog left open) ends when the caller cancels.
+            using var cancel = new CancellationTokenSource();
+            var waiting = new ScriptedGrabber { Prepare = async (_, _c) => { await Task.Delay(Timeout.Infinite, _c); return true; } };
+            using var grabber = new FallbackGrabber(waiting);
+            var prepare = grabber.PrepareAsync(needed, cancel.Token);
+            Assert.False(prepare.IsCompleted);
+            cancel.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => prepare);
         }
 
         [Fact]
@@ -135,7 +169,7 @@ namespace Hider.Core.Tests.Capture
             bool deny = false;
             var only = new ScriptedGrabber
             {
-                Prepare = _ => deny ? Task.FromException<bool>(new CaptureDeniedException("no")) : Task.FromResult(true),
+                Prepare = (_, _) => deny ? Task.FromException<bool>(new CaptureDeniedException("no")) : Task.FromResult(true),
                 Grab = (_, _, _) => { asked++; return Task.FromResult<ScreenFrame?>(Frame()); },
             };
             using var grabber = new FallbackGrabber(only);
@@ -164,11 +198,11 @@ namespace Hider.Core.Tests.Capture
             }
             var refusing = new ScriptedGrabber
             {
-                Prepare = _ => LaterThrow<bool>(new CaptureDeniedException("no")),
+                Prepare = (_, _) => LaterThrow<bool>(new CaptureDeniedException("no")),
                 Grab = (_, _, _) => LaterThrow<ScreenFrame?>(new CaptureDeniedException("no")),
             };
-            var empty = new ScriptedGrabber { Prepare = _ => Later(false), Grab = (_, _, _) => Later<ScreenFrame?>(null) };
-            var working = new ScriptedGrabber { Prepare = _ => Later(true), Grab = (_, _, _) => Later<ScreenFrame?>(frame) };
+            var empty = new ScriptedGrabber { Prepare = (_, _) => Later(false), Grab = (_, _, _) => Later<ScreenFrame?>(null) };
+            var working = new ScriptedGrabber { Prepare = (_, _) => Later(true), Grab = (_, _, _) => Later<ScreenFrame?>(frame) };
             using var grabber = new FallbackGrabber(refusing, empty, working);
             Assert.True(await grabber.PrepareAsync(needed, TestContext.Current.CancellationToken));
             refusing.Ready = true;
