@@ -4,7 +4,8 @@
 #   make RID=linux-arm64    -> out/linux-arm64/libhidercap.so
 #   make test               -> builds and runs the unit tests (host RID only): frame_time.h (CT-90, no PipeWire needed)
 #                              and hidercap.c's argument checks and error paths (libpipewire-0.3-dev and its client
-#                              modules, libpipewire-0.3-modules and pipewire-bin, but no running daemon)
+#                              modules, libpipewire-0.3-modules and pipewire-bin, but no running daemon). The tests are
+#                              compiled with the flags of the shipped library.
 #
 # RID defaults to the host. Needs libpipewire-0.3-dev (pkg-config). Building for the other architecture needs a cross
 # compiler (picked automatically unless CC is given) and that architecture's libpipewire-0.3-dev; point pkg-config at
@@ -73,9 +74,9 @@ ifneq ($(RID),$(HOST_RID))
 	$(error make test runs the test on this machine: use the host RID ($(HOST_RID)))
 endif
 	@mkdir -p $(OUT_DIR)
-	$(CC) $(CPPFLAGS) -std=c11 -Wall -Wextra -Werror $(CFLAGS) test_frame_time.c -o $(TEST) $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) test_frame_time.c -o $(TEST) $(LDFLAGS)
 	./$(TEST)
-	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) -std=c11 -Wall -Wextra -Werror $(PW_CFLAGS) $(CFLAGS) test_hidercap.c $(SRCS) -o $(TEST_HC) \
+	$(CC) $(CPPFLAGS) $(HIDERCAP_CPPFLAGS) $(HIDERCAP_CFLAGS) $(CFLAGS) test_hidercap.c $(SRCS) -o $(TEST_HC) \
 	    $(LDFLAGS) $(PW_LIBS) $(LDLIBS)
 	./$(TEST_HC)
 
