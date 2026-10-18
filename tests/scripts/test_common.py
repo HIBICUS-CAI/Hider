@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import os
 import sys
+import typing
 import unittest
 from unittest import mock
 
@@ -43,7 +44,9 @@ class PathsTest(unittest.TestCase):
 class VariantsTest(unittest.TestCase):
     def test_st54_variants_are_aot_then_jit(self) -> None:
         # The first is the default build (native AOT); the JIT build is the option --jit of the scripts.
-        self.assertEqual(common.VARIANTS, ['aot', 'jit'])
+        self.assertEqual((common.AOT, common.JIT), ('aot', 'jit'))
+        self.assertEqual(common.VARIANTS, [common.AOT, common.JIT])
+        self.assertEqual(typing.get_args(common.Variant), ('aot', 'jit'))
 
     def test_st54_suffix(self) -> None:
         self.assertEqual(common.variant_suffix('aot'), '')

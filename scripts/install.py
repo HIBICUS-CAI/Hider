@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common import TARGETS, VARIANTS, host_target, publish_dir
+from common import AOT, JIT, TARGETS, host_target, publish_dir
 
 IS_WINDOWS = platform.system() == 'Windows'
 EXE_NAME = 'Hider.exe' if IS_WINDOWS else 'Hider'
@@ -112,7 +112,7 @@ def main() -> None:
     target = host_target()
     if target is None:
         sys.exit(f'This machine is not a supported target ({", ".join(TARGETS)}).')
-    src_dir = publish_dir(target, VARIANTS[1] if jit else VARIANTS[0])
+    src_dir = publish_dir(target, JIT if jit else AOT)
     if not (src_dir / EXE_NAME).is_file():
         build_args = f'{target} --jit' if jit else target
         sys.exit(f'No build found in {src_dir}, run "python scripts/build.py {build_args}" first.')

@@ -28,7 +28,7 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
-from common import ROOT_DIR, TARGETS, VARIANTS, publish_dir, variant_suffix
+from common import AOT, ROOT_DIR, TARGETS, VARIANTS, Variant, publish_dir, variant_suffix
 
 PROPS_FILE = ROOT_DIR / 'Directory.Build.props'
 TEMPLATE_DIR = ROOT_DIR / 'scripts' / 'release'
@@ -51,7 +51,7 @@ def tag_name(version: str) -> str:
     return f'v{version}'
 
 
-def archive_name(version: str, target: str, variant: str = VARIANTS[0]) -> str:
+def archive_name(version: str, target: str, variant: Variant = AOT) -> str:
     extension = 'zip' if target.startswith('win') else 'tar.gz'
     return f'Hider-{version}-{target}{variant_suffix(variant)}.{extension}'
 
@@ -117,7 +117,7 @@ def choose_version(ls_remote: str, head: str, part: str, read_props: Callable[[]
     return version
 
 
-def find_input(input_dir: Path | None, target: str, variant: str = VARIANTS[0]) -> Path:
+def find_input(input_dir: Path | None, target: str, variant: Variant = AOT) -> Path:
     src = input_dir / f'Hider-{target}{variant_suffix(variant)}' if input_dir else publish_dir(target, variant)
     exe = 'Hider.exe' if target.startswith('win') else 'Hider'
     if not (src / exe).is_file():
@@ -125,7 +125,7 @@ def find_input(input_dir: Path | None, target: str, variant: str = VARIANTS[0]) 
     return src
 
 
-def sha256_placeholder(target: str, variant: str) -> str:
+def sha256_placeholder(target: str, variant: Variant) -> str:
     """HIDER_SHA256_LINUX_X64 for the AOT build's archive, HIDER_SHA256_LINUX_X64_JIT for the JIT build's."""
     return f'HIDER_SHA256_{(target + variant_suffix(variant)).upper().replace("-", "_")}'
 
@@ -181,7 +181,9 @@ def package(version: str, repo: str, input_dir: Path | None, out_dir: Path) -> N
     }
     assets: list[Path] = []
     # Every input is looked for before anything is packed.
-    inputs = [(target, variant, find_input(input_dir, target, variant)) for target in TARGETS for variant in VARIANTS]
+    inputs: list[tuple[str, Variant, Path]] = [
+        (target, variant, find_input(input_dir, target, variant)) for target in TARGETS for variant in VARIANTS
+    ]
     for target, variant, src in inputs:
         out = out_dir / archive_name(version, target, variant)
         print(f'Packing {src} -> {out}', flush=True)

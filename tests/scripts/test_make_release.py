@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 import make_release
-from common import TARGETS, VARIANTS
+from common import TARGETS, VARIANTS, variant_suffix
 
 from .support import REPO_DIR, Output, arguments, captured, enter, run_as_main, temp_dir
 
@@ -755,9 +755,10 @@ class PackageTest(unittest.TestCase):
             output.out.splitlines(),
             [
                 *(
-                    f'Packing {self.inputs / f"Hider-{t}{s}"} -> {self.out / make_release.archive_name("1.2.3", t, v)}'
+                    f'Packing {self.inputs / f"Hider-{t}{variant_suffix(v)}"} -> '
+                    f'{self.out / make_release.archive_name("1.2.3", t, v)}'
                     for t in TARGETS
-                    for v, s in [('aot', ''), ('jit', '-jit')]
+                    for v in VARIANTS
                 ),
                 f'Release assets for v1.2.3 in {self.out}',
             ],
