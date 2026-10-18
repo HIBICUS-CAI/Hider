@@ -22,6 +22,7 @@ namespace Hider
             }
             if (_args.Contains("--selftest"))
             {
+                Console.WriteLine($"runtime: {AppInfo.Runtime}");
                 int core = SelfTest.Run(Console.Out);
                 int platform = PlatformSelfTest.Run(Console.Out);
                 bool passed = core == 0 && platform == 0;

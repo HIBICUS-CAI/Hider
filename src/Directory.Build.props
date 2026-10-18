@@ -2,10 +2,11 @@
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
-  <!-- Shipped code must stay trim-safe: the app is published trimmed (NFR-06). -->
+  <!-- Shipped code must stay trim-safe and AOT-safe: the app is published trimmed (NFR-06), by default as native AOT
+       (proposal P-14). IsAotCompatible turns on the trim, single-file and AOT analyzers (and IsTrimmable) for both
+       projects, whichever build is made. -->
   <PropertyGroup>
-    <IsTrimmable>true</IsTrimmable>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <!-- "dotnet publish -r" passes the RID to project references too, so every shipped project lists the publish
