@@ -15,10 +15,11 @@ escape `!` and `^` with a caret, since such a cmd delay-expands its own command 
 types them); the script then gets the paths intact. They check the script's `setlocal ... DisableDelayedExpansion`: with
 a bare `setlocal` the script would keep the caller's delayed expansion, and `set "HIDER_SCRIPT=%~f0"` (and `set
 "HIDER_DEST=%~1"`) would expand the `%~f0` first and then delay-expand the result, dropping a lone `!` (and the text
-between two), so PowerShell would read a file that does not exist. %LOCALAPPDATA% is not one of them: the script hands
-it to PowerShell only as an environment variable, which no cmd expansion touches. Double-clicking an install.bat in such
-a folder can not work where the registry turns delayed expansion on (Explorer's command line loses the `!` before the
-script runs; install.bat.in and README say so): not tested.
+between two), so PowerShell would read a file that does not exist (a control run with a bare `setlocal` does fail).
+%LOCALAPPDATA% is not one of them: the script hands it to PowerShell only as an environment variable, which no cmd
+expansion touches. Double-clicking an install.bat in such a folder can not work where the registry turns delayed
+expansion on (Explorer's command line loses the `!` before the script runs; install.bat.in and README say so): not
+tested.
 """
 
 from __future__ import annotations
@@ -57,6 +58,8 @@ BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
 ODD_DOWNLOADS = "Down loads & more % é! (1) it's ^"
 ODD_DEST = "a b & c % d ! ü ' (1) ^"
 ODD_LOCAL_APP_DATA = "Löcal & App % Data ! (1) ^ '"
+# install.bat.in's setlocal, which keeps delayed expansion off whatever the caller's setting.
+PROTECTED_SETLOCAL = 'setlocal EnableExtensions DisableDelayedExpansion'
 # The end of cmd's pause prompt ("Press any key to continue . . . " on an English Windows; the same dots elsewhere).
 PAUSE_END = '. . . '
 
@@ -169,9 +172,9 @@ class InstallBatTest(unittest.TestCase):
         # quoting is not the C runtime's that subprocess would apply.
         command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
         if delayed_expansion:
-            # cmd /v:on delay-expands its own command line too. On a line with a `!` (every such case here has one)
-            # that phase also takes the carets: `^!` is a `!` and `^^` a `^` (inside quotes the carets reach it), as a
-            # user of such a cmd types them.
+            # cmd /v:on delay-expands its own command line too. In a token that contains a `!` (every such value here
+            # has one) that phase also takes the carets: `^!` is a `!` and `^^` a `^` (inside quotes the carets reach
+            # it), as a user of such a cmd types them.
             command = command.replace('^', '^^').replace('!', '^!')
         switches = '/v:on /s /c' if delayed_expansion else '/s /c'
         result = subprocess.run(
@@ -389,6 +392,26 @@ class InstallBatTest(unittest.TestCase):
             ],
         )
         self.assertTrue((downloads / ARCHIVE).is_file())
+
+    def test_st21_bare_setlocal_with_delayed_expansion_fails(self) -> None:
+        # The control of the variant above: the same run with the script's setlocal back to a bare one (the caller's
+        # delayed expansion stays on). %~f0 loses its `!`, PowerShell can not read the script: exit 1, nothing
+        # installed. Shows that the variant checks DisableDelayedExpansion.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
+        data = bat.read_bytes()  # bytes: the CRLF line endings stay
+        self.assertEqual(data.count(PROTECTED_SETLOCAL.encode()), 1)
+        bat.write_bytes(data.replace(PROTECTED_SETLOCAL.encode(), b'setlocal'))
+        dest = self.root / ODD_DEST / 'Hider'
+        result = self.run_bat(str(dest), bat=bat, delayed_expansion=True)
+        self.assertEqual(result.code, 1, f'stdout:\n{result.out}\nstderr:\n{result.err}')
+        self.assertFalse((self.root / ODD_DEST).exists())
+        installed = [p for p in self.root.rglob('Hider.exe') if self.root / 'zip-src' not in p.parents]
+        self.assertEqual(installed, [], 'nothing installed anywhere')
+        self.assertFalse(self.link.exists(), 'no shortcut after a failure')
+        self.assert_cleaned_up()
 
     def test_st21_odd_characters_in_the_default_folder(self) -> None:
         self.check_odd_characters_in_the_default_folder(delayed_expansion=False)
