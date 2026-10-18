@@ -118,7 +118,14 @@ class ScriptFilesTest(unittest.TestCase):
     """The scripts run directly as well as with python (CLAUDE.md): shebang and executable bit."""
 
     def test_st11_entry_points_are_executable(self) -> None:
-        for name in ['build.py', 'install.py', 'make_icons.py', 'check_wayland_list.py', 'make_release.py']:
+        for name in [
+            'build.py',
+            'install.py',
+            'make_icons.py',
+            'check_wayland_list.py',
+            'make_release.py',
+            'update_lock_files.py',
+        ]:
             with self.subTest(name=name):
                 path = SCRIPTS_DIR / name
                 self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env python3\n'))

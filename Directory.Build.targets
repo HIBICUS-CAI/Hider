@@ -3,8 +3,8 @@
   <!-- The SDK adds Microsoft.NET.ILLink.Tasks (trimming) and, for the AOT build, Microsoft.DotNet.ILCompiler (native
        AOT) at the runtime version it bundles, and packages.lock.json records that version: a newer SDK would change the
        lock files and fail the locked restore of CI. The version is fixed here instead, so any 10.0.x SDK restores the
-       same packages; raise it together with both lock files of src/Hider (README "ビルド"). It is also the .NET runtime
-       version inside both published builds (below). -->
+       same packages; raise it together with both lock files of src/Hider (scripts/update_lock_files.py). It is also
+       the .NET runtime version inside both published builds (below). -->
   <PropertyGroup>
     <HiderPublishPackVersion>10.0.12</HiderPublishPackVersion>
   </PropertyGroup>

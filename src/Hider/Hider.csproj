@@ -25,7 +25,8 @@
   <PropertyGroup Condition="'$(HiderJit)' != 'true'">
     <PublishAot>true</PublishAot>
   </PropertyGroup>
-  <!-- PublishAot adds Microsoft.DotNet.ILCompiler at restore time, so each build has its own lock file. -->
+  <!-- PublishAot adds Microsoft.DotNet.ILCompiler at restore time, so each build has its own lock file (both written by
+       scripts/update_lock_files.py, both checked by CI's format job). -->
   <PropertyGroup Condition="'$(HiderJit)' == 'true'">
     <PublishSingleFile>true</PublishSingleFile>
     <NuGetLockFilePath>packages.jit.lock.json</NuGetLockFilePath>

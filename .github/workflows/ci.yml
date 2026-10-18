@@ -134,6 +134,9 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
+      # The JIT build's lock file (src/Hider/packages.jit.lock.json), early: otherwise only publish (jit) restores it, after
+      # every test. A mismatch: python scripts/update_lock_files.py.
+      - run: dotnet restore src/Hider/Hider.csproj --locked-mode -p:HiderJit=true
       - run: dotnet format Hider.slnx --verify-no-changes --no-restore
       # tools/fakeportal is not in the solution (a development tool for scripts/xvfb-strip-smoke.sh).
       - run: dotnet format tools/fakeportal/FakePortal.csproj --verify-no-changes

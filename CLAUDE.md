@@ -26,7 +26,7 @@ src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mo
 src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
 native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
 tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx。Linux では私的な dbus-daemon・PipeWire と本物の libhidercap.so のテストも）/ scripts（scripts/ の unittest）。偽実装は Hider.Core.Tests/Fakes
-scripts/           build.py / install.py / make_icons.py / check_wayland_list.py / make_release.py（標準ライブラリのみ、Python 3.10 以上）、release/（install.bat / install.sh / リリースノートの雛形）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
+scripts/           build.py / install.py / make_icons.py / check_wayland_list.py / make_release.py / update_lock_files.py（標準ライブラリのみ、Python 3.10 以上）、release/（install.bat / install.sh / リリースノートの雛形）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
 tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
 ```
 
@@ -44,6 +44,7 @@ python scripts/build.py <rid> --jit           # 通常版 → bin/publish/<rid>-
 bin/publish/<rid>/Hider --selftest            # 終了コード 0。1 行目が runtime: aot / jit（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
+python scripts/update_lock_files.py           # パッケージ・HiderPublishPackVersion の変更後に両方の版のロックファイルを作り直す
 python scripts/make_release.py version | bump <minor|patch|major> <版> | package <版> --repo <owner/repo> --out-dir <dir>   # リリース用（release.yml が呼ぶ。CI はダミーで通し確認）
 ```
 
@@ -53,7 +54,7 @@ CI は `.github/workflows/ci.yml`（main への pull_request、workflow_dispatch
 
 - Step は順に進め、完了条件 + テスト緑 + 報告で閉じる。確認順: 実装 → テスト → `dotnet build -warnaserror` と `dotnet test` → `python scripts/build.py <rid>` → `--selftest`。
 - コミットは 1 コミット 1 つの内容。1 行目 `step<N>: <要約>`、本文に対応 FR と確認した RID（日本語）。
-- 生成物（bin/、obj/、publish 出力）はコミットしない。src/Hider のロックファイルは 2 つ（AOT 版の packages.lock.json、通常版の packages.jit.lock.json）。パッケージや Directory.Build.targets の `HiderPublishPackVersion` を変えたら両方を作り直す（README の「ビルド」）。ゴールデン画像を更新したら、理由と差分の要約をコミット本文に書く（`HIDER_UPDATE_GOLDEN=1` で再生成。差分画像はコミットしない）。
+- 生成物（bin/、obj/、publish 出力）はコミットしない。src/Hider のロックファイルは 2 つ（AOT 版の packages.lock.json、通常版の packages.jit.lock.json）。パッケージや Directory.Build.targets の `HiderPublishPackVersion` を変えたら `python scripts/update_lock_files.py` で両方を作り直す（README の「ビルド」）。ゴールデン画像を更新したら、理由と差分の要約をコミット本文に書く（`HIDER_UPDATE_GOLDEN=1` で再生成。差分画像はコミットしない）。
 
 ### 禁止
 
