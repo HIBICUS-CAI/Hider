@@ -734,21 +734,29 @@ namespace Hider.Core.Tests
             using var child = new System.Diagnostics.Process { StartInfo = start };
             child.OutputDataReceived += (_, _e) => { lock (output) { output.AppendLine(_e.Data); } };
             child.ErrorDataReceived += (_, _e) => { lock (output) { output.AppendLine(_e.Data); } };
+            string Text()
+            {
+                lock (output)
+                {
+                    return output.ToString();
+                }
+            }
             child.Start();
             child.BeginOutputReadLine();
             child.BeginErrorReadLine();
             try
             {
-                // Unblocked, the run takes well under a second; held, it waits up to V1SettingFile.MutexWait.
-                Assert.False(child.WaitForExit(5000), "the other process did not wait for the place");
-                first.Dispose();
-                Assert.True(child.WaitForExit(60_000), "the other process did not end after the place was let go");
-                child.WaitForExit(); // the end of the output too
-                string text;
-                lock (output)
+                // Unblocked, the run takes well under a second; held, it waits up to V1SettingFile.MutexWait. A child that
+                // ends on its own (it could not start, or failed) says why in its output, not the mutex.
+                if (child.WaitForExit(5000))
                 {
-                    text = output.ToString();
+                    child.WaitForExit(); // the end of the output too
+                    Assert.Fail($"the other process ended (exit code {child.ExitCode}) without waiting for the place\n{Text()}");
                 }
+                first.Dispose();
+                Assert.True(child.WaitForExit(60_000), $"the other process did not end after the place was let go\n{Text()}");
+                child.WaitForExit(); // the end of the output too
+                string text = Text();
                 Assert.True(child.ExitCode == 0, $"exit code {child.ExitCode}\n{text}");
                 Assert.Contains("Total: 2, Errors: 0, Failed: 0, Skipped: 0", text, StringComparison.Ordinal); // both cases
             }
