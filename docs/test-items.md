@@ -10,7 +10,7 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。R-1 の改名の時点（ac743e7）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST52（52）、NT01〜NT09（9）。R-1 の改名の時点（ac743e7）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
 
 ## 新しい ID（CT / GT）
 
@@ -67,7 +67,7 @@
 | CT147 | CT | タイマーのスレッドと呼び出し側のスレッドが同時に tick と要求を出しても、実行が重ならない | D-10 | Hider.Core.Tests/Scheduling/RefreshSchedulerCasesTests.cs（RefreshSchedulerCasesTests、1 件） |
 | CT148 | CT | 投げっぱなしのタスク（Forget）: 失敗はちょうど 1 行でログへ、キャンセルは失敗としない、後で成功・未完了なら何も書かない、内側の原因ではなく最初の本当の例外を、複数の例外は集約として | — | Hider.Core.Tests/TaskExtensionsTests.cs（TaskExtensionsTests、6 件） |
 | CT149 | CT | 旧 setting.txt を読まない: setting.txt だけのフォルダは空で始まり、setting.txt は読まれず・動かされず・消されない（バイトと更新時刻が不変）。areas.json と並んでいても、v1 の場所（LocalApplicationData/hider_setting/setting.txt、FileShare.None で開いたままの回と開かない回の 2 回）にあっても無視される。v1 の場所を使うテストは 1 つずつ（プロセス間の Mutex。同じテストアセンブリを子プロセスで起動して確認）、消すのはテストが書いたバイトと時刻のファイルだけ。どのケースも開いたままの回と開かない回の 2 回 | FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、2 件。V1SettingPlaceTests、4 件） |
-| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt / hider_setting、HiderJsonContext を通らない JSON、許可リスト外の NuGet（Avalonia は 12.1.x、SkiaSharp・Tmds.DBus.Protocol は Avalonia の依存と同じ版、テスト専用は tests/ だけ）。各パターンを当たる行・当たらない行で検査、走査の対象（src の .cs / .csproj / .axaml / .props / .targets / packages.lock.json と直下のビルドファイル）、C# と XML のコメント除去（文字列・補間の書式部・CDATA は残し、プリプロセッサ指令の行は除く）も確認。照合はファイル全体（行をまたぐ書き方、変数経由、using static も捕まえる）、パッケージの版は属性と子要素の両方を読み、中央のファイルで免除するのは PackageVersion だけ | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、12 件） |
+| CT150 | CT | 製品のソースが禁止事項を使わない: キャプチャ除外 API（SetWindowDisplayAffinity / WDA_*）、Avalonia.Wayland / UseWayland、BeginMoveDrag / BeginResizeDrag、DllImport、実行時のアセンブリ読込、setting.txt / hider_setting、HiderJsonContext を通らない JSON、許可リスト外の NuGet（Avalonia は 12.1.x、SkiaSharp・Tmds.DBus.Protocol は Avalonia の依存と同じ版、テスト専用は tests/ だけ）。各パターンを当たる行・当たらない行で検査、走査の対象（src の .cs / .csproj / .axaml / .props / .targets / packages.lock.json と直下のビルドファイル）、C# と XML のコメント除去（文字列・補間の書式部・CDATA は残し、プリプロセッサ指令の行は除く）も確認。照合はファイル全体（行をまたぐ書き方、変数経由、using static も捕まえる）、MSBuild の Using 項目も対象、パッケージの版は属性と子要素の両方を読み、中央のファイルで免除するのは PackageVersion だけ | NFR-01、NFR-06、D-1、D-12、FR-65 | Hider.Core.Tests/RepositoryRulesTests.cs（RepositoryRulesTests、12 件） |
 | GT41 | GT | 版の表示: 版は InformationalVersion からリビジョンを除いたもの・アセンブリの版と一致・一度だけ読む。--version の出力とトレイメニューの版の行（区切り線はその前だけ） | P-10 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件）<br>Hider.App.Tests/Tray/TrayMenuModelTests.cs（TrayMenuModelTests、2 件）<br>Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、1 件） |
 | GT42 | GT | アイコン: トレイ用は 32 px で共有、窓のアイコンは多サイズの .ico と 48 px の PNG で毎回新しく、資産は埋め込み | FR-71 | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、4 件） |
 | GT43 | GT | アプリの資源: Fluent と ColorPicker のテーマを Light で読み込む、等幅フォントは Windows 用を先頭にした代替つき | UI デザインキャンバス | Hider.App.Tests/App/AppResourcesTests.cs（AppResourcesTests、3 件） |
@@ -340,7 +340,7 @@
 | ST18 | ST | install.py のインストール先: Linux は XDG_DATA_HOME（なし・空なら ~/.local/share）、--dest（相対は絶対に）、Windows は LOCALAPPDATA（なければ終了）か --dest、空の --dest は既定 | FR-72 | scripts/test_install.py（MainTest、9 件） |
 | ST19 | ST | install.py のコマンドライン: 未知の引数、ヘルプ、スクリプトとして直接実行 | FR-72 | scripts/test_install.py（MainTest、2 件）<br>scripts/test_install.py（ScriptTest、1 件） |
 | ST20 | ST | install.bat の検査で止まる: 改ざんされたアーカイブ、実行ファイルのないアーカイブ、Hider の実行中、フォルダの指定も LOCALAPPDATA もない、コピーの失敗。ダブルクリック時の失敗は一時停止して終了コードを保つ、フォルダ指定時は止めない | P-9 | scripts/test_install_bat.py（InstallBatTest、7 件） |
-| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き、空白・記号（& % ! ' ( ) ^）・非 ASCII を含むパス（インストーラの置き場所・インストール先・LOCALAPPDATA）、遅延展開が有効な cmd（/v:on）からの起動 | P-9 | scripts/test_install_bat.py（InstallBatTest、9 件） |
+| ST21 | ST | install.bat のインストール先: 指定のフォルダ、既定は LOCALAPPDATA（空の引数も既定）、相対は絶対に、既存のインストールを上書き、空白・記号（& % ! ' ( ) ^）・非 ASCII を含むパス（インストーラの置き場所・インストール先・LOCALAPPDATA）、遅延展開が有効な cmd（/v:on）からの起動、対照として素の setlocal の install.bat は /v:on で失敗し何も入れない | P-9 | scripts/test_install_bat.py（InstallBatTest、10 件） |
 | ST22 | ST | install.bat の取得と起動: 隣にアーカイブがなければダウンロード（見つからなければ失敗）、指定がなければ Hider を起動・HIDER_NO_LAUNCH なら起動しない | P-9 | scripts/test_install_bat.py（InstallBatTest、4 件） |
 | ST23 | ST | install.sh の引数: ヘルプ、未知の引数、-d はフォルダが必要、-d（相対は絶対に、空は既定）、--dest=x は未知の引数、-d の後のヘルプ、最後の -d が勝つ | P-9 | scripts/test_install_sh.py（OptionsTest、9 件） |
 | ST24 | ST | install.sh の既定の場所: XDG_DATA_HOME、なければ HOME の下、HOME がなくても XDG_DATA_HOME、どちらもなければ理由を示して終了 | P-9 | scripts/test_install_sh.py（DefaultFolderTest、4 件） |
@@ -371,6 +371,7 @@
 | ST49 | ST | 配布物一式（package）: 資産の一覧、チェックサム、インストーラがアーカイブのチェックサムを持つ、行末とモード、アーカイブは版付きのフォルダに入力を収める、リリースノート、既定の入力は bin/publish、入力がなければインストーラの前に止まる、同じフォルダへ再実行できる | P-9 | scripts/test_make_release.py（PackageTest、9 件） |
 | ST50 | ST | make_release.py のコマンド（version / bump / next-version）: version は引数を取らない、bump は 2 つの引数・他の部分や不正な版は拒否、next-version は標準入力を読む（タグなし・リリース済み・引数の検査）、コマンドは必須、ヘルプの体裁、直接実行 | P-9 | scripts/test_make_release.py（MainTest、13 件） |
 | ST51 | ST | make_release.py package のコマンド: 入力フォルダは省略可、--repo と --out-dir は必須、不正な版・リポジトリ名は拒否、通しの実行 | P-9 | scripts/test_make_release.py（MainTest、6 件） |
+| ST52 | ST | install.sh のテストの集め方: test_install_sh の load_tests が集めるテストが、モジュールの定義から独立に組み立てた集合（ほかの TestCase はそのまま、InstallerTest の派生はシェルごと）と一致し、重複しない | P-9 | scripts/test_install_sh_collection.py（CollectionTest、1 件） |
 
 ## NT（native/hidercap の単体テスト、新設）
 
