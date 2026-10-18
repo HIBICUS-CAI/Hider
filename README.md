@@ -66,7 +66,7 @@ bin/publish/linux-x64/Hider --selftest     # 1 行目に実行形態（AOT 版�
 
 Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに次のプロンプトを出します（出力は起動元のコンソールに出ます）。終了コードまで見るときは `start /wait bin\publish\win-x64\Hider.exe --selftest` の後に `echo %ERRORLEVEL%`、PowerShell では `(Start-Process bin\publish\win-x64\Hider.exe --selftest -Wait -PassThru -NoNewWindow).ExitCode` を使います。
 
-出力は AOT 版が `bin/publish/<rid>/`、通常版が `bin/publish/<rid>-jit/` です。AOT 版のネイティブ記号（Linux は Hider.dbg、Windows は Hider.pdb。クラッシュダンプやスタックの解析用で、配布フォルダには入れません）は `bin/publish/<rid>-symbols/` に出します（通常版は PDB を実行ファイルに埋め込んでいます）。ネイティブ AOT はクロスコンパイルできないので、AOT 版はその OS・アーキテクチャのマシンでだけビルドできます（ほかの対象を指定すると、何もビルドせずに理由を表示して終了します）。通常版はどのマシンでもすべての対象をビルドできます。別アーキテクチャの Linux 向けに通常版をクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
+出力は AOT 版が `bin/publish/<rid>/`、通常版が `bin/publish/<rid>-jit/` です。AOT 版のネイティブ記号（Linux は Hider.dbg、Windows は Hider.pdb。クラッシュダンプやスタックの解析用で、配布フォルダには入れません）は `bin/publish/<rid>-symbols/` に出します（通常版は PDB を実行ファイルに埋め込んでいます）。build.py は AOT 版をそのマシンの RID でだけビルドします（ネイティブ AOT は OS を跨いでビルドできません。ほかの対象を指定すると、何もビルドせずに理由を表示して終了します）。通常版はどのマシンでもすべての対象をビルドできます。別アーキテクチャの Linux 向けに通常版をクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
 
 アイコンを作り直す場合は `python scripts/make_icons.py`（生成物はリポジトリに含まれています）。
 
