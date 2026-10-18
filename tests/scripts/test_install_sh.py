@@ -930,7 +930,42 @@ class ParametrisationTest(unittest.TestCase):
         self.assertLess(cases.index(Child), cases.index(Grandchild))
         self.assertEqual(installer_cases(Child), [Grandchild])
         self.assertEqual(installer_cases(Grandchild), [])
-        self.assertEqual(set(INSTALLER_CASES) - set(cases), set())
+        # Classes that are not the module's own (these two, the per-shell ones) are not parametrised again.
+        self.assertNotIn(Child, module_installer_cases())
+
+    def test_st31_a_class_added_to_the_module_later_runs_under_every_shell(self) -> None:
+        # The cases are collected when load_tests runs, not when the module is imported: a class the module gets
+        # after that (here put into its namespace by hand) is parametrised too, and so is its subclass.
+        class Later(InstallerTest):
+            def test_nothing(self) -> None:  # only collected, never run
+                pass
+
+        class LaterChild(Later):
+            pass
+
+        namespace = vars(sys.modules[__name__])
+        namespace['Later'] = Later
+        namespace['LaterChild'] = LaterChild
+        try:
+            suite = load_tests(unittest.TestLoader(), unittest.TestSuite(), None)
+            names = {type(test).__name__ for test in flatten(suite)}
+        finally:
+            del namespace['Later']
+            del namespace['LaterChild']
+        for case in ['Later', 'LaterChild']:
+            self.assertEqual({n for n in names if n.startswith(f'{case}_')}, {f'{case}_{s.name}' for s in SHELLS})
+
+    def test_st31_every_installer_class_of_the_module_runs_under_every_shell(self) -> None:
+        # Both ways: each class of the module derived from InstallerTest is parametrised, and only those.
+        own = {
+            value
+            for value in vars(sys.modules[__name__]).values()
+            if isinstance(value, type) and issubclass(value, InstallerTest) and value is not InstallerTest
+        }
+        self.assertEqual(set(module_installer_cases()), own)
+        suite = load_tests(unittest.TestLoader(), unittest.TestSuite(), None)
+        names = {type(test).__name__ for test in flatten(suite)}
+        self.assertEqual(names, {f'{case.__name__}_{s.name}' for case in own for s in SHELLS})
 
 
 def installer_cases(base: type[InstallerTest]) -> list[type[InstallerTest]]:
@@ -941,8 +976,11 @@ def installer_cases(base: type[InstallerTest]) -> list[type[InstallerTest]]:
     return cases
 
 
-# Every class with installer runs, collected before load_tests adds the per-shell subclasses.
-INSTALLER_CASES = installer_cases(InstallerTest)
+def module_installer_cases() -> list[type[InstallerTest]]:
+    """The module's own classes with installer runs, at any depth: not the per-shell subclasses load_tests makes, nor
+    classes defined inside a test. Collected when load_tests runs, so a class defined later in the module counts too."""
+    module = vars(sys.modules[__name__])
+    return [case for case in installer_cases(InstallerTest) if module.get(case.__name__) is case]
 
 
 def per_shell(case: type[InstallerTest], shell: Shell) -> type[InstallerTest]:
@@ -952,9 +990,10 @@ def per_shell(case: type[InstallerTest], shell: Shell) -> type[InstallerTest]:
 def load_tests(loader: unittest.TestLoader, standard: unittest.TestSuite, pattern: str | None) -> unittest.TestSuite:
     """unittest's load_tests protocol (discover, or the module by name): every installer test once per shell, named
     <Class>_<shell>, and every other test of the module as unittest found it (a TestCase added later runs too)."""
-    parametrised = {InstallerTest, *INSTALLER_CASES}
+    cases = module_installer_cases()
+    parametrised = {InstallerTest, *cases}
     suite = unittest.TestSuite(test for test in flatten(standard) if type(test) not in parametrised)
-    for case in INSTALLER_CASES:
+    for case in cases:
         for shell in SHELLS:
             suite.addTests(loader.loadTestsFromTestCase(per_shell(case, shell)))
     return suite
