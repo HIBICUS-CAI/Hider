@@ -100,26 +100,26 @@ jobs:
           retention-days: 14
 
   # Each target runs its installer with the archive next to it (no download: the release does not exist yet), then the
-  # installed binary: once per build (option --jit for the JIT build), whose --selftest names its runtime first.
+  # installed binary: once per build (option --jit for the JIT build), whose --selftest names it first (runtime: aot or
+  # runtime: jit).
   verify:
     needs: [prepare, package]
-    name: verify (${{ matrix.rid }}${{ matrix.option && ', jit' || ', aot' }})
+    name: verify (${{ matrix.rid }}, ${{ matrix.variant }})
     strategy:
       fail-fast: false
       matrix:
+        rid: [win-x64, linux-x64, linux-arm64]
+        variant: [aot, jit]
         include:
-          - { rid: win-x64, os: windows-latest, option: "", runtime: native AOT }
-          - { rid: win-x64, os: windows-latest, option: --jit, runtime: JIT }
-          - { rid: linux-x64, os: ubuntu-24.04, option: "", runtime: native AOT }
-          - { rid: linux-x64, os: ubuntu-24.04, option: --jit, runtime: JIT }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: "", runtime: native AOT }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: --jit, runtime: JIT }
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
-      OPTION: ${{ matrix.option }}
-      RUNTIME: ${{ matrix.runtime }}
+      VARIANT: ${{ matrix.variant }}
+      OPTION: ${{ matrix.variant == 'jit' && '--jit' || '' }}
       # The installers start Hider after installing; not on the runner.
       HIDER_NO_LAUNCH: 1
     steps:
@@ -133,7 +133,8 @@ jobs:
       - if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if ($env:OPTION) { cmd.exe /c release\install.bat installed $env:OPTION } else { cmd.exe /c release\install.bat installed }
+          $installArgs = @('installed') + @($env:OPTION | Where-Object { $_ })
+          cmd.exe /c release\install.bat @installArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
       - if: runner.os == 'Linux'
@@ -152,7 +153,7 @@ jobs:
           [ "$v" = "Hider $VERSION" ]
           out="$("$exe" --selftest | tr -d '\r')"
           echo "$out"
-          [ "$(echo "$out" | head -n 1)" = "runtime: $RUNTIME" ]
+          [ "$(echo "$out" | head -n 1)" = "runtime: $VARIANT" ]
 
   # The tag v<version> on the released commit and the GitHub Release. A re-run after a failure here adds the assets to
   # the release made already.
@@ -184,24 +185,23 @@ jobs:
   # The installers downloaded from the published release, downloading the archive as a user's would, for each build.
   smoke:
     needs: [prepare, release]
-    name: smoke (${{ matrix.rid }}${{ matrix.option && ', jit' || ', aot' }})
+    name: smoke (${{ matrix.rid }}, ${{ matrix.variant }})
     strategy:
       fail-fast: false
       matrix:
+        rid: [win-x64, linux-x64, linux-arm64]
+        variant: [aot, jit]
         include:
-          - { rid: win-x64, os: windows-latest, option: "", runtime: native AOT }
-          - { rid: win-x64, os: windows-latest, option: --jit, runtime: JIT }
-          - { rid: linux-x64, os: ubuntu-24.04, option: "", runtime: native AOT }
-          - { rid: linux-x64, os: ubuntu-24.04, option: --jit, runtime: JIT }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: "", runtime: native AOT }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: --jit, runtime: JIT }
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}
-      OPTION: ${{ matrix.option }}
-      RUNTIME: ${{ matrix.runtime }}
+      VARIANT: ${{ matrix.variant }}
+      OPTION: ${{ matrix.variant == 'jit' && '--jit' || '' }}
       HIDER_NO_LAUNCH: 1
     steps:
       # Ubuntu desktops have PipeWire; a bare runner does not, and --selftest requires the shipped libhidercap.so to load.
@@ -212,7 +212,8 @@ jobs:
         run: |
           # Assets of a release made a moment ago can take a few seconds to be served.
           Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat -MaximumRetryCount 5 -RetryIntervalSec 10
-          if ($env:OPTION) { cmd.exe /c install.bat installed $env:OPTION } else { cmd.exe /c install.bat installed }
+          $installArgs = @('installed') + @($env:OPTION | Where-Object { $_ })
+          cmd.exe /c install.bat @installArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - if: runner.os == 'Linux'
         run: |
@@ -230,4 +231,4 @@ jobs:
           [ "$v" = "Hider $VERSION" ]
           out="$("$exe" --selftest | tr -d '\r')"
           echo "$out"
-          [ "$(echo "$out" | head -n 1)" = "runtime: $RUNTIME" ]
+          [ "$(echo "$out" | head -n 1)" = "runtime: $VARIANT" ]

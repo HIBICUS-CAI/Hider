@@ -161,7 +161,7 @@
 | GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す） | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変（FileShare.None で開いたままの回と開かない回の 2 回） | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
-| GT134 | GT | --selftest の 1 行目は実行形態（`runtime: native AOT` / `runtime: JIT`）で、検査の前に 1 回だけ出す。テストのプロセス（JIT）では JIT。CI の publish は各公開物でこの行を照合する | 提案 P-14 | Hider.App.Tests/AppInfoTests.cs（AppInfoTests、1 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件） |
+| GT134 | GT | --selftest の 1 行目は実行形態（`runtime: aot` / `runtime: jit`。版の名前と同じ語）で、検査の前に 1 回だけ出す。テストのプロセス（JIT）では jit。CI の publish とリリースの verify / smoke は各公開物でこの行を版の名前と照合する | 提案 P-14 | Hider.App.Tests/AppInfoTests.cs（AppInfoTests、1 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件） |
 
 ## 既存 ID の細分化
 

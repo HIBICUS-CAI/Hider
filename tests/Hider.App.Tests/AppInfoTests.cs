@@ -12,8 +12,8 @@ namespace Hider.App.Tests
         [Fact]
         public void GT134_AppInfo_Runtime_IsJitInTheTestProcess()
         {
-            // The tests run on the JIT; only the published AOT build reports "native AOT" (CI checks it on --selftest).
-            Assert.Equal("JIT", AppInfo.Runtime);
+            // The tests run on the JIT; only the published AOT build reports "aot" (CI checks it on --selftest).
+            Assert.Equal("jit", AppInfo.Runtime);
         }
     }
 }

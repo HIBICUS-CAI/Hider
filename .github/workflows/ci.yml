@@ -73,8 +73,9 @@ jobs:
           if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
           lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')
           # publish: each target once per build (proposal P-14), the AOT build first. suffix names its folder, artifact
-          # and archive (bin/publish/<rid><suffix>, Hider-<rid><suffix>), runtime is the first line of its --selftest.
-          b='[{"variant":"aot","suffix":"","runtime":"native AOT"},{"variant":"jit","suffix":"-jit","runtime":"JIT"}]'
+          # and archive (bin/publish/<rid><suffix>, Hider-<rid><suffix>); the first line of its --selftest is
+          # "runtime: <variant>".
+          b='[{"variant":"aot","suffix":""},{"variant":"jit","suffix":"-jit"}]'
           if [ "$BUILDS" != all ]; then b=$(echo "$b" | jq -c --arg v "$BUILDS" '[.[] | select(.variant == $v)]'); fi
           pm=$(echo "$m" | jq -c --argjson b "$b" '[.[] as $t | $b[] | $t + .]')
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
@@ -340,12 +341,12 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: python scripts/build.py ${{ matrix.rid }} ${JIT_ARG:+"$JIT_ARG"} ${VERSION:+--version "$VERSION"}
-      # The first line of --selftest says how the binary runs: the AOT build must be native AOT, the JIT build JIT.
+      # The first line of --selftest says how the binary runs (runtime: aot / runtime: jit): it must be this build.
       - name: Self test on the published binary
         shell: bash
         env:
           VERSION: ${{ inputs.version }}
-          RUNTIME: ${{ matrix.runtime }}
+          VARIANT: ${{ matrix.variant }}
         run: |
           exe="$OUT/Hider"
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
@@ -354,7 +355,7 @@ jobs:
           if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           out="$("$exe" --selftest | tr -d '\r')"
           echo "$out"
-          if [ "$(echo "$out" | head -n 1)" != "runtime: $RUNTIME" ]; then echo "::error::expected runtime: $RUNTIME"; exit 1; fi
+          if [ "$(echo "$out" | head -n 1)" != "runtime: $VARIANT" ]; then echo "::error::expected runtime: $VARIANT"; exit 1; fi
       # Windows: the self test started from cmd in a console of its own, the way README says (start /wait). On
       # windows-latest `> out.txt` stays empty: cmd's start seems to hand a GUI program none of its redirections, and
       # Hider then takes neither stream as redirected and tries to attach to that console (Win32Console: AttachConsole,

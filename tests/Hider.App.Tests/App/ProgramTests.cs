@@ -87,7 +87,7 @@ namespace Hider.App.Tests.App
         [Fact]
         public async Task GT134_Selftest_PrintsTheRuntimeFirst()
         {
-            // Before the checks: CI reads it on each published build (native AOT / JIT); the tests run Hider.dll on the JIT.
+            // Before the checks: CI reads it on each published build (aot / jit); the tests run Hider.dll on the JIT.
             using var home = new Home();
             string? app = OperatingSystem.IsLinux() ? HiderProcess.LinkedAppDirectory(home.Path) : null;
 
@@ -95,7 +95,7 @@ namespace Hider.App.Tests.App
 
             Assert.Equal(0, result.ExitCode);
             var lines = Lines(result.Output);
-            Assert.Equal("runtime: JIT", lines[0]);
+            Assert.Equal("runtime: jit", lines[0]);
             Assert.Equal(1, lines.Count(_l => _l.StartsWith("runtime: ", StringComparison.Ordinal)));
             Assert.Equal("selftest passed", lines[^1]);
         }

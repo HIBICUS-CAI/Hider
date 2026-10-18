@@ -61,7 +61,7 @@
 python scripts/build.py                    # このマシン向けの AOT 版 → bin/publish/<rid>/
 python scripts/build.py --jit              # このマシン向けの通常版 → bin/publish/<rid>-jit/
 python scripts/build.py linux-x64 --jit    # 対象を指定（win-x64 / linux-x64 / linux-arm64 / all）
-bin/publish/linux-x64/Hider --selftest     # 1 行目に実行形態（runtime: native AOT / runtime: JIT）
+bin/publish/linux-x64/Hider --selftest     # 1 行目に実行形態（AOT 版は runtime: aot、通常版は runtime: jit）
 ```
 
 Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに次のプロンプトを出します（出力は起動元のコンソールに出ます）。終了コードまで見るときは `start /wait bin\publish\win-x64\Hider.exe --selftest` の後に `echo %ERRORLEVEL%`、PowerShell では `(Start-Process bin\publish\win-x64\Hider.exe --selftest -Wait -PassThru -NoNewWindow).ExitCode` を使います。

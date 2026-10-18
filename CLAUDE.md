@@ -41,7 +41,7 @@ make -C native/hidercap test                  # libhidercap の単体テスト�
 python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト（標準ライブラリのみ。install.sh は sh / dash / bash と偽コマンドで実行）
 python scripts/build.py <rid>                 # AOT 版 → bin/publish/<rid>/（そのマシンの RID だけ。Ubuntu では python3。scripts/ は直接実行もできる）
 python scripts/build.py <rid> --jit           # 通常版 → bin/publish/<rid>-jit/（どのマシンでも全 RID）
-bin/publish/<rid>/Hider --selftest            # 終了コード 0。1 行目が runtime: native AOT / JIT（Windows の cmd では start /wait、README 参照）
+bin/publish/<rid>/Hider --selftest            # 終了コード 0。1 行目が runtime: aot / jit（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
 python scripts/make_release.py version | bump <minor|patch|major> <版> | package <版> --repo <owner/repo> --out-dir <dir>   # リリース用（release.yml が呼ぶ。CI はダミーで通し確認）
