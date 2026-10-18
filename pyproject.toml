@@ -1,13 +1,13 @@
-# Tool settings for scripts/ (standard library only; nothing to install to run them).
+# Tool settings for scripts/ and their tests in tests/scripts/ (standard library only; nothing to install to run them).
 
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["scripts"]
+files = ["scripts", "tests/scripts"]
 mypy_path = "scripts"
 
 [tool.pyright]
-include = ["scripts"]
+include = ["scripts", "tests/scripts"]
 extraPaths = ["scripts"]
 pythonVersion = "3.10"
 typeCheckingMode = "strict"

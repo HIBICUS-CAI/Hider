@@ -70,7 +70,7 @@ namespace Hider.Core.Mosaic.Methods
             }
             int w = _dst.Width, h = _dst.Height;
             float maxX = _inputs.AreaSize.Width - 0.5f, maxY = _inputs.AreaSize.Height - 0.5f;
-            var pixels = _dst.GetPixelSpan();
+            var pixels = PixmapRows.All(_dst);
             for (int y = 0; y < h; y++)
             {
                 var row = MemoryMarshal.Cast<byte, uint>(pixels.Slice(y * _dst.RowBytes, w * 4));

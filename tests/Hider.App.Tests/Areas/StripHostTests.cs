@@ -27,13 +27,7 @@ namespace Hider.App.Tests.Areas
 
         private static void Wait(Task _task)
         {
-            var until = DateTime.UtcNow.AddSeconds(5);
-            while (!_task.IsCompleted && DateTime.UtcNow < until)
-            {
-                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-                Dispatcher.UIThread.RunJobs();
-            }
-            Assert.True(_task.IsCompleted, "strip transparency never completed");
+            UiJobs.Complete(_task, _renderFrames: true);
             _task.GetAwaiter().GetResult();
         }
 

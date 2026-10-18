@@ -32,7 +32,8 @@ def parse_args() -> tuple[list[str], str | None]:
     args = parser.parse_args()
     chosen: list[str] = args.targets
     version: str | None = args.version
-    if version is not None and re.fullmatch(r'\d+\.\d+\.\d+', version) is None:
+    # ASCII digits only (\d alone takes other scripts' digits, which MSBuild's version would not).
+    if version is not None and re.fullmatch(r'\d+\.\d+\.\d+', version, re.ASCII) is None:
         parser.error(f'invalid version {version} (expected MAJOR.MINOR.PATCH)')
     unknown = [t for t in chosen if t not in (*TARGETS, 'all')]
     if unknown:

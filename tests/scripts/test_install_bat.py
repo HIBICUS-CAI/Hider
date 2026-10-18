@@ -1,0 +1,518 @@
+"""The Windows installer install.bat (scripts/release/install.bat.in as make_release.py renders it), run by cmd.exe.
+
+Windows only (proposal P-11: skipped elsewhere with the reason; CI runs it in the installer-windows job). Each test
+renders its own install.bat (version, base URL and SHA-256 of its case), runs `install.bat [folder]` through cmd.exe
+with HIDER_NO_LAUNCH=1 and LOCALAPPDATA, TEMP and TMP in a scratch folder, and checks the exit code, the messages, the
+files and the desktop shortcut (which the installer writes to the real desktop: the test puts back what was there). The
+installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. Not covered: the 64-bit check
+([Environment]::Is64BitOperatingSystem), which a 64-bit runner can not fail.
+
+cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
+more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
+`&`, `%`, `!`, `'`, `(1)` and `^` reach the script intact. The variants with delayed expansion on (`cmd.exe /v:on`, as
+the DelayedExpansion registry value also sets it) start an install.bat that sits in a folder with `!` in its name and
+escape `!` and `^` with a caret, since such a cmd delay-expands its own command line as well (as a user of such a cmd
+types them); the script then gets the paths intact. They check the script's `setlocal ... DisableDelayedExpansion`: with
+a bare `setlocal` the script would keep the caller's delayed expansion, and `set "HIDER_SCRIPT=%~f0"` (and `set
+"HIDER_DEST=%~1"`) would expand the `%~f0` first and then delay-expand the result, dropping a lone `!` (and the text
+between two), so PowerShell would read a file that does not exist (a control run with a bare `setlocal` does fail).
+%LOCALAPPDATA% is not one of them: the script hands it to PowerShell only as an environment variable, which no cmd
+expansion touches. Double-clicking an install.bat in such a folder can not work where the registry turns delayed
+expansion on (Explorer's command line loses the `!` before the script runs; install.bat.in and README say so): not
+tested.
+"""
+
+from __future__ import annotations
+
+import codecs
+import functools
+import hashlib
+import http.server
+import os
+import shutil
+import subprocess
+import threading
+import unittest
+from dataclasses import dataclass
+from pathlib import Path
+
+import make_release
+
+from .support import temp_dir
+from .windows import (
+    SKIP_REASON,
+    WINDOWS,
+    hider_processes_under,
+    keep_desktop_shortcut,
+    read_shortcut,
+    same_path,
+    stop_processes_under,
+)
+
+VERSION = '9.8.7'
+NAME = f'Hider-{VERSION}-win-x64'
+ARCHIVE = f'{NAME}.zip'
+BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
+# Folder names as a Downloads folder or a user name may have them: spaces, cmd's `&` / `%` / `!` / `^`, a quote, the
+# `(1)` of a second download and non-ASCII letters.
+ODD_DOWNLOADS = "Down loads & more % é! (1) it's ^"
+ODD_DEST = "a b & c % d ! ü ' (1) ^"
+ODD_LOCAL_APP_DATA = "Löcal & App % Data ! (1) ^ '"
+# install.bat.in's setlocal, which keeps delayed expansion off whatever the caller's setting.
+PROTECTED_SETLOCAL = 'setlocal EnableExtensions DisableDelayedExpansion'
+# The end of cmd's pause prompt ("Press any key to continue . . . " on an English Windows; the same dots elsewhere).
+PAUSE_END = '. . . '
+
+
+@dataclass
+class Result:
+    code: int
+    out: str
+    err: str
+
+    @property
+    def errors(self) -> list[str]:
+        """The installer's error lines (PowerShell may write other things to stderr, e.g. progress records)."""
+        return [line for line in self.err.splitlines() if line.startswith('error: ')]
+
+
+def default_files() -> dict[str, bytes]:
+    return {
+        'Hider.exe': b'MZ not really a program',
+        'Hider.dll': bytes(range(256)) * 16,
+        'Assets/x.png': b'png',
+        'Assets/sub/y.txt': b'nested',
+    }
+
+
+@functools.cache
+def console_encoding() -> str:
+    """The encoding PowerShell started by cmd.exe writes its redirected output in: the code page of the console it gets
+    (OEM, e.g. cp437, unless changed), asked through the same chain the installer runs in."""
+    result = subprocess.run(
+        'cmd.exe /s /c "powershell -NoProfile -NonInteractive -Command [Console]::OutputEncoding.CodePage"',
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
+    )
+    encoding = f'cp{int(result.stdout.strip())}'
+    codecs.lookup(encoding)
+    return encoding
+
+
+def quoted(value: str) -> str:
+    # Paths can not contain a double quote.
+    assert '"' not in value, value
+    return f'"{value}"'
+
+
+@unittest.skipUnless(WINDOWS, SKIP_REASON)
+class InstallBatTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.root = Path(os.path.realpath(temp_dir(self)))
+        self.release = self.root / 'release'
+        self.temp = self.root / 'temp'
+        self.local_app_data = self.root / 'lad'
+        for folder in [self.release, self.temp, self.local_app_data]:
+            folder.mkdir()
+        self.dest = self.root / 'dest'
+        self.link = keep_desktop_shortcut(self)
+        self.addCleanup(stop_processes_under, self.root)
+        self.digest = self.make_zip(self.release)
+        self.bat = self.write_bat(self.release, self.digest)
+
+    # Fixtures
+
+    def make_zip(self, folder: Path, files: dict[str, bytes] | None = None) -> str:
+        """Hider-<version>-win-x64.zip in folder, made by make_release.make_archive; return its SHA-256."""
+        src = self.root / 'zip-src'
+        if src.exists():
+            shutil.rmtree(src)
+        src.mkdir()
+        for name, data in (default_files() if files is None else files).items():
+            path = src / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        out = folder / ARCHIVE
+        make_release.make_archive(src, out, NAME)
+        return hashlib.sha256(out.read_bytes()).hexdigest()
+
+    def write_bat(self, folder: Path, digest: str, base_url: str = BASE_URL) -> Path:
+        values = {'HIDER_VERSION': VERSION, 'HIDER_BASE_URL': base_url, 'HIDER_SHA256_WIN_X64': digest}
+        path = folder / 'install.bat'
+        with path.open('w', encoding='utf-8', newline='') as f:
+            f.write(make_release.render('install.bat.in', values, '\r\n'))
+        return path
+
+    def run_bat(
+        self,
+        *args: str,
+        env: dict[str, str | None] | None = None,
+        bat: Path | None = None,
+        cwd: Path | None = None,
+        delayed_expansion: bool = False,
+    ) -> Result:
+        variables = dict(os.environ)
+        variables.update(
+            {
+                'HIDER_NO_LAUNCH': '1',
+                'LOCALAPPDATA': str(self.local_app_data),
+                'TEMP': str(self.temp),
+                'TMP': str(self.temp),
+            }
+        )
+        for key, value in (env or {}).items():
+            if value is None:
+                variables.pop(key, None)
+            else:
+                variables[key] = value
+        # stdin from NUL: the pause after a failed double-click run returns at once. A string, not a list: cmd.exe's
+        # quoting is not the C runtime's that subprocess would apply.
+        command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
+        if delayed_expansion:
+            # cmd /v:on delay-expands its own command line too. In a token that contains a `!` (every such value here
+            # has one) that phase also takes the carets: `^!` is a `!` and `^^` a `^` (inside quotes the carets reach
+            # it), as a user of such a cmd types them.
+            command = command.replace('^', '^^').replace('!', '^!')
+        switches = '/v:on /s /c' if delayed_expansion else '/s /c'
+        result = subprocess.run(
+            f'cmd.exe {switches} "{command}"',
+            env=variables,
+            cwd=cwd or self.root,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=False,
+            timeout=300,
+        )
+        encoding = console_encoding()
+
+        def decode(data: bytes) -> str:
+            return data.decode(encoding, errors='replace').replace('\r\n', '\n')
+
+        return Result(result.returncode, decode(result.stdout), decode(result.stderr))
+
+    # Checks
+
+    def assert_cleaned_up(self) -> None:
+        left = [p.name for p in self.temp.iterdir() if p.name.startswith('hider-install-')]
+        self.assertEqual(left, [], 'the work folder is removed')
+
+    def assert_failed(self, result: Result, message: str, paused: bool = False) -> None:
+        self.assertEqual(result.code, 1, f'stdout:\n{result.out}\nstderr:\n{result.err}')
+        self.assertEqual(result.errors, [f'error: {message}'])
+        self.assertEqual(result.out.rstrip().endswith(PAUSE_END.rstrip()), paused, result.out)
+        self.assertFalse(self.link.exists(), 'no shortcut after a failure')
+        self.assert_cleaned_up()
+
+    def assert_installed(self, dest: Path, result: Result) -> None:
+        self.assertEqual(result.code, 0, f'stdout:\n{result.out}\nstderr:\n{result.err}')
+        self.assertEqual(result.errors, [])
+        for name, data in default_files().items():
+            self.assertEqual((dest / name).read_bytes(), data, name)
+        target, working_dir = read_shortcut(self.link)
+        self.assertTrue(same_path(target, dest / 'Hider.exe'), target)
+        self.assertTrue(same_path(working_dir, dest), working_dir)
+        # A successful run never waits for a key.
+        self.assertNotIn(PAUSE_END, result.out)
+        self.assert_cleaned_up()
+
+    def assert_lines(self, out: str, expected: list[str]) -> None:
+        """The output lines show these texts. A character the console's code page lacks comes out replaced ('?' or a
+        best-fit letter, as .NET encodes it), so there only its position is compared."""
+        lines = out.splitlines()
+        self.assertEqual(len(lines), len(expected), out)
+        encoding = console_encoding()
+        for line, text in zip(lines, expected, strict=True):
+            self.assertEqual(len(line), len(text), line)
+            for shown, char in zip(line, text, strict=True):
+                try:
+                    char.encode(encoding)
+                except UnicodeEncodeError:
+                    continue
+                self.assertEqual(shown, char, f'{line!r} != {text!r}')
+
+    # C1: the failures
+
+    def test_st20_tampered_archive_is_refused(self) -> None:
+        actual = self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
+        result = self.run_bat(str(self.dest))
+        self.assert_failed(result, f'SHA-256 mismatch for {ARCHIVE} (expected {self.digest}, got {actual}).')
+        self.assertFalse(self.dest.exists())
+        self.assertIn(f'Using {self.release / ARCHIVE}', result.out.splitlines())
+
+    def test_st20_archive_without_the_executable(self) -> None:
+        digest = self.make_zip(self.release, {'Assets/x.png': b'png'})
+        bat = self.write_bat(self.release, digest)
+        result = self.run_bat(str(self.dest), bat=bat)
+        self.assert_failed(result, f'{ARCHIVE} does not contain {NAME}\\Hider.exe.')
+        self.assertFalse(self.dest.exists())
+
+    def test_st20_running_hider_stops_the_install(self) -> None:
+        # A process named Hider: a copy of Windows PowerShell under that name, sleeping.
+        running = self.root / 'running'
+        running.mkdir()
+        exe = Path(shutil.copy2(shutil.which('powershell') or 'powershell.exe', running / 'Hider.exe'))
+        process = subprocess.Popen(
+            [str(exe), '-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 120'],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        self.addCleanup(process.wait, 30)
+        self.addCleanup(process.kill)
+        result = self.run_bat(str(self.dest))
+        self.assertIsNone(process.poll(), 'the stand-in Hider ran during the install')
+        self.assert_failed(result, 'Hider is running: quit it from the tray menu and run this again.')
+        self.assertFalse(self.dest.exists())
+        self.assertNotIn('Copying to', result.out)
+
+    def test_st20_no_local_app_data_without_a_folder(self) -> None:
+        result = self.run_bat(env={'LOCALAPPDATA': None})
+        # Started without arguments (double-click): the window waits for a key; the exit code stays 1.
+        self.assert_failed(result, 'LOCALAPPDATA is not set: give the install folder as the argument.', paused=True)
+        self.assertEqual(list(self.local_app_data.iterdir()), [])
+
+    def test_st20_copy_failure(self) -> None:
+        # Hider.exe in the folder held open without sharing, as by a running Hider.
+        self.dest.mkdir()
+        locked = self.dest / 'Hider.exe'
+        locked.write_bytes(b'old')
+        holder = subprocess.Popen(
+            [
+                'powershell',
+                '-NoProfile',
+                '-NonInteractive',
+                '-Command',
+                "$f = [IO.File]::Open($env:HIDER_TEST_LOCKED, 'Open', 'ReadWrite', 'None'); "
+                "[Console]::Out.WriteLine('locked'); [Console]::Out.Flush(); Start-Sleep -Seconds 120",
+            ],
+            env={**os.environ, 'HIDER_TEST_LOCKED': str(locked)},
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        assert holder.stdout is not None
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.wait, 30)
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline().strip(), 'locked')
+        result = self.run_bat(str(self.dest))
+        self.assertEqual(result.code, 1, result.err)
+        (error,) = result.errors
+        self.assertTrue(error.startswith('error: Copy failed, quit Hider if it is running and run this again. '), error)
+        self.assertFalse(self.link.exists())
+        self.assert_cleaned_up()
+
+    def test_st20_failure_after_a_double_click_pauses_and_keeps_the_exit_code(self) -> None:
+        # if not "%HIDER_EXIT%"=="0" if "%~1"=="" pause: the pause must not replace the exit code with its own 0.
+        actual = self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
+        result = self.run_bat()
+        self.assert_failed(
+            result, f'SHA-256 mismatch for {ARCHIVE} (expected {self.digest}, got {actual}).', paused=True
+        )
+        self.assertFalse((self.local_app_data / 'Programs').exists())
+
+    def test_st20_failure_with_a_folder_does_not_pause(self) -> None:
+        self.make_zip(self.release, {**default_files(), 'Hider.exe': b'MZ tampered'})
+        result = self.run_bat(str(self.dest))
+        self.assertEqual(result.code, 1)
+        self.assertNotIn(PAUSE_END, result.out)
+
+    # C2: the successful paths
+
+    def test_st21_installs_into_the_folder(self) -> None:
+        result = self.run_bat(str(self.dest))
+        self.assert_installed(self.dest, result)
+        self.assertEqual(
+            result.out.splitlines(),
+            [
+                f'Using {self.release / ARCHIVE}',
+                f'Copying to {self.dest}',
+                f'Created shortcut: {self.link}',
+                f'Installed Hider {VERSION} to {self.dest}',
+            ],
+        )
+        # The archive next to the installer is copied, not moved.
+        self.assertTrue((self.release / ARCHIVE).is_file())
+
+    def test_st21_default_folder_is_local_app_data(self) -> None:
+        result = self.run_bat()
+        dest = self.local_app_data / 'Programs' / 'Hider'
+        self.assert_installed(dest, result)
+        self.assertIn(f'Installed Hider {VERSION} to {dest}', result.out.splitlines())
+
+    def test_st21_empty_argument_is_the_default_folder(self) -> None:
+        result = self.run_bat('')
+        self.assert_installed(self.local_app_data / 'Programs' / 'Hider', result)
+
+    def test_st21_relative_folder_is_made_absolute(self) -> None:
+        work = self.root / 'cwd'
+        work.mkdir()
+        result = self.run_bat('rel\\Hider', cwd=work)
+        self.assert_installed(work / 'rel' / 'Hider', result)
+        self.assertIn(f'Copying to {work / "rel" / "Hider"}', result.out.splitlines())
+
+    def test_st21_overwrites_an_existing_install(self) -> None:
+        (self.dest / 'Assets').mkdir(parents=True)
+        (self.dest / 'Hider.exe').write_bytes(b'old')
+        (self.dest / 'Assets' / 'x.png').write_bytes(b'old')
+        (self.dest / 'Assets' / 'old.png').write_bytes(b'kept')
+        result = self.run_bat(str(self.dest))
+        self.assert_installed(self.dest, result)
+        # Overwrites, does not clean up: files the new version does not have stay.
+        self.assertEqual((self.dest / 'Assets' / 'old.png').read_bytes(), b'kept')
+
+    # D4: the paths a user really double-clicks from
+
+    def test_st21_odd_characters_in_the_paths(self) -> None:
+        self.check_odd_characters_in_the_paths(delayed_expansion=False)
+
+    def test_st21_odd_characters_in_the_paths_with_delayed_expansion(self) -> None:
+        self.check_odd_characters_in_the_paths(delayed_expansion=True)
+
+    def check_odd_characters_in_the_paths(self, delayed_expansion: bool) -> None:
+        # The installer and the archive in such a folder, installed into another one: cmd passes both on (%~f0, %~1)
+        # and PowerShell gets them through environment variables, unchanged.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
+        dest = self.root / ODD_DEST / 'Hider'
+        result = self.run_bat(str(dest), bat=bat, delayed_expansion=delayed_expansion)
+        self.assert_installed(dest, result)
+        self.assert_lines(
+            result.out,
+            [
+                f'Using {downloads / ARCHIVE}',
+                f'Copying to {dest}',
+                f'Created shortcut: {self.link}',
+                f'Installed Hider {VERSION} to {dest}',
+            ],
+        )
+        self.assertTrue((downloads / ARCHIVE).is_file())
+
+    def test_st21_bare_setlocal_with_delayed_expansion_fails(self) -> None:
+        # The control of the variant above: the same run with the script's setlocal back to a bare one (the caller's
+        # delayed expansion stays on). %~f0 loses its `!`, PowerShell can not read the script: exit 1, nothing
+        # installed. Shows that the variant checks DisableDelayedExpansion.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
+        data = bat.read_bytes()  # bytes: the CRLF line endings stay
+        self.assertEqual(data.count(PROTECTED_SETLOCAL.encode()), 1)
+        bat.write_bytes(data.replace(PROTECTED_SETLOCAL.encode(), b'setlocal'))
+        dest = self.root / ODD_DEST / 'Hider'
+        result = self.run_bat(str(dest), bat=bat, delayed_expansion=True)
+        self.assertEqual(result.code, 1, f'stdout:\n{result.out}\nstderr:\n{result.err}')
+        self.assertFalse((self.root / ODD_DEST).exists())
+        installed = [p for p in self.root.rglob('Hider.exe') if self.root / 'zip-src' not in p.parents]
+        self.assertEqual(installed, [], 'nothing installed anywhere')
+        self.assertFalse(self.link.exists(), 'no shortcut after a failure')
+        self.assert_cleaned_up()
+
+    def test_st21_odd_characters_in_the_default_folder(self) -> None:
+        self.check_odd_characters_in_the_default_folder(delayed_expansion=False)
+
+    def test_st21_odd_characters_in_the_default_folder_with_delayed_expansion(self) -> None:
+        self.check_odd_characters_in_the_default_folder(delayed_expansion=True)
+
+    def check_odd_characters_in_the_default_folder(self, delayed_expansion: bool) -> None:
+        # The installer and the archive in a folder with `!` in its name too, so that with delayed expansion on a bare
+        # `setlocal` would lose them from %~f0 (see the module docstring); LOCALAPPDATA reaches PowerShell unchanged
+        # either way, as an environment variable.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
+        local_app_data = self.root / ODD_LOCAL_APP_DATA
+        local_app_data.mkdir()
+        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)}, bat=bat, delayed_expansion=delayed_expansion)
+        dest = local_app_data / 'Programs' / 'Hider'
+        self.assert_installed(dest, result)
+        self.assert_lines(
+            result.out,
+            [
+                f'Using {downloads / ARCHIVE}',
+                f'Copying to {dest}',
+                f'Created shortcut: {self.link}',
+                f'Installed Hider {VERSION} to {dest}',
+            ],
+        )
+        self.assertEqual(list(self.local_app_data.iterdir()), [])
+
+    def serve(self, folder: Path) -> tuple[str, list[str]]:
+        """Serve folder over HTTP on 127.0.0.1; return the base URL and the list of requested paths."""
+        requests: list[str] = []
+
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            # Once per request, whatever the status; nothing on stderr.
+            def log_request(self, code: int | str = '-', size: int | str = '-') -> None:
+                requests.append(self.path)
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Handler, directory=str(folder)))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join, 30)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return f'http://127.0.0.1:{server.server_port}/dl', requests
+
+    def test_st22_downloads_when_the_archive_is_not_next_to_it(self) -> None:
+        store = self.root / 'store' / 'dl'
+        store.mkdir(parents=True)
+        shutil.move(str(self.release / ARCHIVE), store / ARCHIVE)
+        base_url, requests = self.serve(self.root / 'store')
+        bat = self.write_bat(self.release, self.digest, base_url)
+        result = self.run_bat(str(self.dest), bat=bat)
+        self.assert_installed(self.dest, result)
+        self.assertEqual(result.out.splitlines()[0], f'Downloading {base_url}/{ARCHIVE}')
+        self.assertEqual(requests, [f'/dl/{ARCHIVE}'])
+
+    def test_st22_download_not_found(self) -> None:
+        (self.release / ARCHIVE).unlink()
+        empty = self.root / 'empty'
+        empty.mkdir()
+        base_url, requests = self.serve(empty)
+        bat = self.write_bat(self.release, self.digest, base_url)
+        result = self.run_bat(str(self.dest), bat=bat)
+        self.assertEqual(result.code, 1, result.err)
+        (error,) = result.errors
+        # WebClient's WebException, as PowerShell reports a failed .NET call.
+        self.assertIn('(404) Not Found', error)
+        self.assertEqual(requests, [f'/dl/{ARCHIVE}'])
+        self.assertFalse(self.dest.exists())
+        self.assertFalse(self.link.exists())
+        self.assert_cleaned_up()
+
+    def test_st22_starts_hider_unless_told_not_to(self) -> None:
+        # Hider.exe is a copy of Windows PowerShell: started without arguments in its own console, it stays.
+        powershell_exe = Path(shutil.which('powershell') or 'powershell.exe')
+        files = {**default_files(), 'Hider.exe': powershell_exe.read_bytes()}
+        digest = self.make_zip(self.release, files)
+        bat = self.write_bat(self.release, digest)
+        result = self.run_bat(str(self.dest), bat=bat, env={'HIDER_NO_LAUNCH': None})
+        self.assertEqual(result.code, 0, result.err)
+        self.assertEqual(result.out.splitlines()[-1], 'Started Hider (tray icon).')
+        started = hider_processes_under(self.dest)
+        self.assertEqual(len(started), 1, started)
+        self.assertTrue(same_path(started[0], self.dest / 'Hider.exe'), started)
+        self.assertEqual(hider_processes_under(self.root), started)
+
+    def test_st22_no_launch_does_not_start_it(self) -> None:
+        powershell_exe = Path(shutil.which('powershell') or 'powershell.exe')
+        digest = self.make_zip(self.release, {**default_files(), 'Hider.exe': powershell_exe.read_bytes()})
+        bat = self.write_bat(self.release, digest)
+        result = self.run_bat(str(self.dest), bat=bat)
+        self.assertEqual(result.code, 0, result.err)
+        self.assertNotIn('Started Hider (tray icon).', result.out)
+        self.assertEqual(hider_processes_under(self.root), [])
+
+
+if __name__ == '__main__':
+    unittest.main()

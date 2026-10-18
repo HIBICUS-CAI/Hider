@@ -65,7 +65,16 @@ main() {
         *) die "unsupported architecture $(uname -m) (x86_64 and aarch64 are supported)" ;;
     esac
 
-    data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    # Not ${XDG_DATA_HOME:-$HOME/.local/share}: under set -u a missing HOME (env -i, some service managers) would stop
+    # the shell with its own message, and an empty one would put the entry under /.local.
+    if [ -n "${XDG_DATA_HOME:-}" ]; then
+        data_home="$XDG_DATA_HOME"
+    elif [ -n "${HOME:-}" ]; then
+        data_home="$HOME/.local/share"
+    else
+        die 'neither XDG_DATA_HOME nor HOME is set: the desktop entry goes under one of them'
+    fi
+    # -d '' is the default folder, as an empty argument is for install.bat and scripts/install.py.
     [ -n "$dest" ] || dest="$data_home/Hider"
     case "$dest" in
         /*) ;;

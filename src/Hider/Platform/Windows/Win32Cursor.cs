@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Avalonia;
 
 namespace Hider.Platform.Windows
 {
@@ -18,6 +19,13 @@ namespace Hider.Platform.Windows
             _x = p.X;
             _y = p.Y;
             return ok;
+        }
+
+        /// <summary>The cursor position in physical pixels; null when the system cannot tell it (e.g. a locked session).</summary>
+        [SupportedOSPlatform("windows")]
+        public static PixelPoint? Position()
+        {
+            return TryGetPosition(out int x, out int y) ? new PixelPoint(x, y) : null;
         }
 
         [LibraryImport("user32.dll")]

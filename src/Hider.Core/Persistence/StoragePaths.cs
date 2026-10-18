@@ -11,9 +11,10 @@ namespace Hider.Core.Persistence
         /// <summary>The data directory for an OS, given how to read environment variables (pure, for tests).</summary>
         public static string DataDirectory(bool _isWindows, Func<string, string?> _environment)
         {
-            // An empty variable counts as unset: "" + "/.hider" would put the files at the file system root.
+            // An empty or blank variable counts as unset: "" + "/.hider" would put the files at the file system root, " " +
+            // "/.hider" in a folder named " " of the working directory.
             string? home = _isWindows ? _environment("USERPROFILE") : _environment("HOME");
-            if (string.IsNullOrEmpty(home))
+            if (string.IsNullOrWhiteSpace(home))
             {
                 home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             }

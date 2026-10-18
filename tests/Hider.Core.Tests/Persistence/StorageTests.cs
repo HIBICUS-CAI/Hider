@@ -74,6 +74,12 @@ namespace Hider.Core.Tests.Persistence
             string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd('/', '\\');
             Assert.Equal(profile + "/.hider", StoragePaths.DataDirectory(false, _k => _k == "HOME" ? "" : null));
             Assert.Equal(profile + "\\.hider", StoragePaths.DataDirectory(true, _k => _k == "USERPROFILE" ? "" : null));
+            // So is one of white space only: " /.hider" would be a folder named " " in the working directory.
+            Assert.Equal(profile + "/.hider", StoragePaths.DataDirectory(false, _k => _k == "HOME" ? " " : null));
+            Assert.Equal(profile + "/.hider", StoragePaths.DataDirectory(false, _k => _k == "HOME" ? "\t \n" : null));
+            Assert.Equal(profile + "\\.hider", StoragePaths.DataDirectory(true, _k => _k == "USERPROFILE" ? "  " : null));
+            // Surrounding white space of a real home is kept (a folder name may contain it).
+            Assert.Equal(" /home/me /.hider", StoragePaths.DataDirectory(false, _k => _k == "HOME" ? " /home/me " : null));
         }
     }
 }

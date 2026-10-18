@@ -33,10 +33,13 @@ namespace Hider.Areas
         public AreaWindow()
         {
             InitializeComponent();
+            // Not for handled events: a press a toolbar button took (✓, ⚙, also where the toolbar lies over the area) never
+            // starts a drag.
             AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Bubble);
             AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Bubble);
             AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Bubble);
-            AddHandler(PointerCaptureLostEvent, OnPointerCaptureLost, RoutingStrategies.Bubble);
+            // Capture loss is raised directly on the element that had the capture (this window), never bubbled.
+            AddHandler(PointerCaptureLostEvent, OnPointerCaptureLost, RoutingStrategies.Direct);
             AddHandler(PointerWheelChangedEvent, (_, _e) => _e.Handled = true, RoutingStrategies.Bubble, handledEventsToo: true);
 
             chrome.Toolbar.PatternSelected += _p => controller.SetPattern(_p);
@@ -143,10 +146,7 @@ namespace Hider.Areas
             {
                 chrome.Arrange(area, controller.ToolbarInside, AreaController.ToolbarGapDip);
             }
-            if (TransparentRows is not null)
-            {
-                ApplyClip();
-            }
+            ApplyClip();
             RefreshPattern();
         }
 
@@ -192,9 +192,10 @@ namespace Hider.Areas
         }
 
         /// <summary>
-        /// Clips <see cref="TransparentRows"/> away for the current layout. Also run by <see cref="ApplyLayout"/>: a mode change
-        /// during a strip moves the area inside the window and resizes it, and a clip made for the old layout would show part
-        /// of the area's surroundings or keep rows opaque (the controller retakes such a capture).
+        /// Clips <see cref="TransparentRows"/> away for the current layout, or removes the clip when there are none: the one
+        /// place that sets <see cref="Root"/>'s clip. Also run by <see cref="ApplyLayout"/>: a mode change during a strip moves
+        /// the area inside the window and resizes it, and a clip made for the old layout would show part of the area's
+        /// surroundings or keep rows opaque (the controller retakes such a capture).
         /// </summary>
         private void ApplyClip()
         {
@@ -224,7 +225,7 @@ namespace Hider.Areas
         public Task RestoreRowsAsync()
         {
             TransparentRows = null;
-            Root.Clip = null;
+            ApplyClip();
             return Task.CompletedTask;
         }
 
@@ -287,7 +288,7 @@ namespace Hider.Areas
                 }
                 return;
             }
-            if (_e.Handled || !_e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            if (!_e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 return;
             }

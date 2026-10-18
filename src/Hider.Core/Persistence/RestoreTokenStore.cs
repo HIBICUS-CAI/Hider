@@ -27,13 +27,16 @@ namespace Hider.Core.Persistence
             }
         }
 
-        /// <summary>Keeps <paramref name="_token"/>, or forgets the old one when null.</summary>
+        /// <summary>
+        /// Keeps <paramref name="_token"/>, or forgets the old one when null, empty or white space only (<see cref="Load"/>
+        /// would read such a file as no token anyway).
+        /// </summary>
         public void Save(string? _token)
         {
             string temp = path + ".tmp";
             try
             {
-                if (_token is null)
+                if (string.IsNullOrWhiteSpace(_token))
                 {
                     File.Delete(path);
                     return;

@@ -40,6 +40,10 @@ namespace Hider
 
         internal AreaManager? Areas => areas;
         internal TrayController? Tray => tray;
+        /// <summary>SIGTERM shuts the app down cleanly instead of ending the process (registered by Start).</summary>
+        internal bool HandlesSignals => sigterm is not null;
+        /// <summary>The never-shown window that gives the screens (closed by Stop).</summary>
+        internal Window? ScreenProbe => screenProbe;
 
         /// <summary>No main window (FR-01): the tray icon and the restored areas (FR-02).</summary>
         /// <param name="_desktop">The desktop lifetime (Shutdown on Exit, ShutdownRequested saves).</param>

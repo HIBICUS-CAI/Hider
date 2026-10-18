@@ -9,6 +9,7 @@
 | 仕様書（Hider v2 仕様書） | https://claude.ai/artifact/QT9Dn8x6r69bx6FxD87q8P | 挙動・FR / NFR・露出の意味論・決定履歴 |
 | 作業指示書（Hider v2 実装作業指示書） | https://claude.ai/artifact/Cf2T1HM3yg78c6s5N8Crh7 | Step 0〜9 の順序・契約（§3）・完了条件・報告形式。タブ: 設計書 / テスト項目 / GitHub Actions / 付録: 現行コード |
 | 設計書 | docs/v2-implementation-plan.md | 方式比較・性能見積・スパイク定義・決定 D-1〜D-12 |
+| 追加したテスト項目 | docs/test-items.md | 作業指示書「テスト項目」タブ以降に足した CT / GT と、ST（scripts）・NT（native）の一覧と対応 FR（タブには未反映） |
 | UI デザインキャンバス | https://claude.ai/artifact/VKTc6PcAYtSMLHgfw5814y | 画面 8 枚。寸法・配色・項目名の正 |
 | 過去の進捗報告・スパイク | ブランチ `archive/pr1-removed`（3bdd9581495d41cb3c20cb0dc30be2f0e4524050） | PR #1 の終わりに main から外した docs/progress.md（Step 0〜9 の報告、提案 P-1〜P-4）、docs/golden-diffs、spikes/。`git fetch origin archive/pr1-removed` の後 `git show FETCH_HEAD:docs/progress.md` |
 
@@ -16,7 +17,7 @@
 
 - ID は既存の最大番号 + 1（`git log --grep "pending: P-"` で一覧できる。P-1〜P-4 は archive/pr1-removed の docs/progress.md）。
 - ユーザーが承認・却下したら、その後のコミット本文に `resolved: <提案 ID>（承認 | 却下: 理由）` を書く（却下なら同じコミットで直す）。未決の提案 = pending にあって resolved にないもの（`git log --grep "resolved: P-"`）。
-- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1。その後ユーザー指示で installer-windows ジョブを追加）、P-9（リリースは release.yml。書き込み権限は release ジョブだけ）、P-10（トレイメニューの「終了」の上に押せない行「バージョン <版>」。版は `--version` と同じ）。
+- 承認済み: P-1（ソフトウェア描画はセル単位評価と結果のキャッシュ）、P-2（libhidercap の公開関数 4 つ）、P-3（実機検証を待たずに進める。v2.0 では Windows・Linux とも実機検証なし、docs/manual-tests.md）、P-4（CA1707 / CA1725 のみ無効）、P-5（更新間隔を短くしたときは次回を繰り上げる）、P-6（MIT ライセンス）、P-7（矢印キー移動は最後の押下から 500 ms 後に撮り直す）、P-8（CI の作業指示書との差: Xvfb での帯撮影の通し確認、format / python-lint ジョブ、windows-stress.ps1。その後ユーザー指示で installer-windows ジョブを追加）、P-9（リリースは release.yml。書き込み権限は release ジョブだけ）、P-10（トレイメニューの「終了」の上に押せない行「バージョン <版>」。版は `--version` と同じ）、P-11（OS 専用のテスト（Win32 API、Linux の dbus-daemon・PipeWire・libhidercap）は、実行できない OS では理由付きで skip する。対応する OS の CI では必ず実行し、Linux の CI では実環境テストを skip しない）、P-12（areas.json の pattern は仕様の名前を大小文字・前後の空白を問わず読み、未知の文字列は mosaic）、P-13（scripts の unittest は ST-xx、native の C テストは NT-xx。一覧は docs/test-items.md）。
 
 ## 構成
 
@@ -24,7 +25,7 @@
 src/Hider.Core     Avalonia 非依存（SkiaSharp と BCL のみ）。Model / Mosaic / Capture / Scheduling / Persistence / Strings
 src/Hider          Avalonia アプリ。OS 依存は Platform/Windows, Platform/Linux に閉じる
 native/hidercap    PipeWire ヘルパ（C）。make RID=<rid> → out/<rid>/libhidercap.so
-tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx）。偽実装は Hider.Core.Tests/Fakes
+tests/             Hider.Core.Tests（CUI, CT-xx）/ Hider.App.Tests（Avalonia headless, GT-xx。Linux では私的な dbus-daemon・PipeWire と本物の libhidercap.so のテストも）/ scripts（scripts/ の unittest）。偽実装は Hider.Core.Tests/Fakes
 scripts/           build.py / install.py / make_icons.py / check_wayland_list.py / make_release.py（標準ライブラリのみ、Python 3.10 以上）、release/（install.bat / install.sh / リリースノートの雛形）、xvfb-strip-smoke.sh（Linux の帯撮影の通し確認）、windows-stress.ps1（Windows の負荷下の通し確認。CI の publish）
 tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast）。sln に含めない
 ```
@@ -35,8 +36,9 @@ tools/fakeportal   Xvfb 用の偽 xdg-desktop-portal（Screenshot / ScreenCast�
 dotnet build -c Release -warnaserror         # アナライザー（latest-recommended）とコードスタイル（命名・名前空間・不要な using）も検査
 dotnet format Hider.slnx --verify-no-changes # 書式（CI はターゲットによらず ubuntu-24.04 の format ジョブで実行）
 dotnet test tests/Hider.Core.Tests
-dotnet test tests/Hider.App.Tests
-make -C native/hidercap test                  # libhidercap のフレーム時刻の単体テスト（CT-90、PipeWire 不要）
+dotnet test tests/Hider.App.Tests             # Linux では先に make -C native/hidercap（ビルドがテスト出力へ .so をコピー）。CI の Linux では実環境テストを skip しない
+make -C native/hidercap test                  # libhidercap の単体テスト（CT-90 のフレーム時刻、API の検査とエラー経路。libpipewire のクライアントモジュールが要る、デーモンは不要）
+python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト（標準ライブラリのみ。install.sh は sh / dash / bash と偽コマンドで実行）
 python scripts/build.py <rid>                 # bin/publish/<rid>/（Ubuntu では python3。scripts/ は直接実行もできる）
 bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）

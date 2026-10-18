@@ -53,37 +53,54 @@ namespace Hider.Core
             area.Mosaic.Params["unknown-method"] = new Dictionary<string, double> { ["x"] = 1.5 };
             AreasFile.FillDefaults(area.Mosaic.Params, MethodKind.Mosaic);
             AreasFile.FillDefaults(area.Generated.Params, MethodKind.Generated);
-            var state = new AppState { Areas = { AreaState.FromArea(area, 1.5) } };
+            var state = new AppState { Areas = { AreaState.FromArea(area, RoundTripScale) } };
 
             string path = Path.Combine(Path.GetTempPath(), $"hider-selftest-{Environment.ProcessId}.json");
             try
             {
                 AreasFile.Save(path, state);
                 var loaded = AreasFile.Load(path, out var status);
-                string expected = AreasFile.ToJson(state);
-                string actual = AreasFile.ToJson(loaded);
-                if (status != LoadStatus.Loaded || expected != actual)
-                {
-                    return $"status {status}, expected {expected}, got {actual}";
-                }
-                var back = loaded.Areas[0].ToArea(1.5);
-                return back.Rect == area.Rect ? null : $"rect {back.Rect} != {area.Rect}";
+                return CompareRoundTrip(state, loaded, status, area.Rect);
             }
             finally
             {
-                File.Delete(path);
+                // Only the file Save wrote: deleting a folder in its place would throw and hide Save's own exception.
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
             }
+        }
+
+        private const double RoundTripScale = 1.5;
+
+        /// <summary>The verdict of <see cref="CheckJson"/> on what came back (internal for tests: a correct build never fails it).</summary>
+        internal static string? CompareRoundTrip(AppState _saved, AppState _loaded, LoadStatus _status, PhysicalRect _rect)
+        {
+            string expected = AreasFile.ToJson(_saved);
+            string actual = AreasFile.ToJson(_loaded);
+            if (_status != LoadStatus.Loaded || expected != actual)
+            {
+                return $"status {_status}, expected {expected}, got {actual}";
+            }
+            var back = _loaded.Areas[0].ToArea(RoundTripScale);
+            return back.Rect == _rect ? null : $"rect {back.Rect} != {_rect}";
         }
 
         /// <summary>Every embedded .sksl compiles (needs the SkiaSharp native library next to the executable).</summary>
         private static string? CheckSksl()
         {
-            var ids = ShaderSource.All();
-            if (ids.Count == 0)
+            return CheckShaders(ShaderSource.All());
+        }
+
+        /// <summary>The check of <see cref="CheckSksl"/> on a list of shader ids (internal for tests).</summary>
+        internal static string? CheckShaders(IReadOnlyList<string> _ids)
+        {
+            if (_ids.Count == 0)
             {
                 return "no embedded shaders";
             }
-            foreach (string id in ids)
+            foreach (string id in _ids)
             {
                 using var effect = ShaderSource.Compile(id);
             }

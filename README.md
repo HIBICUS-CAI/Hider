@@ -42,6 +42,7 @@
 - インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
 - インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
 - Windows では、ダウンロードや実行の時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「保存」「詳細情報」→「実行」で続けます。
+- レジストリで cmd の遅延展開を有効にしている Windows（`HKCU\Software\Microsoft\Command Processor` または `HKLM\Software\Microsoft\Command Processor` の `DelayedExpansion` が 1）では、名前に `!` を含むフォルダに置いた install.bat をダブルクリックしても動きません（起動の行の段階で `!` が失われるため）。別のフォルダに移すか、そのフォルダで cmd を開いて（エクスプローラーのアドレス欄に `cmd` と入力する）`install.bat` と打ってください。そうした cmd でインストール先のフォルダを引数に打つときは、`!` を `^!` と打ってください（そのまま打つと、`!` が落ちた別のフォルダにエラーにならないままインストールされます）。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除するだけです（設定は `~/.hider` に残ります）。
 
 ## ビルド
@@ -96,8 +97,10 @@ python scripts/install.py -d <folder>
 ```sh
 dotnet build -c Release -warnaserror
 dotnet test tests/Hider.Core.Tests
-dotnet test tests/Hider.App.Tests
-scripts/xvfb-strip-smoke.sh [--screencast]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認
+dotnet test tests/Hider.App.Tests            # Linux: make -C native/hidercap を先に（実ヘルパ・私的な dbus / PipeWire のテスト）
+make -C native/hidercap test                  # libhidercap の単体テスト（libpipewire が要る。デーモンは不要）
+python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト
+scripts/xvfb-strip-smoke.sh [--screencast] [--deny]   # Linux の帯撮影を Xvfb と偽ポータルで通し確認（SIGTERM での終了と保存も）
 ```
 
 設計は docs/v2-implementation-plan.md、作業の進め方は CLAUDE.md、CI は `.github/workflows/ci.yml`、リリースは `.github/workflows/release.yml` を参照してください。

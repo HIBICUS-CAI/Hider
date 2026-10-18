@@ -80,6 +80,12 @@ namespace Hider.Platform
             return AreaGeometry.DipLength(_px, _scale);
         }
 
+        /// <summary><see cref="WindowLength"/> of this host (for tests: the Win32 overrides need no native call).</summary>
+        internal int WindowLengthFor(int _px, double _scale) => WindowLength(_px, _scale);
+
+        /// <summary><see cref="DipLength"/> of this host (for tests).</summary>
+        internal double DipLengthFor(int _px, double _scale) => DipLength(_px, _scale);
+
         /// <summary>Moves and sizes the native window in one step before Avalonia applies the same values (optional).</summary>
         protected virtual void PlaceNative(PhysicalRect _rect)
         {
