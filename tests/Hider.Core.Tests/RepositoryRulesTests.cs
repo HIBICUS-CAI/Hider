@@ -142,7 +142,8 @@ namespace Hider.Core.Tests
             // The ways in are banned as names, not as call shapes: a call through a variable, over two lines or with named
             // arguments has the same name. AppDomain stays usable for its events only; Activator for a type the code names;
             // Type.GetType not at all (typeof names a type; a string may name another assembly). A method group is a use too,
-            // and so is an alias or a using static of these types, written with global:: or inside a namespace block.
+            // and so is an alias or a using static of these types, written with global:: or inside a namespace block, or as an
+            // MSBuild <Using> item (the SDK writes it to obj/, as a global using, which the scan does not read).
             ["D-12"] = ("D-12: no assemblies loaded at run time", string.Join('|',
                 @"\bAssembly\s*\.\s*\w*Load\w*\b",
                 @"\bAssemblyLoadContext\b",
@@ -152,7 +153,8 @@ namespace Hider.Core.Tests
                 @"\bActivator\b(?!\s*\.\s*CreateInstance\s*(<|\(\s*typeof\s*\())",
                 @"\bType\s*\.\s*GetType\b(?!\s*\(\s*\))",
                 @"\bGetDomain\b",
-                @"\busing\s+(static\s+)?(\w+\s*=\s*)?(global\s*::\s*)?(System\s*\.\s*)?(Reflection\s*\.\s*Assembly|Runtime\s*\.\s*Loader|Assembly|Activator|AppDomain|Type)\b")),
+                @"\busing\s+(static\s+)?(\w+\s*=\s*)?(global\s*::\s*)?(System\s*\.\s*)?(Reflection\s*\.\s*Assembly|Runtime\s*\.\s*Loader|Assembly|Activator|AppDomain|Type)\b",
+                @"<Using\b[^>]*\bInclude\s*=\s*[""']\s*(global::)?(System\.)?(Reflection\.Assembly|Runtime\.Loader|Assembly|Activator|AppDomain|Type)\s*[""']")),
             ["FR-65"] = ("FR-65: the old setting.txt is never read", @"setting\.txt|hider_setting"),
         };
 
@@ -228,6 +230,14 @@ namespace Hider.Core.Tests
             { "D-12", "using System.Reflection;\nnamespace N\n{\n    using static Assembly;\n}", true },
             { "D-12", "using T = System.Type;\nvar t = T.GetType(\"Plugin.Entry, Plugin\");", true },
             { "D-12", "using static System.Runtime.Loader.AssemblyLoadContext;", true },
+            { "D-12", "<Using Include=\"System.Reflection.Assembly\" Static=\"true\" />", true },
+            { "D-12", "<Using Include=\"System.Reflection.Assembly\" Alias=\"Asm\" />", true },
+            { "D-12", "<Using Include=\"System.Type\" Alias=\"T\" />", true },
+            { "D-12", "<Using Include=\"System.Runtime.Loader\" />", true },
+            { "D-12", "<Using Static=\"true\" Include=\"System.Activator\" />", true },
+            { "D-12", "<Using Include='global::System.AppDomain' Static='true' />", true },
+            { "D-12", "<Using\n    Include=\"System.Reflection.Assembly\"\n    Alias=\"Asm\" />", true },
+            { "D-12", "<Using Include=\"System.Reflection.Assembly\">\n  <Static>true</Static>\n</Using>", true },
             { "D-12", "var state = AreasFile.Load(path, out var status);", false },
             { "D-12", "using var s = typeof(SkslMethod).Assembly.GetManifestResourceStream(name);", false },
             { "D-12", "AppDomain.CurrentDomain.UnhandledException += OnUnhandled;", false },
@@ -241,6 +251,10 @@ namespace Hider.Core.Tests
             { "D-12", "using Types = Hider.Core.Model;", false },
             { "D-12", "var location = typeof(Program).Assembly.Location;", false },
             { "D-12", "AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;", false },
+            { "D-12", "<Using Include=\"Xunit\" />", false },
+            { "D-12", "<Using Include=\"System.Reflection\" />", false },
+            { "D-12", "<Using Include=\"Hider.Core.Model.Types\" />", false },
+            { "D-12", "<Using Include=\"System.Reflection.AssemblyName\" Alias=\"N\" />", false },
 
             { "FR-65", "Path.Combine(dir, \"setting.txt\")", true },
             { "FR-65", "Path.Combine(local, \"hider_setting\")", true },
