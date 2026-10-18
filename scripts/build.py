@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Publish Hider as a self-contained executable: native AOT by default, or the regular JIT build (--jit, a trimmed
-single file). The AOT build is made on the target machine itself; the JIT build of any target on any host."""
+single file). The AOT build is made for the machine this runs on only; the JIT build of any target on any host."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import shutil
 import subprocess
 import sys
 
-from common import NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, VARIANTS, host_target, publish_dir
+from common import AOT, JIT, NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, Variant, host_target, publish_dir
 
 
-def parse_args() -> tuple[list[str], str | None, str]:
+def parse_args() -> tuple[list[str], str | None, Variant]:
     """Return the targets to build, the version given with --version (None: <Version> of Directory.Build.props) and the
     build (aot, or jit with --jit)."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -40,30 +40,30 @@ def parse_args() -> tuple[list[str], str | None, str]:
     args = parser.parse_args()
     chosen: list[str] = args.targets
     version: str | None = args.version
-    variant = VARIANTS[1] if args.jit else VARIANTS[0]
+    variant: Variant = JIT if args.jit else AOT
     # ASCII digits only (\d alone takes other scripts' digits, which MSBuild's version would not).
     if version is not None and re.fullmatch(r'\d+\.\d+\.\d+', version, re.ASCII) is None:
         parser.error(f'invalid version {version} (expected MAJOR.MINOR.PATCH)')
     unknown = [t for t in chosen if t not in (*TARGETS, 'all')]
     if unknown:
         parser.error(f'invalid target {", ".join(unknown)} (choose from {", ".join([*TARGETS, "all"])})')
+    # The host matters for the default target and for the AOT build only: the JIT build of given targets never asks.
+    host = host_target() if variant == AOT or not chosen else None
     if 'all' in chosen:
         targets = list(TARGETS)
     elif chosen:
         targets = list(dict.fromkeys(chosen))
+    elif host is None:
+        sys.exit(f'This machine is not a supported target, specify one of: {", ".join(TARGETS)}')
     else:
-        host = host_target()
-        if host is None:
-            sys.exit(f'This machine is not a supported target, specify one of: {", ".join(TARGETS)}')
         targets = [host]
-    if variant == VARIANTS[0]:
-        host = host_target()
+    if variant == AOT:
         foreign = [t for t in targets if t != host]
         if foreign:
+            here = f'this one is {host}' if host else 'this one is not a supported target'
             sys.exit(
-                f'Native AOT does not cross-compile: the AOT build of {", ".join(foreign)} is made on that machine '
-                f'(this one is {host or "not a supported target"}). Add --jit for the regular build, which any machine '
-                'can make.'
+                f'build.py makes the AOT build for the machine it runs on only ({here}): build {", ".join(foreign)} '
+                'on such a machine, or add --jit for the regular build, which any machine can make for every target.'
             )
     return targets, version, variant
 
@@ -106,10 +106,16 @@ def main() -> None:
     targets, version, variant = parse_args()
     # Global properties on the command line: Hider.csproj switches to the JIT build on HiderJit, and Version wins over
     # <Version> of Directory.Build.props.
-    variant_args = ['-p:HiderJit=true'] if variant == VARIANTS[1] else []
+    variant_args = ['-p:HiderJit=true'] if variant == JIT else []
     version_args = [f'-p:Version={version}'] if version else []
     if shutil.which('dotnet') is None:
         sys.exit('dotnet was not found in PATH, install the .NET 10 SDK first.')
+    # ILCompiler links the AOT build with clang on Linux; without it the build fails late, in ILCompiler's own words.
+    if variant == AOT and any(t.startswith('linux') for t in targets) and shutil.which('clang') is None:
+        sys.exit(
+            'clang was not found in PATH: the AOT build on Linux needs clang and zlib1g-dev '
+            '(or add --jit for the regular build).'
+        )
     for target in targets:
         out_dir = publish_dir(target, variant)
         print(f'Building {target} ({variant}) -> {out_dir}')

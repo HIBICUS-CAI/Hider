@@ -19,6 +19,14 @@ def completed(returncode: int) -> subprocess.CompletedProcess[bytes]:
     return subprocess.CompletedProcess([], returncode)
 
 
+def aot_elsewhere(targets: str, here: str) -> str:
+    """build.py's message for an AOT build of other targets than this machine's."""
+    return (
+        f'build.py makes the AOT build for the machine it runs on only ({here}): build {targets} on such a machine, '
+        'or add --jit for the regular build, which any machine can make for every target.'
+    )
+
+
 @contextlib.contextmanager
 def which_only(*found: str) -> Generator[mock.MagicMock, None, None]:
     """shutil.which that finds the given commands (in /usr/bin) and nothing else."""
@@ -185,11 +193,18 @@ class ParseArgsTest(unittest.TestCase):
                 ):
                     build.parse_args()
                 foreign = others[:1] if len(args) == 1 and args[0] != 'all' else others
-                self.assertEqual(
-                    raised.exception.code,
-                    f'Native AOT does not cross-compile: the AOT build of {", ".join(foreign)} is made on that machine '
-                    f'(this one is {host}). Add --jit for the regular build, which any machine can make.',
-                )
+                self.assertEqual(raised.exception.code, aot_elsewhere(', '.join(foreign), f'this one is {host}'))
+
+    def test_st53_aot_asks_the_host_once(self) -> None:
+        for args in [[], ['linux-x64'], ['linux-x64', 'win-x64']]:
+            with (
+                self.subTest(args=args),
+                arguments('build.py', *args),
+                mock.patch.object(build, 'host_target', return_value='linux-x64') as host,
+                contextlib.suppress(SystemExit),
+            ):
+                build.parse_args()
+            host.assert_called_once_with()
 
     def test_st53_aot_on_an_unsupported_host_exits(self) -> None:
         with (
@@ -198,11 +213,7 @@ class ParseArgsTest(unittest.TestCase):
             self.assertRaises(SystemExit) as raised,
         ):
             build.parse_args()
-        self.assertEqual(
-            raised.exception.code,
-            'Native AOT does not cross-compile: the AOT build of linux-x64 is made on that machine '
-            '(this one is not a supported target). Add --jit for the regular build, which any machine can make.',
-        )
+        self.assertEqual(raised.exception.code, aot_elsewhere('linux-x64', 'this one is not a supported target'))
 
     def test_st53_arguments_are_checked_before_the_host(self) -> None:
         self.assertIn('invalid target nope', self.parse_error('win-x64', 'nope'))
@@ -343,8 +354,11 @@ class MainTest(unittest.TestCase):
     def native_helper(self, target: str) -> None:
         self.events.append(f'helper {target}')
 
-    def run_main(self, *args: str, dotnet: bool = True, fail: str | None = None) -> tuple[Output, mock.MagicMock]:
-        """Run main with dotnet publish replaced; fail: the target whose publish fails."""
+    def run_main(
+        self, *args: str, dotnet: bool = True, clang: bool = True, fail: str | None = None
+    ) -> tuple[Output, mock.MagicMock]:
+        """Run main with dotnet publish replaced; dotnet / clang: whether PATH has them; fail: the target whose publish
+        fails."""
 
         def run(command: list[str], check: bool) -> subprocess.CompletedProcess[bytes]:
             self.assertTrue(check)
@@ -358,7 +372,7 @@ class MainTest(unittest.TestCase):
 
         with (
             arguments('build.py', *args),
-            which_only(*(['dotnet'] if dotnet else [])),
+            which_only(*(['dotnet'] if dotnet else []), *(['clang'] if clang else [])),
             mock.patch('subprocess.run', side_effect=run) as run_mock,
             captured() as output,
         ):
@@ -442,8 +456,34 @@ class MainTest(unittest.TestCase):
     def test_st53_aot_of_another_target_exits_before_dotnet(self) -> None:
         with self.assertRaises(SystemExit) as raised:
             self.run_main('win-x64')
-        self.assertIn('Native AOT does not cross-compile', str(raised.exception.code))
+        self.assertEqual(raised.exception.code, aot_elsewhere('win-x64', 'this one is linux-x64'))
         self.assertEqual(self.events, [])
+
+    def test_st59_aot_on_linux_needs_clang(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            self.run_main('linux-x64', clang=False)
+        self.assertEqual(
+            raised.exception.code,
+            'clang was not found in PATH: the AOT build on Linux needs clang and zlib1g-dev '
+            '(or add --jit for the regular build).',
+        )
+        # Before anything is built or removed.
+        self.assertEqual(self.events, [])
+
+    def test_st59_clang_is_checked_after_dotnet(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            self.run_main(dotnet=False, clang=False)
+        self.assertEqual(raised.exception.code, 'dotnet was not found in PATH, install the .NET 10 SDK first.')
+
+    def test_st59_jit_and_windows_do_not_need_clang(self) -> None:
+        self.run_main('linux-x64', 'linux-arm64', '--jit', clang=False)
+        self.assertEqual(
+            self.events, ['helper linux-x64', 'publish linux-x64', 'helper linux-arm64', 'publish linux-arm64']
+        )
+        self.events.clear()
+        with mock.patch.object(build, 'host_target', return_value='win-x64'):
+            self.run_main(clang=False)
+        self.assertEqual(self.events, ['publish win-x64'])
 
     def test_st05_dotnet_missing_exits_before_building(self) -> None:
         with self.assertRaises(SystemExit) as raised:
