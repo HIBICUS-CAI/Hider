@@ -319,10 +319,12 @@ jobs:
           echo "$v"
           if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
           "$exe" --selftest
-      # Windows: the self test started from cmd in a console of its own, the way README says (start /wait). cmd's start
-      # hands a GUI program none of its redirections (seen on windows-latest: `> out.txt` stays empty), so Hider finds
-      # neither stream redirected and attaches to that console for both (Win32Console: AttachConsole, CONOUT$, SetOut,
-      # SetError). What reaches the console can not be read here (PT-34); the exit code is the self test's result.
+      # Windows: the self test started from cmd in a console of its own, the way README says (start /wait; /b here keeps
+      # it in that console instead of a new window). On windows-latest `> out.txt` stays empty: cmd's start seems to
+      # hand a GUI program none of its redirections, and Hider then takes neither stream as redirected and tries to
+      # attach to that console (Win32Console: AttachConsole, CONOUT$; if that failed, the result would look the same).
+      # What reaches the console can not be read here (PT-34). The exit code is the self test's result; out.txt may be
+      # empty or end with `selftest passed` (should cmd one day hand the redirection on), err.txt stays empty.
       - if: ${{ startsWith(matrix.rid, 'win') }}
         name: Self test from cmd on the console
         shell: pwsh
@@ -334,7 +336,9 @@ jobs:
             $file = $redirect.Split(' ')[1]
             $text = Get-Content -LiteralPath $file -Raw
             Write-Host "start /wait /b Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text"
-            if ($p.ExitCode -ne 0 -or $text) { throw "start /wait /b Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text" }
+            $lines = @(($text ?? '') -split "`r?`n" | Where-Object { $_ -ne '' })
+            $fileOk = if ($file -eq 'out.txt') { $lines.Count -eq 0 -or $lines[-1] -eq 'selftest passed' } else { $lines.Count -eq 0 }
+            if ($p.ExitCode -ne 0 -or -not $fileOk) { throw "start /wait /b Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text" }
           }
           Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
       # scripts/install.py on the build for real: the installed binary runs, and the Linux desktop entry / the Windows
