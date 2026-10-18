@@ -68,11 +68,13 @@ main() {
         aarch64 | arm64) rid=linux-arm64 ;;
         *) die "unsupported architecture $(uname -m) (x86_64 and aarch64 are supported)" ;;
     esac
+    # Every build named: a RID added above without its checksum here stops instead of checking against another one's.
     case "$rid$suffix" in
         linux-x64) sha256="$SHA256_LINUX_X64" ;;
         linux-arm64) sha256="$SHA256_LINUX_ARM64" ;;
         linux-x64-jit) sha256="$SHA256_LINUX_X64_JIT" ;;
-        *) sha256="$SHA256_LINUX_ARM64_JIT" ;;
+        linux-arm64-jit) sha256="$SHA256_LINUX_ARM64_JIT" ;;
+        *) die "no checksum for $rid$suffix in this installer" ;;
     esac
 
     # Not ${XDG_DATA_HOME:-$HOME/.local/share}: under set -u a missing HOME (env -i, some service managers) would stop

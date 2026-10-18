@@ -524,13 +524,17 @@ jobs:
       # install.bat installs the AOT build, and the JIT build with --jit.
       - shell: pwsh
         run: |
-          foreach ($case in @(@('installed', 'dummy win-x64'), @('installed-jit', 'dummy win-x64-jit'))) {
-            $folder, $content = $case
-            if ($folder -eq 'installed') { cmd.exe /c dummy\out\install.bat $folder } else { cmd.exe /c dummy\out\install.bat $folder --jit }
+          $cases = @(
+            @{ Args = @('installed'); Expect = 'dummy win-x64' },
+            @{ Args = @('installed-jit', '--jit'); Expect = 'dummy win-x64-jit' }
+          )
+          foreach ($case in $cases) {
+            cmd.exe /c dummy\out\install.bat @($case.Args)
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $folder = $case.Args[0]
             $exe = Join-Path $folder 'Hider.exe'
             if (-not (Test-Path $exe)) { throw "Hider.exe not installed in $folder" }
-            if ((Get-Content -LiteralPath $exe -Raw).Trim() -ne $content) { throw "$folder holds another build" }
+            if ((Get-Content -LiteralPath $exe -Raw).Trim() -ne $case.Expect) { throw "$folder holds another build" }
             if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
           }
 

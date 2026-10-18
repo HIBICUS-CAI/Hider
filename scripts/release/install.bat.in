@@ -12,7 +12,8 @@ rem go through environment variables to avoid quoting issues. Delayed expansion 
 rem (cmd /v:on, or the DelayedExpansion registry value): with it on, %~f0 and %~1 would lose every ! of the paths. Where
 rem the registry turns it on, double-clicking this file in a folder with ! in its name still fails: the command line
 rem that starts it loses the ! before this script runs. Move it to another folder, or open cmd in that folder (type cmd
-rem in Explorer's address bar) and type install.bat there (README).
+rem in Explorer's address bar) and type install.bat there (README). Only the first three arguments are read (a folder,
+rem --jit and one more to report a second folder or an unknown option); a fourth and later ones are ignored.
 setlocal EnableExtensions DisableDelayedExpansion
 set "HIDER_SCRIPT=%~f0"
 set "HIDER_ARG1=%~1"
