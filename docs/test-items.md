@@ -10,7 +10,7 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。R-1 の改名時点（3b28c0a）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST51（51）、NT01〜NT09（9）。R-1 の改名の時点（ac743e7）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
 
 ## 新しい ID（CT / GT）
 
@@ -160,7 +160,7 @@
 | GT130 | GT | メニュー窓のデザイン: ボタンなしで始まり間隔はデザインどおり、アイコンのあるコマンドはパスを持ち左の余白が少ない、ボタンの体裁 | UI デザインキャンバス | Hider.App.Tests/Tray/TrayMenuPanelTests.cs（TrayMenuPanelTests、3 件） |
 | GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す） | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
-| GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣、FileShare.None で開いたまま）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変（FileShare.None で開いたままの回と開かない回の 2 回） | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
+| GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変（FileShare.None で開いたままの回と開かない回の 2 回） | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
 
 ## 既存 ID の細分化
 
