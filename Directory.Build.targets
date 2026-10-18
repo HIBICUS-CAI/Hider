@@ -3,9 +3,8 @@
   <!-- The SDK adds Microsoft.NET.ILLink.Tasks (trimming) and, for the AOT build, Microsoft.DotNet.ILCompiler (native
        AOT) at the runtime version it bundles, and packages.lock.json records that version: a newer SDK would change the
        lock files and fail the locked restore of CI. The version is fixed here instead, so any 10.0.x SDK restores the
-       same packages; raise it together with both lock files of src/Hider (README "ビルド"). The AOT build takes its
-       runtime from ILCompiler, so this is also the .NET runtime version inside it (the JIT build takes the SDK's
-       runtime pack). -->
+       same packages; raise it together with both lock files of src/Hider (README "ビルド"). It is also the .NET runtime
+       version inside both published builds (below). -->
   <PropertyGroup>
     <HiderPublishPackVersion>10.0.12</HiderPublishPackVersion>
   </PropertyGroup>
@@ -13,9 +12,12 @@
     <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderPublishPackVersion)" />
     <KnownILCompilerPack Update="Microsoft.DotNet.ILCompiler" ILCompilerPackVersion="$(HiderPublishPackVersion)" />
   </ItemGroup>
-  <!-- The AOT build's runtime pack (the framework of a self-contained publish) must be ILCompiler's version: a newer
-       SDK would take its own newer one, and ILCompiler refuses a System.Private.CoreLib newer than its own. -->
-  <PropertyGroup Condition="'$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' != ''">
+  <!-- The runtime pack of a self-contained publish (and the single-file host, which follows it) is that version too,
+       instead of the newest one the SDK bundles: the AOT build's ILCompiler refuses a System.Private.CoreLib newer than
+       its own, ILLink trims the framework of its own version, and both builds of a release carry the same runtime.
+       Hider.Core gets the RID of a publish but is not self-contained; the runtime pack is a PackageDownload, so the
+       lock files do not change. -->
+  <PropertyGroup Condition="'$(SelfContained)' == 'true'">
     <RuntimeFrameworkVersion>$(HiderPublishPackVersion)</RuntimeFrameworkVersion>
   </PropertyGroup>
 
