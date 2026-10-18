@@ -24,7 +24,10 @@ namespace Hider.Core.Tests
             return output.ToString();
         }
 
-        /// <summary>XML (project files, axaml): &lt;!-- --&gt; comments, also over several lines; CDATA sections are text.</summary>
+        /// <summary>
+        /// XML (project files, axaml): &lt;!-- --&gt; comments, also over several lines; CDATA sections and processing
+        /// instructions (&lt;? ?&gt;) are text.
+        /// </summary>
         public static string StripXml(string _text)
         {
             var output = new StringBuilder(_text);
@@ -35,6 +38,12 @@ namespace Hider.Core.Tests
                 {
                     int end = _text.IndexOf("]]>", i + 9, StringComparison.Ordinal);
                     i = end < 0 ? _text.Length : end + 3;
+                    continue;
+                }
+                if (string.CompareOrdinal(_text, i, "<?", 0, 2) == 0)
+                {
+                    int end = _text.IndexOf("?>", i + 2, StringComparison.Ordinal);
+                    i = end < 0 ? _text.Length : end + 2;
                     continue;
                 }
                 if (string.CompareOrdinal(_text, i, "<!--", 0, 4) == 0)
@@ -143,8 +152,9 @@ namespace Hider.Core.Tests
                     }
                     else if (c == ':' && depth == 0 && At(_text, _i + 1) != ':' && At(_text, _i - 1) != ':')
                     {
-                        // The format of the hole ("{d:yyyy//MM}"): text up to the closing brace.
-                        while (_i < _text.Length && _text[_i] is not ('}' or '\n'))
+                        // The format of the hole ("{d:yyyy//MM}"): text up to the closing brace, over line breaks too (in a
+                        // verbatim or raw string the format may hold one).
+                        while (_i < _text.Length && _text[_i] != '}')
                         {
                             _i++;
                         }

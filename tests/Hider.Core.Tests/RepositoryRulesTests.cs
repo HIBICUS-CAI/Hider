@@ -141,17 +141,18 @@ namespace Hider.Core.Tests
             ["DllImport"] = ("P/Invoke is LibraryImport", @"\bDllImport(Attribute)?\b"),
             // The ways in are banned as names, not as call shapes: a call through a variable, over two lines or with named
             // arguments has the same name. AppDomain stays usable for its events only; Activator for a type the code names;
-            // Type.GetType not at all (typeof names a type; a string may name another assembly).
+            // Type.GetType not at all (typeof names a type; a string may name another assembly). A method group is a use too,
+            // and so is an alias or a using static of these types, written with global:: or inside a namespace block.
             ["D-12"] = ("D-12: no assemblies loaded at run time", string.Join('|',
-                @"\bAssembly\s*\.\s*\w*Load\w*\s*\(",
+                @"\bAssembly\s*\.\s*\w*Load\w*\b",
                 @"\bAssemblyLoadContext\b",
                 @"\bLoadFrom(AssemblyPath|AssemblyName|Stream|NativeImagePath)\b",
                 @"\bAppDomain\b(?!\s*\.\s*CurrentDomain\s*\.\s*(UnhandledException|ProcessExit|FirstChanceException)\b)",
                 @"\.\s*ExecuteAssembly\w*\s*\(",
                 @"\bActivator\b(?!\s*\.\s*CreateInstance\s*(<|\(\s*typeof\s*\())",
-                @"\bType\s*\.\s*GetType\s*\(\s*[^\s)]",
-                @"\busing\s+static\s+System\s*\.\s*(Reflection|Runtime\s*\.\s*Loader|Activator|AppDomain|Type)\b",
-                @"\busing\s+\w+\s*=\s*System\s*\.\s*(Reflection\s*\.\s*Assembly|Activator|AppDomain)\b")),
+                @"\bType\s*\.\s*GetType\b(?!\s*\(\s*\))",
+                @"\bGetDomain\b",
+                @"\busing\s+(static\s+)?(\w+\s*=\s*)?(global\s*::\s*)?(System\s*\.\s*)?(Reflection\s*\.\s*Assembly|Runtime\s*\.\s*Loader|Assembly|Activator|AppDomain|Type)\b")),
             ["FR-65"] = ("FR-65: the old setting.txt is never read", @"setting\.txt|hider_setting"),
         };
 
@@ -218,6 +219,15 @@ namespace Hider.Core.Tests
             { "D-12", "Activator.CreateInstance(assemblyName: \"Plugin\", typeName: \"Plugin.Entry\")", true },
             { "D-12", "Type.GetType(\"System.Int32\")", true },
             { "D-12", "using Asm = System.Reflection.Assembly;", true },
+            { "D-12", "var a = Thread.GetDomain().Load(_name);", true },
+            { "D-12", "Func<string, Assembly> f = Assembly.Load;", true },
+            { "D-12", "Func<string, Type?> g = Type.GetType;", true },
+            { "D-12", "using static global::System.Reflection.Assembly;\nvar a = Load(_name);", true },
+            { "D-12", "using Asm = global::System.Reflection.Assembly;", true },
+            { "D-12", "using System.Reflection;\nnamespace N\n{\n    using Asm = Assembly;\n}", true },
+            { "D-12", "using System.Reflection;\nnamespace N\n{\n    using static Assembly;\n}", true },
+            { "D-12", "using T = System.Type;\nvar t = T.GetType(\"Plugin.Entry, Plugin\");", true },
+            { "D-12", "using static System.Runtime.Loader.AssemblyLoadContext;", true },
             { "D-12", "var state = AreasFile.Load(path, out var status);", false },
             { "D-12", "using var s = typeof(SkslMethod).Assembly.GetManifestResourceStream(name);", false },
             { "D-12", "AppDomain.CurrentDomain.UnhandledException += OnUnhandled;", false },
@@ -226,6 +236,11 @@ namespace Hider.Core.Tests
             { "D-12", "Activator.CreateInstance<Probe>()", false },
             { "D-12", "Type t = value.GetType();", false },
             { "D-12", "using System.Reflection;", false },
+            { "D-12", "using System.Runtime.InteropServices;", false },
+            { "D-12", "using var stream = File.OpenRead(path);", false },
+            { "D-12", "using Types = Hider.Core.Model;", false },
+            { "D-12", "var location = typeof(Program).Assembly.Location;", false },
+            { "D-12", "AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;", false },
 
             { "FR-65", "Path.Combine(dir, \"setting.txt\")", true },
             { "FR-65", "Path.Combine(local, \"hider_setting\")", true },
@@ -325,6 +340,7 @@ namespace Hider.Core.Tests
             { "a verbatim interpolated string", "s = @$\"\"\"{a}//\"; // d", "s = @$\"\"\"{a}//\";     " },
             { "a division is no comment", "x = a / b * c; // d", "x = a / b * c;     " },
             { "the format of a hole is text", "s = $\"{d:yyyy//MM}\"; // c", "s = $\"{d:yyyy//MM}\";     " },
+            { "a format over lines in a verbatim string is text", "s = @$\"{x:yy\n// zz}\"; Assembly.Load(x); // c", "s = @$\"{x:yy\n// zz}\"; Assembly.Load(x);     " },
             { "a named argument in a hole is code", "s = $\"{F(x: 1) /* c */}\";", "s = $\"{F(x: 1)        }\";" },
             { "a directive line holds no code", "#region a /* b\nx = 1; // c", "              \nx = 1;     " },
             { "an indented directive", "  #error \"x\nAssembly.Load(b);", "           \nAssembly.Load(b);" },
@@ -346,6 +362,7 @@ namespace Hider.Core.Tests
             { "an unclosed comment runs to the end", "<A /><!-- x\ny", "<A />      \n " },
             { "text outside comments stays", "<PackageReference Include=\"Avalonia.Wayland\" />", "<PackageReference Include=\"Avalonia.Wayland\" />" },
             { "a comment marker in CDATA is text", "<A><![CDATA[ <!-- ]]></A> <!-- c --> <B />", "<A><![CDATA[ <!-- ]]></A>            <B />" },
+            { "a comment marker in a processing instruction is text", "<?pi <!-- ?><A /> <!-- c --> <B />", "<?pi <!-- ?><A />            <B />" },
         };
 
         [Theory]
