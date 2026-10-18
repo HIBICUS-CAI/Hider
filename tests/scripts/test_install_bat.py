@@ -135,9 +135,9 @@ class InstallBatTest(unittest.TestCase):
 
     # Fixtures
 
-    def make_zip(self, folder: Path, files: dict[str, bytes] | None = None, name: str = NAME) -> str:
-        """<name>.zip (default Hider-<version>-win-x64.zip) in folder, made by make_release.make_archive; return its
-        SHA-256."""
+    def make_zip(self, folder: Path, files: dict[str, bytes] | None = None, archive_root: str = NAME) -> str:
+        """<archive_root>.zip (default Hider-<version>-win-x64.zip, the files under the folder <archive_root>) in
+        folder, made by make_release.make_archive; return its SHA-256."""
         src = self.root / 'zip-src'
         if src.exists():
             shutil.rmtree(src)
@@ -146,8 +146,8 @@ class InstallBatTest(unittest.TestCase):
             path = src / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-        out = folder / f'{name}.zip'
-        make_release.make_archive(src, out, name)
+        out = folder / f'{archive_root}.zip'
+        make_release.make_archive(src, out, archive_root)
         return hashlib.sha256(out.read_bytes()).hexdigest()
 
     def write_bat(self, folder: Path, digest: str, base_url: str = BASE_URL, jit_digest: str | None = None) -> Path:
