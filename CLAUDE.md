@@ -1,6 +1,6 @@
 # Hider v2 — 作業ガイド
 
-画面の一部を覆って隠す常駐ツール（トレイ常駐、複数エリア、塗りつぶし / モザイク / 生成パターン）。.NET 10 + Avalonia 12.1.4、対象は win-x64 / linux-x64 / linux-arm64。
+画面の一部を覆って隠す常駐ツール（トレイ常駐、複数エリア、塗りつぶし / モザイク / 生成パターン）。.NET 10 + Avalonia 12.1.4、対象は win-x64 / linux-x64 / linux-arm64。配布はネイティブ AOT 版が既定で、通常版（self-contained + trimmed single file の JIT）を `--jit` で選べる。
 
 ## 資料（判断の優先順位: 仕様書 > 作業指示書 > 設計書 > UI デザインキャンバス > 現行コード > 一般的な慣習）
 
@@ -39,8 +39,9 @@ dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests             # Linux では先に make -C native/hidercap（ビルドがテスト出力へ .so をコピー）。CI の Linux では実環境テストを skip しない
 make -C native/hidercap test                  # libhidercap の単体テスト（CT-90 のフレーム時刻、API の検査とエラー経路。libpipewire のクライアントモジュールが要る、デーモンは不要）
 python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト（標準ライブラリのみ。install.sh は sh / dash / bash と偽コマンドで実行）
-python scripts/build.py <rid>                 # bin/publish/<rid>/（Ubuntu では python3。scripts/ は直接実行もできる）
-bin/publish/<rid>/Hider --selftest            # 終了コード 0（Windows の cmd では start /wait、README 参照）
+python scripts/build.py <rid>                 # AOT 版 → bin/publish/<rid>/（そのマシンの RID だけ。Ubuntu では python3。scripts/ は直接実行もできる）
+python scripts/build.py <rid> --jit           # 通常版 → bin/publish/<rid>-jit/（どのマシンでも全 RID）
+bin/publish/<rid>/Hider --selftest            # 終了コード 0。1 行目が runtime: native AOT / JIT（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）
 python scripts/make_icons.py                  # アイコン（src/Hider/Assets）を作り直す
 python scripts/make_release.py version | bump <minor|patch|major> <版> | package <版> --repo <owner/repo> --out-dir <dir>   # リリース用（release.yml が呼ぶ。CI はダミーで通し確認）
@@ -52,7 +53,7 @@ CI は `.github/workflows/ci.yml`（main への pull_request、workflow_dispatch
 
 - Step は順に進め、完了条件 + テスト緑 + 報告で閉じる。確認順: 実装 → テスト → `dotnet build -warnaserror` と `dotnet test` → `python scripts/build.py <rid>` → `--selftest`。
 - コミットは 1 コミット 1 つの内容。1 行目 `step<N>: <要約>`、本文に対応 FR と確認した RID（日本語）。
-- 生成物（bin/、obj/、publish 出力）はコミットしない。ゴールデン画像を更新したら、理由と差分の要約をコミット本文に書く（`HIDER_UPDATE_GOLDEN=1` で再生成。差分画像はコミットしない）。
+- 生成物（bin/、obj/、publish 出力）はコミットしない。src/Hider のロックファイルは 2 つ（AOT 版の packages.lock.json、通常版の packages.jit.lock.json）。パッケージや Directory.Build.targets の `HiderPublishPackVersion` を変えたら両方を作り直す（README の「ビルド」）。ゴールデン画像を更新したら、理由と差分の要約をコミット本文に書く（`HIDER_UPDATE_GOLDEN=1` で再生成。差分画像はコミットしない）。
 
 ### 禁止
 

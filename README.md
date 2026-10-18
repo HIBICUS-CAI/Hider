@@ -13,7 +13,14 @@
 | Windows 11 | x64 | |
 | Ubuntu 26.04（GNOME） | x64 / arm64 | XWayland 上で動作。トレイには AppIndicator 拡張（既定で有効）が必要。無い場合はメニューの小窓を出します |
 
-配布物は .NET ランタイム不要のフォルダです（実行ファイルの隣にネイティブライブラリが並ぶので、フォルダごとコピーして使います）。
+配布物は .NET ランタイム不要のフォルダです（実行ファイルの隣にネイティブライブラリが並ぶので、フォルダごとコピーして使います）。版は 2 種類あり、機能は同じです。
+
+| 版 | 中身 | 選び方 |
+|---|---|---|
+| AOT 版（既定） | ネイティブ AOT でコンパイルした実行ファイル。起動が速く、メモリが少ない | インストーラ・`build.py` の既定 |
+| 通常版 | JIT で動く .NET ランタイム込みの単一ファイル（トリミング済み） | インストーラ・`build.py`・`install.py` に `--jit` |
+
+参考（linux-x64、2026-10 の開発環境での実測）: `--version` の起動から終了まで AOT 版 11 ms / 通常版 99 ms、エリア 1 枚で常駐したときのメモリ（RSS）131 MB / 157 MB。実行ファイルの大きさはほぼ同じ（約 22 MB）です。
 
 ## 使い方
 
@@ -38,37 +45,40 @@
 | Windows | [install.bat](https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.bat) をダウンロードしてダブルクリック | `%LOCALAPPDATA%\Programs\Hider` | デスクトップのショートカット |
 | Linux | 端末で `curl -fsSL https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.sh \| sh` | `~/.local/share/Hider` | `~/.local/share/applications/Hider.desktop`（アクティビティから検索・ドックに固定できる） |
 
+- 入るのは AOT 版です。通常版を入れる場合は `--jit` を付けます: Windows はコマンドプロンプトで install.bat のフォルダに移動して `install.bat --jit`、Linux は `curl -fsSL https://github.com/HIBICUS-CAI/Hider/releases/latest/download/install.sh | sh -s -- --jit`（ダウンロードした install.sh なら `sh install.sh --jit`）。版を切り替えるときも同じで、同じフォルダに上書きします。
 - 更新も同じ操作です（既存のファイルを上書きします）。Hider を起動している場合は、トレイの「終了」で終了してから実行してください（起動中はインストーラが止まります）。
-- インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
-- インストーラが通信するのは、そのリリースのアーカイブ（`Hider-<版>-<rid>.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
+- インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます（`--jit` とはどちらの順でも可）。成功すると install.bat の窓は自動で閉じ、失敗したときだけ理由を表示して止まります。
+- インストーラが通信するのは、そのリリースのアーカイブ（AOT 版は `Hider-<版>-<rid>.zip` / `.tar.gz`、通常版は `Hider-<版>-<rid>-jit.zip` / `.tar.gz`）のダウンロードだけです。アーカイブをインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置いておくと、ダウンロードせずにそれを使います。Hider 本体は通信しません。
 - Windows では、ダウンロードや実行の時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「保存」「詳細情報」→「実行」で続けます。
 - レジストリで cmd の遅延展開を有効にしている Windows（`HKCU\Software\Microsoft\Command Processor` または `HKLM\Software\Microsoft\Command Processor` の `DelayedExpansion` が 1）では、名前に `!` を含むフォルダに置いた install.bat をダブルクリックしても動きません（起動の行の段階で `!` が失われるため）。別のフォルダに移すか、そのフォルダで cmd を開いて（エクスプローラーのアドレス欄に `cmd` と入力する）`install.bat` と打ってください。そうした cmd でインストール先のフォルダを引数に打つときは、`!` を `^!` と打ってください（そのまま打つと、`!` が落ちた別のフォルダにエラーにならないままインストールされます）。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除するだけです（設定は `~/.hider` に残ります）。
 
 ## ビルド
 
-必要なもの: .NET 10 SDK（global.json は 10.0.100 以上の 10.0 系を受け付けます。動作を確かめた版は 10.0.112 で、CI は 10.0 系の最新を使います。SDK が暗黙に加える Microsoft.NET.ILLink.Tasks の版は Directory.Build.targets で固定しているので、SDK を更新してもロックファイルは変わりません。アナライザーは AnalysisLevel=latest-recommended で SDK に合わせて規則を追い、新しい SDK で `dotnet format`、アナライザー、コードスタイルの結果が変わったときは、その時点でコードを直します）、Python 3.10 以上（標準ライブラリのみ。Windows は `python`、Linux は `python3` か `./scripts/build.py` のように直接実行）。Linux 版を Linux 上でビルドする場合は `build-essential` と `libpipewire-0.3-dev` も必要です（PipeWire ヘルパ libhidercap.so をビルドするため）。
+必要なもの: .NET 10 SDK（global.json は 10.0.100 以上の 10.0 系を受け付けます。動作を確かめた版は 10.0.112 で、CI は 10.0 系の最新を使います。SDK が暗黙に加える Microsoft.NET.ILLink.Tasks（トリミング）と Microsoft.DotNet.ILCompiler（ネイティブ AOT）の版は Directory.Build.targets の `HiderPublishPackVersion` で固定しているので、SDK を更新してもロックファイル（AOT 版は packages.lock.json、src/Hider の通常版は packages.jit.lock.json）は変わりません。AOT 版に入る .NET ランタイムはこの ILCompiler の版なので、.NET の修正版に追従するときはこの値を上げ、両方のロックファイルを作り直します（`dotnet restore --force-evaluate` と `dotnet restore src/Hider/Hider.csproj --force-evaluate -p:HiderJit=true`）。アナライザーは AnalysisLevel=latest-recommended で SDK に合わせて規則を追い、新しい SDK で `dotnet format`、アナライザー、コードスタイルの結果が変わったときは、その時点でコードを直します）、Python 3.10 以上（標準ライブラリのみ。Windows は `python`、Linux は `python3` か `./scripts/build.py` のように直接実行）。Linux 版を Linux 上でビルドする場合は `build-essential` と `libpipewire-0.3-dev` も必要です（PipeWire ヘルパ libhidercap.so をビルドするため）。AOT 版にはさらに、Windows では Visual Studio 2022 以降（または Build Tools）の「C++ によるデスクトップ開発」、Linux では `clang` と `zlib1g-dev` が必要です。
 
 ```sh
-python scripts/build.py              # このマシン向け
-python scripts/build.py linux-x64    # 対象を指定（win-x64 / linux-x64 / linux-arm64 / all）
-bin/publish/linux-x64/Hider --selftest
+python scripts/build.py                    # このマシン向けの AOT 版 → bin/publish/<rid>/
+python scripts/build.py --jit              # このマシン向けの通常版 → bin/publish/<rid>-jit/
+python scripts/build.py linux-x64 --jit    # 対象を指定（win-x64 / linux-x64 / linux-arm64 / all）
+bin/publish/linux-x64/Hider --selftest     # 1 行目に実行形態（runtime: native AOT / runtime: JIT）
 ```
 
 Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに次のプロンプトを出します（出力は起動元のコンソールに出ます）。終了コードまで見るときは `start /wait bin\publish\win-x64\Hider.exe --selftest` の後に `echo %ERRORLEVEL%`、PowerShell では `(Start-Process bin\publish\win-x64\Hider.exe --selftest -Wait -PassThru -NoNewWindow).ExitCode` を使います。
 
-出力は `bin/publish/<rid>/` です。別アーキテクチャの Linux 向けにクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
+出力は AOT 版が `bin/publish/<rid>/`、通常版が `bin/publish/<rid>-jit/` です。ネイティブ AOT はクロスコンパイルできないので、AOT 版はその OS・アーキテクチャのマシンでだけビルドできます（ほかの対象を指定すると、何もビルドせずに理由を表示して終了します）。通常版はどのマシンでもすべての対象をビルドできます。別アーキテクチャの Linux 向けに通常版をクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
 
 アイコンを作り直す場合は `python scripts/make_icons.py`（生成物はリポジトリに含まれています）。
 
 ### ビルドしたものをインストール
 
 ```sh
-python scripts/install.py            # 既定の場所へ
+python scripts/install.py            # 既定の場所へ（AOT 版）
+python scripts/install.py --jit      # 通常版
 python scripts/install.py -d <folder>
 ```
 
-`bin/publish/<rid>/` を、リリースのインストーラと同じ場所に同じ形で入れます（上の「インストール」の表）。既存のファイルは上書きします。Hider を終了してから実行してください。
+`bin/publish/<rid>/`（`--jit` では `bin/publish/<rid>-jit/`）を、リリースのインストーラと同じ場所に同じ形で入れます（上の「インストール」の表）。既存のファイルは上書きします。Hider を終了してから実行してください。
 
 ## 設定ファイル
 
@@ -107,7 +117,7 @@ scripts/xvfb-strip-smoke.sh [--screencast] [--deny]   # Linux の帯撮影を Xv
 
 ### CI と main の保護
 
-CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします（リポジトリの設定で、ワークフローからは設定できません）。
+CI は main への PR ごとに動き（同じ PR に push すると古い実行は取り消されます）、Actions タブから手動でも実行できます（対象の RID と、publish する版 all / aot / jit を選べます）。publish ジョブは RID ごとに AOT 版と通常版をビルドし、どちらにも同じ確認（`--version`・`--selftest` とその実行形態、`install.py`、Windows は cmd からの自己テストと windows-stress.ps1、Linux は公開物での Xvfb の帯撮影 4 通り）を行います。最後のジョブ `summary` は、どれかのジョブが失敗・取り消しになると赤になるので、これを main の必須チェックにします（リポジトリの設定で、ワークフローからは設定できません）。
 
 - Settings → Rules → Rulesets で main（Default branch）に「Require status checks to pass」を付け、チェックに `summary`（GitHub Actions）を追加する。main に入るコミットは `summary` が緑であることが必要になり、main への直接 push も、そのコミットが他のブランチで CI を通っていない限り拒否されます（直接 push を残したい場合は Bypass list に自分を入れる）。「Require a pull request before merging」は任意です（リリースは PR を作らないので、付けても付けなくても動きます）。
 
@@ -119,11 +129,11 @@ CI は main への PR ごとに動き（同じ PR に push すると古い実行
    - タグがまだない（初回）: `Directory.Build.props` の `<Version>`（2.0.0）をそのまま使う。
    - タグがある: 最新のタグを `bump` で上げる（既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）。このとき `Directory.Build.props` は見ません（`<Version>` はソースからビルドしたときの版で、更新は任意です）。
    - main の HEAD に既にタグがある（リリース済み。誤って 2 回実行した場合など）は失敗します。
-2. ci: そのコミットで CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。publish は決めた版でビルドし（`build.py --version`）、`--version` の表示が一致することを確かめます。
-3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
-4. verify: 3 RID のランナーで、インストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
+2. ci: そのコミットで CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。publish は RID ごとに AOT 版と通常版を決めた版でビルドし（`build.py --version`、通常版は `--jit` も）、`--version` の表示と `--selftest` の実行形態が一致することを確かめます。
+3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`（AOT 版）と `Hider-<版>-<rid>-jit.zip` / `.tar.gz`（通常版）、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
+4. verify: 3 RID のランナーで、AOT 版・通常版（`--jit`）のそれぞれについてインストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
 5. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する（書き込み権限を持つのはこのジョブだけ）。
-6. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする。
+6. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする（AOT 版・通常版とも）。
 
 途中で失敗した場合は、その実行の「Re-run failed jobs」でやり直せます（タグは手順 5 まで付かないので、手順 1 からやり直しても同じ版になります）。
 

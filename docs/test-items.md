@@ -10,7 +10,7 @@
 - **ST-xx（tests/scripts の Python unittest）と NT-xx（native/hidercap の C の単体テスト）は新設**（提案 P-13、承認済み）。Python はテストメソッドを `test_st01_...`、C はテスト関数を `nt01_...` とする。native/hidercap/test_frame_time.c は従来どおり CT-90（main 関数 1 つ）。
 - main（43d0337）にあった ID なしのテスト 93 件は今回の対象外（改名していない）。
 
-件数: 新しい ID は CT99〜CT150（52）、GT41〜GT133（93）、ST01〜ST52（52）、NT01〜NT09（9）。R-1 の改名の時点（ac743e7）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
+件数: 新しい ID は CT99〜CT150（52）、GT41〜GT134（94）、ST01〜ST58（58）、NT01〜NT09（9）。R-1 の改名の時点（ac743e7）では、C# のメソッド 1,184 件のうち 402 件を既存 ID に、782 件を新しい ID に付けた（Python 336 件、C 17 関数）。その後のレビュー対応で増えたメソッドも同じ規則で ID を付けている（件数は各行を参照）。
 
 ## 新しい ID（CT / GT）
 
@@ -161,6 +161,7 @@
 | GT131 | GT | エリアは上限なく作れる: 64 個がそれぞれ別の Id と窓を持ち、すべて保存され、別のマネージャで復元される | FR-10 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT132 | GT | 最後に操作したエリアが前: 編集に入ったエリアの窓が順に活性化される（OS がそれを他の最前面窓の前に出す） | FR-12 | Hider.App.Tests/Areas/AreaManagerFrTests.cs（AreaManagerFrTests、1 件） |
 | GT133 | GT | v1 の setting.txt（LocalApplicationData/hider_setting と areas.json の隣）があっても、Restore → SaveNow → Dispose で何も復元せず窓も開かず、ファイルのバイトと更新時刻が不変（FileShare.None で開いたままの回と開かない回の 2 回） | FR-65 | Hider.App.Tests/Areas/AreaManagerV1SettingTests.cs（AreaManagerV1SettingTests、1 件） |
+| GT134 | GT | --selftest の 1 行目は実行形態（`runtime: native AOT` / `runtime: JIT`）で、検査の前に 1 回だけ出す。テストのプロセス（JIT）では JIT。CI の publish は各公開物でこの行を照合する | 提案 P-14 | Hider.App.Tests/AppInfoTests.cs（AppInfoTests、1 件）<br>Hider.App.Tests/App/ProgramTests.cs（ProgramTests、1 件） |
 
 ## 既存 ID の細分化
 
@@ -320,11 +321,11 @@
 
 | ID | 種別 | 内容 | 対応 FR・NFR・決定 | ファイル / クラス |
 |---|---|---|---|---|
-| ST01 | ST | build.py の対象 RID の解釈: 各対象・all は全対象を順に（他の指定より優先）、指定の順を保ち重複を除く、指定なしはホスト（未対応のホストなら終了、指定があればホストを問わない）、未知の対象は全部名指しで終了、大小文字を区別 | FR-72 | scripts/test_build.py（ParseArgsTest、11 件）<br>scripts/test_build.py（ParseTargetsTest、3 件） |
+| ST01 | ST | build.py の対象 RID の解釈: 各対象・all は全対象を順に（他の指定より優先）、指定の順を保ち重複を除く、指定なしはホスト（未対応のホストなら終了、--jit で指定があればホストを問わない）、未知の対象は全部名指しで終了、大小文字を区別 | FR-72 | scripts/test_build.py（ParseArgsTest、11 件）<br>scripts/test_build.py（ParseTargetsTest、3 件） |
 | ST02 | ST | build.py --version: 版を受け取り、不正な版（非 ASCII を含む）は終了、対象より先に検査、値が必要 | FR-72, P-9 | scripts/test_build.py（ParseArgsTest、4 件） |
 | ST03 | ST | build.py のコマンドライン: 未知のオプション、ヘルプ、警告は接頭辞付きで標準エラーへ、スクリプトとして直接実行できる | FR-72 | scripts/test_build.py（ParseArgsTest、2 件）<br>scripts/test_build.py（WarnTest、1 件）<br>scripts/test_build.py（ScriptTest、2 件） |
 | ST04 | ST | build.py の libhidercap のビルド: 対象の make を走らせ古いヘルパを先に消す、make がない・失敗すればホストの対象なら終了・他のアーキテクチャや未対応のホストなら警告、負の終了コードも失敗 | FR-72, D-6 | scripts/test_build.py（BuildNativeHelperTest、9 件） |
-| ST05 | ST | build.py の publish: 全対象、版はグローバルプロパティで渡す、指定なしはホスト、Windows はヘルパを作らない、古い出力を置き換える、dotnet がなければビルド前に終了、引数は dotnet より先に検査、publish の失敗で止まる | FR-72 | scripts/test_build.py（MainTest、8 件） |
+| ST05 | ST | build.py の publish: 全対象（--jit）、版はグローバルプロパティで渡す、指定なしはホスト、Windows はヘルパを作らない、古い出力を置き換える、dotnet がなければビルド前に終了、引数は dotnet より先に検査、publish の失敗で止まる | FR-72 | scripts/test_build.py（MainTest、8 件） |
 | ST06 | ST | XWAYLAND-ASSUMPTION の数え方: ファイルごと・1 行に複数も数える、なければ載せない、src/ の .cs だけ（bin / obj を除く）、UTF-8、大小文字を区別、src/ がなくてもよい | D-1 | scripts/test_check_wayland_list.py（MarkersTest、9 件） |
 | ST07 | ST | docs/wayland-migration.md の表の数え方: ファイルごとの行数、その節だけ（節が再び出てもよい、見出しの末尾の空白は可、見出しは一致が必要）、見出し行・区切り・他の行は無視、1 列目は空白を除く、閉じる \| がない行、節がない、文書がなければ例外 | D-1 | scripts/test_check_wayland_list.py（TableRowsTest、10 件） |
 | ST08 | ST | 照合の結果: すべて載っていれば合格・どこにもなければ合格、不一致は並べて報告、表の行が多すぎても不合格、パスの定数、このリポジトリ自体が一致（直接実行・失敗時の終了コードも） | D-1 | scripts/test_check_wayland_list.py（MainTest、4 件）<br>scripts/test_check_wayland_list.py（ConstantsTest、1 件）<br>scripts/test_check_wayland_list.py（RepositoryTest、3 件） |
@@ -372,6 +373,12 @@
 | ST50 | ST | make_release.py のコマンド（version / bump / next-version）: version は引数を取らない、bump は 2 つの引数・他の部分や不正な版は拒否、next-version は標準入力を読む（タグなし・リリース済み・引数の検査）、コマンドは必須、ヘルプの体裁、直接実行 | P-9 | scripts/test_make_release.py（MainTest、13 件） |
 | ST51 | ST | make_release.py package のコマンド: 入力フォルダは省略可、--repo と --out-dir は必須、不正な版・リポジトリ名は拒否、通しの実行 | P-9 | scripts/test_make_release.py（MainTest、6 件） |
 | ST52 | ST | install.sh のテストの集め方: test_install_sh の load_tests が集めるテストが、モジュールの定義から独立に組み立てた集合（ほかの TestCase はそのまま、InstallerTest の派生はシェルごと）と一致し、重複しない | P-9 | scripts/test_install_sh_collection.py（CollectionTest、1 件） |
+| ST53 | ST | build.py の版（提案 P-14）: 既定は AOT 版、--jit は JIT 版（値を取らない）、AOT 版はホストの RID だけ（他の対象・all・未対応のホストは名指しで終了、dotnet より前）、引数の検査はホストより先。AOT 版は HiderJit を渡さず bin/publish/<rid> へ、JIT 版は -p:HiderJit=true で bin/publish/<rid>-jit へ、版ごとに別のフォルダ | FR-72, P-14 | scripts/test_build.py（ParseArgsTest、6 件）<br>scripts/test_build.py（MainTest、4 件） |
+| ST54 | ST | scripts の共通の版の定義: VARIANTS は aot（既定）・jit の順、名前の接尾辞は AOT 版なし・JIT 版 -jit、publish の出力は bin/publish/<rid> と bin/publish/<rid>-jit（既定は AOT 版） | FR-72, P-14 | scripts/test_common.py（VariantsTest、3 件） |
+| ST55 | ST | install.py --jit: 既定は AOT 版のビルド、--jit は JIT 版のビルドを入れる（Linux・Windows）、他方の版のビルドは数えず、なければ --jit 付きの build.py を案内して終了、値を取らない | FR-72, P-14 | scripts/test_install.py（MainTest、4 件） |
+| ST56 | ST | リリースの JIT 版: アーカイブ名は -jit で終わる、チェックサムのプレースホルダは _JIT で終わる、入力は Hider-<rid>-jit（既定は bin/publish/<rid>-jit）で版ごとに必要、どの入力が欠けても何も梱包しない、インストーラが版を選ぶ | P-9, P-14 | scripts/test_make_release.py（ArchiveNameTest、2 件）<br>scripts/test_make_release.py（FindInputTest、3 件）<br>scripts/test_make_release.py（PackageTest、2 件） |
+| ST57 | ST | install.sh --jit: 両アーキテクチャで JIT 版のアーカイブを取得して入れる、既定は AOT 版、-d とどちらの順でも可、値を取らない、隣の JIT 版のアーカイブを使い他方の版のものは使わない、sh へのパイプ（sh -s -- --jit）、JIT 版は自分のチェックサム（AOT 版と入れ替えるとどちらも失敗） | P-9, P-14 | scripts/test_install_sh.py（JitTest、8 件） |
+| ST58 | ST | install.bat --jit: フォルダとどちらの順でも・大小文字を問わず JIT 版を入れる、既定のフォルダ（空の引数とも）、既定は AOT 版、JIT 版は自分のチェックサム、隣に AOT 版しかなければ JIT 版を取りに行く、未知のオプション・2 つ目のフォルダは理由を示して失敗 | P-9, P-14 | scripts/test_install_bat.py（InstallBatTest、6 件） |
 
 ## NT（native/hidercap の単体テスト、新設）
 
