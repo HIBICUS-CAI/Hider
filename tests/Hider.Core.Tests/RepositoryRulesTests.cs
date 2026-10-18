@@ -563,17 +563,20 @@ namespace Hider.Core.Tests
             Assert.True(_problem is null ? problems.Count == 0 : problems.SequenceEqual(new[] { _problem }), $"{_case}: {string.Join('\n', problems)}");
         }
 
-        [Fact]
-        public void CT149_OnlyASettingTxt_IsNoAreas_AndItIsLeftAlone()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void CT149_OnlyASettingTxt_IsNoAreas_AndItIsLeftAlone(bool _hold)
         {
             // FR-65: a v1 folder has setting.txt and no areas.json: v2 starts empty and never reads, moves or deletes it.
+            // Once with the file free (an import would show) and once held without sharing (a read throws).
             string dir = Path.Combine(Path.GetTempPath(), "hider-fr65-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             try
             {
                 string old = Path.Combine(dir, "setting.txt");
                 V1SettingFile.Write(old);
-                using (V1SettingFile.Hold(old))
+                using (_hold ? V1SettingFile.Hold(old) : null)
                 {
                     var state = AreasFile.Load(Path.Combine(dir, "areas.json"), out var status);
                     Assert.Equal(LoadStatus.Missing, status);
@@ -589,26 +592,29 @@ namespace Hider.Core.Tests
             }
         }
 
-        [Fact]
-        public void CT149_SettingTxtBesideAreasJson_IsIgnored()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void CT149_SettingTxtBesideAreasJson_IsIgnored(bool _hold)
         {
+            // A v1 file (one area, 10,20 300x200) beside areas.json: only the areas of areas.json load, free or held.
             string dir = Path.Combine(Path.GetTempPath(), "hider-fr65-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             try
             {
                 string old = Path.Combine(dir, "setting.txt");
-                File.WriteAllText(old, "garbage that is no areas.json");
-                File.SetLastWriteTimeUtc(old, V1SettingFile.OldTime);
+                V1SettingFile.Write(old);
                 string path = Path.Combine(dir, "areas.json");
-                using (V1SettingFile.Hold(old))
+                using (_hold ? V1SettingFile.Hold(old) : null)
                 {
                     AreasFile.Save(path, new AppState { Areas = { new AreaState { Id = "0f3b8d2e", X = 1, Y = 2, Width = 100, Height = 50 } } });
                     var state = AreasFile.Load(path, out var status);
                     Assert.Equal(LoadStatus.Loaded, status);
                     Assert.Equal("0f3b8d2e", Assert.Single(state.Areas).Id);
                 }
-                Assert.Equal("garbage that is no areas.json", File.ReadAllText(old));
+                Assert.Equal(V1SettingFile.Content, File.ReadAllText(old));
                 Assert.Equal(V1SettingFile.OldTime, File.GetLastWriteTimeUtc(old));
+                Assert.Equal("areas.json,setting.txt", string.Join(',', Directory.GetFiles(dir).Select(Path.GetFileName).Order(StringComparer.Ordinal)));
             }
             finally
             {
@@ -667,29 +673,92 @@ namespace Hider.Core.Tests
             using var secondStarted = new ManualResetEventSlim();
             using var secondDone = new ManualResetEventSlim();
             string? secondPath = null;
-            // A thread of its own: the mutex belongs to the thread that took it, and is let go on that same thread.
+            Exception? secondFailure = null;
+            // A thread of its own: the mutex belongs to the thread that took it, and is let go on that same thread. What it
+            // throws is kept for the test (thrown on a bare thread it would end the test host).
             var second = new Thread(() =>
             {
-                secondStarted.Set();
-                using (var v1 = new V1SettingFile())
+                try
                 {
-                    secondPath = v1.FilePath;
+                    secondStarted.Set();
+                    using (var v1 = new V1SettingFile())
+                    {
+                        secondPath = v1.FilePath;
+                    }
+                }
+                catch (Exception e)
+                {
+                    secondFailure = e;
                 }
                 secondDone.Set();
             })
             { IsBackground = true };
             second.Start();
+            // Named, so the same for every process: what another process opens by the constant is the mutex held here.
+            Assert.True(Mutex.TryOpenExisting(V1SettingFile.MutexName, out var other));
+            other.Dispose();
             Assert.True(secondStarted.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
             Assert.False(secondDone.Wait(300, TestContext.Current.CancellationToken));
             string firstPath = first.FilePath;
             first.Dispose();
             Assert.True(secondDone.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
             Assert.True(second.Join(TimeSpan.FromSeconds(30)));
+            Assert.Null(secondFailure);
             Assert.NotNull(secondPath);
             if (!OperatingSystem.IsWindows())
             {
                 Assert.NotEqual(firstPath, secondPath); // each its own temporary XDG_DATA_HOME
                 Assert.False(File.Exists(firstPath));
+            }
+        }
+
+        [Fact]
+        public void CT149_ThePlace_IsUsedByOneProcessAtATime()
+        {
+            // Another process (this test assembly run again, xunit v3 test projects are programs) runs a test of the place
+            // while it is held here: it waits for the mutex (the other test assembly of `dotnet test` would too), and ends
+            // once it is let go here.
+            string assembly = typeof(V1SettingPlaceTests).Assembly.Location;
+            string method = $"{typeof(V1SettingPlaceTests).FullName}.{nameof(CT149_TheV1FileAtItsPlace_IsNeverRead_NorImported)}";
+            using var first = new V1SettingFile(); // disposed again at the end if an assert throws first: a no-op
+            var start = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            };
+            start.ArgumentList.Add(assembly);
+            start.ArgumentList.Add("-method");
+            start.ArgumentList.Add(method);
+            var output = new System.Text.StringBuilder();
+            using var child = new System.Diagnostics.Process { StartInfo = start };
+            child.OutputDataReceived += (_, _e) => { lock (output) { output.AppendLine(_e.Data); } };
+            child.ErrorDataReceived += (_, _e) => { lock (output) { output.AppendLine(_e.Data); } };
+            child.Start();
+            child.BeginOutputReadLine();
+            child.BeginErrorReadLine();
+            try
+            {
+                // Unblocked, the run takes well under a second; held, it waits up to V1SettingFile.MutexWait.
+                Assert.False(child.WaitForExit(5000), "the other process did not wait for the place");
+                first.Dispose();
+                Assert.True(child.WaitForExit(60_000), "the other process did not end after the place was let go");
+                child.WaitForExit(); // the end of the output too
+                string text;
+                lock (output)
+                {
+                    text = output.ToString();
+                }
+                Assert.True(child.ExitCode == 0, $"exit code {child.ExitCode}\n{text}");
+                Assert.Contains("Total: 2, Errors: 0, Failed: 0, Skipped: 0", text, StringComparison.Ordinal); // both cases
+            }
+            finally
+            {
+                if (!child.HasExited)
+                {
+                    child.Kill(true);
+                    child.WaitForExit(5000);
+                }
             }
         }
 

@@ -9,7 +9,7 @@ namespace Hider.Core.Tests.Fakes
     /// run in a collection without parallelization). On Windows it is the user's real folder (not redirectable): an existing
     /// v1 file of the user is used as it is (<see cref="Origin"/> says so in every failure), a missing one is made and only
     /// that file (still with the test's bytes and time) is removed afterwards, and one with exactly the test's bytes and time
-    /// is a leftover of an interrupted run, used and removed.
+    /// is a leftover of an interrupted run, used and removed (with its folder, when that is then empty).
     /// A named mutex, held from the constructor to <see cref="Dispose"/>, keeps the two test assemblies (which
     /// <c>dotnet test</c> runs in parallel) from using the place at the same time.
     /// </summary>
@@ -31,7 +31,10 @@ namespace Hider.Core.Tests.Fakes
         private readonly string? temp;
         private readonly string? savedXdg;
         private readonly bool removeFile;
+        private readonly bool madeFile;
         private readonly bool createdDirectory;
+        private readonly bool removeEmptyDirectory;
+        private bool constructed;
         private bool disposed;
 
         public V1SettingFile()
@@ -63,6 +66,7 @@ namespace Hider.Core.Tests.Fakes
                     {
                         Origin = "a v1 file left by an earlier, interrupted test run (it is removed afterwards)";
                         removeFile = true;
+                        removeEmptyDirectory = true; // the folder that run made, if it holds nothing else
                     }
                     else if (File.Exists(FilePath))
                     {
@@ -71,9 +75,13 @@ namespace Hider.Core.Tests.Fakes
                     else
                     {
                         createdDirectory = !System.IO.Directory.Exists(Directory);
+                        removeEmptyDirectory = createdDirectory;
                         System.IO.Directory.CreateDirectory(Directory);
-                        Write(FilePath);
+                        // Set before writing: a write that fails half way (the time not set yet) still leaves the test's
+                        // file, removed by Undo below instead of passing for the user's own file on the next run.
                         removeFile = true;
+                        madeFile = true;
+                        Write(FilePath);
                         Origin = "a v1 file made by the test";
                     }
                 }
@@ -97,6 +105,7 @@ namespace Hider.Core.Tests.Fakes
                 }
                 Bytes = File.ReadAllBytes(FilePath);
                 WriteTime = File.GetLastWriteTimeUtc(FilePath);
+                constructed = true;
             }
             catch
             {
@@ -121,12 +130,14 @@ namespace Hider.Core.Tests.Fakes
         }
 
         /// <summary>The file at <paramref name="_path"/> has exactly the bytes and the write time the tests give it.</summary>
-        internal static bool IsTheTestsFile(string _path)
+        internal static bool IsTheTestsFile(string _path) => HasTheTestsBytes(_path, true);
+
+        private static bool HasTheTestsBytes(string _path, bool _andTime)
         {
             try
             {
                 return File.Exists(_path)
-                    && File.GetLastWriteTimeUtc(_path) == OldTime
+                    && (!_andTime || File.GetLastWriteTimeUtc(_path) == OldTime)
                     && File.ReadAllBytes(_path).AsSpan().SequenceEqual(contentBytes);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -193,11 +204,12 @@ namespace Hider.Core.Tests.Fakes
                     }
                     return;
                 }
-                if (removeFile && IsTheTestsFile(FilePath))
+                // A file the constructor made but could not finish (its time not set) is the test's by its bytes alone.
+                if (removeFile && (IsTheTestsFile(FilePath) || (madeFile && !constructed && HasTheTestsBytes(FilePath, false))))
                 {
                     File.Delete(FilePath);
                 }
-                if (createdDirectory && System.IO.Directory.Exists(Directory) && !System.IO.Directory.EnumerateFileSystemEntries(Directory).Any())
+                if (removeEmptyDirectory && System.IO.Directory.Exists(Directory) && !System.IO.Directory.EnumerateFileSystemEntries(Directory).Any())
                 {
                     System.IO.Directory.Delete(Directory);
                 }
