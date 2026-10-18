@@ -10,9 +10,15 @@ installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. 
 cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
 more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
 `&`, `%`, `!`, `'`, `(1)` and `^` reach the script intact. The variants with delayed expansion on (`cmd.exe /v:on`, as
-the DelayedExpansion registry value also sets it) escape `!` and `^` with a caret, since such a cmd delay-expands its
-own command line as well; the script then gets the paths intact, and inside it delayed expansion would drop each `!`
-of %~f0, %~1 and %LOCALAPPDATA% unless the script turns it off.
+the DelayedExpansion registry value also sets it) start an install.bat that sits in a folder with `!` in its name and
+escape `!` and `^` with a caret, since such a cmd delay-expands its own command line as well (as a user of such a cmd
+types them); the script then gets the paths intact. They check the script's `setlocal ... DisableDelayedExpansion`: with
+a bare `setlocal` the script would keep the caller's delayed expansion, and `set "HIDER_SCRIPT=%~f0"` (and `set
+"HIDER_DEST=%~1"`) would expand the `%~f0` first and then delay-expand the result, dropping a lone `!` (and the text
+between two), so PowerShell would read a file that does not exist. %LOCALAPPDATA% is not one of them: the script hands
+it to PowerShell only as an environment variable, which no cmd expansion touches. Double-clicking an install.bat in such
+a folder can not work where the registry turns delayed expansion on (Explorer's command line loses the `!` before the
+script runs; install.bat.in and README say so): not tested.
 """
 
 from __future__ import annotations
@@ -163,8 +169,9 @@ class InstallBatTest(unittest.TestCase):
         # quoting is not the C runtime's that subprocess would apply.
         command = ' '.join(quoted(value) for value in [str(bat or self.bat), *args])
         if delayed_expansion:
-            # cmd /v:on delay-expands its own command line too: there `^!` is a `!` and `^^` a `^` (inside quotes the
-            # carets reach that phase), as a user of such a cmd types them.
+            # cmd /v:on delay-expands its own command line too. On a line with a `!` (every such case here has one)
+            # that phase also takes the carets: `^!` is a `!` and `^^` a `^` (inside quotes the carets reach it), as a
+            # user of such a cmd types them.
             command = command.replace('^', '^^').replace('!', '^!')
         switches = '/v:on /s /c' if delayed_expansion else '/s /c'
         result = subprocess.run(
@@ -390,15 +397,22 @@ class InstallBatTest(unittest.TestCase):
         self.check_odd_characters_in_the_default_folder(delayed_expansion=True)
 
     def check_odd_characters_in_the_default_folder(self, delayed_expansion: bool) -> None:
+        # The installer and the archive in a folder with `!` in its name too, so that with delayed expansion on a bare
+        # `setlocal` would lose them from %~f0 (see the module docstring); LOCALAPPDATA reaches PowerShell unchanged
+        # either way, as an environment variable.
+        downloads = self.root / ODD_DOWNLOADS
+        downloads.mkdir()
+        shutil.move(str(self.release / ARCHIVE), downloads / ARCHIVE)
+        bat = self.write_bat(downloads, self.digest)
         local_app_data = self.root / ODD_LOCAL_APP_DATA
         local_app_data.mkdir()
-        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)}, delayed_expansion=delayed_expansion)
+        result = self.run_bat(env={'LOCALAPPDATA': str(local_app_data)}, bat=bat, delayed_expansion=delayed_expansion)
         dest = local_app_data / 'Programs' / 'Hider'
         self.assert_installed(dest, result)
         self.assert_lines(
             result.out,
             [
-                f'Using {self.release / ARCHIVE}',
+                f'Using {downloads / ARCHIVE}',
                 f'Copying to {dest}',
                 f'Created shortcut: {self.link}',
                 f'Installed Hider {VERSION} to {dest}',
