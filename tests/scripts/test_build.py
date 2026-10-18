@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 import build
-from common import PROJECT_FILE, TARGETS
+from common import PROJECT_FILE, TARGETS, VARIANTS
 
 from .support import Output, arguments, captured, enter, run_as_main, temp_dir
 
@@ -31,9 +31,16 @@ def which_only(*found: str) -> Generator[mock.MagicMock, None, None]:
 
 
 class ParseArgsTest(unittest.TestCase):
-    def parse(self, *args: str) -> tuple[list[str], str | None]:
+    """The target and version tests use --jit (any target from any host); the AOT build's own rules are ST53."""
+
+    def parse(self, *args: str) -> tuple[list[str], str | None, str]:
         with arguments('build.py', *args), mock.patch.object(build, 'host_target', return_value='linux-x64'):
             return build.parse_args()
+
+    def parse_jit(self, *args: str) -> tuple[list[str], str | None]:
+        targets, version, variant = self.parse(*args, '--jit')
+        self.assertEqual(variant, 'jit')
+        return targets, version
 
     def parse_error(self, *args: str) -> str:
         """Parse arguments argparse rejects; return its message (after the usage line)."""
@@ -52,24 +59,24 @@ class ParseArgsTest(unittest.TestCase):
     def test_st01_each_target(self) -> None:
         for target in TARGETS:
             with self.subTest(target=target):
-                self.assertEqual(self.parse(target), ([target], None))
+                self.assertEqual(self.parse_jit(target), ([target], None))
 
     def test_st01_all_is_every_target_in_order(self) -> None:
-        targets, version = self.parse('all')
+        targets, version = self.parse_jit('all')
         self.assertEqual(targets, ['win-x64', 'linux-x64', 'linux-arm64'])
         self.assertIsNone(version)
         # A copy: the caller may change it without changing TARGETS.
         self.assertIsNot(targets, TARGETS)
 
     def test_st01_all_wins_over_other_targets(self) -> None:
-        self.assertEqual(self.parse('linux-arm64', 'all')[0], TARGETS)
-        self.assertEqual(self.parse('all', 'win-x64', 'all')[0], TARGETS)
+        self.assertEqual(self.parse_jit('linux-arm64', 'all')[0], TARGETS)
+        self.assertEqual(self.parse_jit('all', 'win-x64', 'all')[0], TARGETS)
 
     def test_st01_keeps_the_given_order(self) -> None:
-        self.assertEqual(self.parse('linux-arm64', 'win-x64')[0], ['linux-arm64', 'win-x64'])
+        self.assertEqual(self.parse_jit('linux-arm64', 'win-x64')[0], ['linux-arm64', 'win-x64'])
 
     def test_st01_drops_repeated_targets(self) -> None:
-        self.assertEqual(self.parse('linux-x64', 'win-x64', 'linux-x64', 'win-x64')[0], ['linux-x64', 'win-x64'])
+        self.assertEqual(self.parse_jit('linux-x64', 'win-x64', 'linux-x64', 'win-x64')[0], ['linux-x64', 'win-x64'])
 
     def test_st01_no_target_builds_the_host(self) -> None:
         for host in TARGETS:
@@ -78,7 +85,7 @@ class ParseArgsTest(unittest.TestCase):
                 arguments('build.py'),
                 mock.patch.object(build, 'host_target', return_value=host),
             ):
-                self.assertEqual(build.parse_args(), ([host], None))
+                self.assertEqual(build.parse_args(), ([host], None, 'aot'))
 
     def test_st01_no_target_on_an_unsupported_host_exits(self) -> None:
         with (
@@ -93,11 +100,12 @@ class ParseArgsTest(unittest.TestCase):
         )
 
     def test_st01_given_targets_do_not_ask_the_host(self) -> None:
+        # The JIT build: the AOT build checks the targets against the host (ST53).
         with (
-            arguments('build.py', 'win-x64'),
+            arguments('build.py', 'win-x64', '--jit'),
             mock.patch.object(build, 'host_target', side_effect=AssertionError('host_target called')),
         ):
-            self.assertEqual(build.parse_args(), (['win-x64'], None))
+            self.assertEqual(build.parse_args(), (['win-x64'], None, 'jit'))
 
     def test_st01_unknown_target(self) -> None:
         self.assertEqual(
@@ -112,9 +120,9 @@ class ParseArgsTest(unittest.TestCase):
         self.assertIn('invalid target Win-x64, ALL ', self.parse_error('Win-x64', 'ALL'))
 
     def test_st02_version(self) -> None:
-        self.assertEqual(self.parse('win-x64', '--version', '2.1.0'), (['win-x64'], '2.1.0'))
-        self.assertEqual(self.parse('--version=10.20.30', 'linux-x64'), (['linux-x64'], '10.20.30'))
-        self.assertEqual(self.parse('--version', '0.0.0'), (['linux-x64'], '0.0.0'))
+        self.assertEqual(self.parse_jit('win-x64', '--version', '2.1.0'), (['win-x64'], '2.1.0'))
+        self.assertEqual(self.parse_jit('--version=10.20.30', 'linux-x64'), (['linux-x64'], '10.20.30'))
+        self.assertEqual(self.parse_jit('--version', '0.0.0'), (['linux-x64'], '0.0.0'))
 
     def test_st02_invalid_version(self) -> None:
         # Non-ASCII digits (Arabic-Indic, fullwidth): \d alone would take them.
@@ -140,14 +148,70 @@ class ParseArgsTest(unittest.TestCase):
             build.parse_args()
         self.assertEqual(raised.exception.code, 0)
         text = ' '.join(output.out.split())
-        self.assertIn('Publish Hider as a self-contained executable.', text)
+        self.assertIn('Publish Hider as a self-contained executable: native AOT by default', text)
         self.assertIn('Targets to build: win-x64, linux-x64, linux-arm64 or all. Default is the current machine.', text)
         self.assertIn('--version MAJOR.MINOR.PATCH', text)
+        self.assertIn('--jit Build the regular JIT build', text)
+
+    def test_st53_default_is_the_aot_build(self) -> None:
+        self.assertEqual(self.parse(), (['linux-x64'], None, 'aot'))
+        self.assertEqual(self.parse('linux-x64', '--version', '2.1.0'), (['linux-x64'], '2.1.0', 'aot'))
+
+    def test_st53_jit_option(self) -> None:
+        self.assertEqual(self.parse('--jit'), (['linux-x64'], None, 'jit'))
+        self.assertEqual(self.parse('--jit', 'win-x64', '--version=1.0.0'), (['win-x64'], '1.0.0', 'jit'))
+        self.assertEqual(VARIANTS, ['aot', 'jit'])
+
+    def test_st53_jit_takes_no_value(self) -> None:
+        # A word after it is a target.
+        self.assertIn('invalid target aot', self.parse_error('--jit', 'aot'))
+        self.assertIn('ignored explicit argument', self.parse_error('--jit=yes'))
+
+    def test_st53_aot_builds_the_host_only(self) -> None:
+        for host in TARGETS:
+            others = [t for t in TARGETS if t != host]
+            with (
+                self.subTest(host=host),
+                arguments('build.py', host),
+                mock.patch.object(build, 'host_target', return_value=host),
+            ):
+                self.assertEqual(build.parse_args(), ([host], None, 'aot'))
+            for args in [[others[0]], ['all'], [host, *others]]:
+                with (
+                    self.subTest(host=host, args=args),
+                    arguments('build.py', *args),
+                    mock.patch.object(build, 'host_target', return_value=host),
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    build.parse_args()
+                foreign = others[:1] if len(args) == 1 and args[0] != 'all' else others
+                self.assertEqual(
+                    raised.exception.code,
+                    f'Native AOT does not cross-compile: the AOT build of {", ".join(foreign)} is made on that machine '
+                    f'(this one is {host}). Add --jit for the regular build, which any machine can make.',
+                )
+
+    def test_st53_aot_on_an_unsupported_host_exits(self) -> None:
+        with (
+            arguments('build.py', 'linux-x64'),
+            mock.patch.object(build, 'host_target', return_value=None),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            build.parse_args()
+        self.assertEqual(
+            raised.exception.code,
+            'Native AOT does not cross-compile: the AOT build of linux-x64 is made on that machine '
+            '(this one is not a supported target). Add --jit for the regular build, which any machine can make.',
+        )
+
+    def test_st53_arguments_are_checked_before_the_host(self) -> None:
+        self.assertIn('invalid target nope', self.parse_error('win-x64', 'nope'))
+        self.assertIn('invalid version x', self.parse_error('win-x64', '--version', 'x'))
 
 
 class ParseTargetsTest(unittest.TestCase):
     def test_st01_returns_the_targets_only(self) -> None:
-        with arguments('build.py', 'linux-arm64', '--version', '3.0.0'):
+        with arguments('build.py', 'linux-arm64', '--version', '3.0.0', '--jit'):
             self.assertEqual(build.parse_targets(), ['linux-arm64'])
 
     def test_st01_no_target_is_the_host(self) -> None:
@@ -155,7 +219,7 @@ class ParseTargetsTest(unittest.TestCase):
             self.assertEqual(build.parse_targets(), ['win-x64'])
 
     def test_st01_all(self) -> None:
-        with arguments('build.py', 'win-x64', 'all'):
+        with arguments('build.py', 'win-x64', 'all', '--jit'):
             self.assertEqual(build.parse_targets(), TARGETS)
 
 
@@ -273,8 +337,8 @@ class MainTest(unittest.TestCase):
             mock.patch.object(build, 'host_target', return_value='linux-x64'),
         )
 
-    def publish_dir(self, target: str) -> Path:
-        return self.publish_root / target
+    def publish_dir(self, target: str, variant: str = 'aot') -> Path:
+        return self.publish_root / f'{target}-{variant}'
 
     def native_helper(self, target: str) -> None:
         self.events.append(f'helper {target}')
@@ -286,7 +350,7 @@ class MainTest(unittest.TestCase):
             self.assertTrue(check)
             target = command[command.index('-r') + 1]
             # The old output was removed before publishing.
-            self.assertFalse(self.publish_dir(target).exists())
+            self.assertFalse(Path(command[command.index('-o') + 1]).exists())
             self.events.append(f'publish {target}')
             if target == fail:
                 raise subprocess.CalledProcessError(1, command)
@@ -301,13 +365,16 @@ class MainTest(unittest.TestCase):
             build.main()
         return output, run_mock
 
-    def publish_command(self, target: str, *extra: str) -> list[str]:
-        out_dir = str(self.publish_dir(target))
+    def publish_command(self, target: str, *extra: str, variant: str = 'jit') -> list[str]:
+        out_dir = str(self.publish_dir(target, variant))
         return ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', out_dir, *extra]
 
+    def jit_command(self, target: str, *extra: str) -> list[str]:
+        return self.publish_command(target, '-p:HiderJit=true', *extra)
+
     def test_st05_all_targets(self) -> None:
-        output, run = self.run_main('all')
-        self.assertEqual([c.args[0] for c in run.call_args_list], [self.publish_command(t) for t in TARGETS])
+        output, run = self.run_main('all', '--jit')
+        self.assertEqual([c.args[0] for c in run.call_args_list], [self.jit_command(t) for t in TARGETS])
         # libhidercap.so is built for the Linux targets only, each before its publish.
         self.assertEqual(
             self.events,
@@ -315,38 +382,72 @@ class MainTest(unittest.TestCase):
         )
         self.assertEqual(
             output.out.splitlines(),
-            [*(f'Building {t} -> {self.publish_dir(t)}' for t in TARGETS), 'Done.'],
+            [*(f'Building {t} (jit) -> {self.publish_dir(t, "jit")}' for t in TARGETS), 'Done.'],
         )
 
     def test_st05_version_is_passed_as_a_global_property(self) -> None:
-        _, run = self.run_main('win-x64', 'linux-arm64', '--version', '2.3.4')
+        _, run = self.run_main('win-x64', 'linux-arm64', '--version', '2.3.4', '--jit')
         self.assertEqual(
             [c.args[0] for c in run.call_args_list],
-            [
-                self.publish_command('win-x64', '-p:Version=2.3.4'),
-                self.publish_command('linux-arm64', '-p:Version=2.3.4'),
-            ],
+            [self.jit_command('win-x64', '-p:Version=2.3.4'), self.jit_command('linux-arm64', '-p:Version=2.3.4')],
         )
+        _, run = self.run_main('--version', '2.3.4')
+        self.assertEqual(run.call_args.args[0], self.publish_command('linux-x64', '-p:Version=2.3.4', variant='aot'))
 
     def test_st05_no_target_builds_the_host(self) -> None:
         _, run = self.run_main()
-        self.assertEqual([c.args[0] for c in run.call_args_list], [self.publish_command('linux-x64')])
+        self.assertEqual([c.args[0] for c in run.call_args_list], [self.publish_command('linux-x64', variant='aot')])
         self.assertEqual(self.events, ['helper linux-x64', 'publish linux-x64'])
 
     def test_st05_windows_target_does_not_build_the_helper(self) -> None:
-        self.run_main('win-x64')
+        self.run_main('win-x64', '--jit')
         self.assertEqual(self.events, ['publish win-x64'])
 
     def test_st05_replaces_the_old_output(self) -> None:
-        old = self.publish_dir('linux-arm64') / 'Assets'
-        old.mkdir(parents=True)
-        (old / 'stale.txt').write_text('old', encoding='utf-8')
-        self.run_main('linux-arm64')
-        self.assertFalse(self.publish_dir('linux-arm64').exists())
+        for variant, args in [('aot', ['linux-x64']), ('jit', ['linux-arm64', '--jit'])]:
+            with self.subTest(variant=variant):
+                target = args[0]
+                old = self.publish_dir(target, variant) / 'Assets'
+                old.mkdir(parents=True)
+                (old / 'stale.txt').write_text('old', encoding='utf-8')
+                self.run_main(*args)
+                self.assertFalse(self.publish_dir(target, variant).exists())
+
+    def test_st53_aot_publish(self) -> None:
+        # No HiderJit property (Hider.csproj builds native AOT), into the AOT build's folder.
+        output, run = self.run_main('linux-x64')
+        command = run.call_args.args[0]
+        self.assertEqual(command, self.publish_command('linux-x64', variant='aot'))
+        self.assertFalse(any('HiderJit' in arg for arg in command))
+        self.assertEqual(output.out.splitlines()[0], f'Building linux-x64 (aot) -> {self.publish_dir("linux-x64")}')
+
+    def test_st53_jit_publish(self) -> None:
+        output, run = self.run_main('--jit')
+        self.assertEqual(run.call_args.args[0], self.jit_command('linux-x64'))
+        self.assertEqual(
+            output.out.splitlines()[0], f'Building linux-x64 (jit) -> {self.publish_dir("linux-x64", "jit")}'
+        )
+        self.assertEqual(self.events, ['helper linux-x64', 'publish linux-x64'])
+
+    def test_st53_each_build_has_its_own_folder(self) -> None:
+        # A JIT build leaves the AOT build of the same target in place, and the other way round.
+        for variant in ['aot', 'jit']:
+            other = self.publish_dir('linux-x64', variant)
+            other.mkdir(parents=True)
+            (other / 'Hider').write_text(variant, encoding='utf-8')
+        self.run_main('linux-x64', '--jit')
+        self.assertEqual((self.publish_dir('linux-x64', 'aot') / 'Hider').read_text(encoding='utf-8'), 'aot')
+        self.assertFalse(self.publish_dir('linux-x64', 'jit').exists())
+
+    def test_st53_aot_of_another_target_exits_before_dotnet(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            self.run_main('win-x64')
+        self.assertIn('Native AOT does not cross-compile', str(raised.exception.code))
+        self.assertEqual(self.events, [])
 
     def test_st05_dotnet_missing_exits_before_building(self) -> None:
         with self.assertRaises(SystemExit) as raised:
-            self.run_main('all', dotnet=False)
+            self.run_main('all', '--jit', dotnet=False)
         self.assertEqual(raised.exception.code, 'dotnet was not found in PATH, install the .NET 10 SDK first.')
         self.assertEqual(self.events, [])
 
@@ -357,7 +458,7 @@ class MainTest(unittest.TestCase):
 
     def test_st05_failed_publish_stops(self) -> None:
         with self.assertRaises(subprocess.CalledProcessError):
-            self.run_main('all', fail='linux-x64')
+            self.run_main('all', '--jit', fail='linux-x64')
         self.assertEqual(self.events, ['publish win-x64', 'helper linux-x64', 'publish linux-x64'])
 
 
@@ -366,7 +467,7 @@ class ScriptTest(unittest.TestCase):
         with captured() as output, self.assertRaises(SystemExit) as raised:
             run_as_main('build.py', '--help')
         self.assertEqual(raised.exception.code, 0)
-        self.assertIn('Publish Hider as a self-contained executable.', output.out)
+        self.assertIn('Publish Hider as a self-contained executable: native AOT by default', output.out)
 
     def test_st03_invalid_target_as_a_script(self) -> None:
         with captured() as output, self.assertRaises(SystemExit) as raised:

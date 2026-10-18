@@ -40,6 +40,24 @@ class PathsTest(unittest.TestCase):
         self.assertEqual(common.publish_dir('osx-arm64'), REPO_DIR / 'bin' / 'publish' / 'osx-arm64')
 
 
+class VariantsTest(unittest.TestCase):
+    def test_st54_variants_are_aot_then_jit(self) -> None:
+        # The first is the default build (native AOT); the JIT build is the option --jit of the scripts.
+        self.assertEqual(common.VARIANTS, ['aot', 'jit'])
+
+    def test_st54_suffix(self) -> None:
+        self.assertEqual(common.variant_suffix('aot'), '')
+        self.assertEqual(common.variant_suffix('jit'), '-jit')
+
+    def test_st54_publish_dir_of_each_build(self) -> None:
+        for target in common.TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(common.publish_dir(target, 'aot'), REPO_DIR / 'bin' / 'publish' / target)
+                self.assertEqual(common.publish_dir(target, 'jit'), REPO_DIR / 'bin' / 'publish' / f'{target}-jit')
+                # The AOT build is the default.
+                self.assertEqual(common.publish_dir(target), common.publish_dir(target, 'aot'))
+
+
 HOST_CASES: tuple[tuple[str, str, str | None], ...] = (
     ('Windows', 'AMD64', 'win-x64'),
     ('Windows', 'amd64', 'win-x64'),

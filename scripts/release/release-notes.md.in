@@ -7,7 +7,8 @@
 | Windows 11（x64） | [install.bat](@HIDER_BASE_URL@/install.bat) をダウンロードしてダブルクリック | `%LOCALAPPDATA%\Programs\Hider`、デスクトップに Hider.lnk |
 | Linux（x64 / arm64） | 端末で `curl -fsSL @HIDER_BASE_URL@/install.sh \| sh`（または [install.sh](@HIDER_BASE_URL@/install.sh) をダウンロードして `sh install.sh`） | `~/.local/share/Hider`、`~/.local/share/applications/Hider.desktop` |
 
+- 既定で入るのは AOT 版（ネイティブ AOT でコンパイルした実行ファイル。起動が速くメモリが少ない）です。通常版（JIT で動く単一ファイル）を入れる場合は `install.bat --jit` / `sh install.sh --jit`（`curl … | sh -s -- --jit`）とします。どちらも .NET ランタイムは不要で、機能は同じです。
 - 更新も同じ操作です（既存のファイルを上書きします）。インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。
 - Windows では、ダウンロードした install.bat の実行時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「詳細情報」→「実行」または「実行」で続けます。
-- アーカイブ（Hider-@HIDER_VERSION@-*.zip / .tar.gz）をインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置くと、ダウンロードせずにそれを使います。
+- アーカイブ（AOT 版は Hider-@HIDER_VERSION@-<rid>.zip / .tar.gz、通常版は Hider-@HIDER_VERSION@-<rid>-jit.zip / .tar.gz）をインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置くと、ダウンロードせずにそれを使います。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除します。設定は `~/.hider` に残ります。

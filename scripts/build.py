@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Publish Hider as a self-contained executable. Any target can be built from any host."""
+"""Publish Hider as a self-contained executable: native AOT by default, or the regular JIT build (--jit, a trimmed
+single file). The AOT build is made on the target machine itself; the JIT build of any target on any host."""
 
 from __future__ import annotations
 
@@ -9,11 +10,12 @@ import shutil
 import subprocess
 import sys
 
-from common import NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, host_target, publish_dir
+from common import NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, VARIANTS, host_target, publish_dir
 
 
-def parse_args() -> tuple[list[str], str | None]:
-    """Return the targets to build and the version given with --version (None: <Version> of Directory.Build.props)."""
+def parse_args() -> tuple[list[str], str | None, str]:
+    """Return the targets to build, the version given with --version (None: <Version> of Directory.Build.props) and the
+    build (aot, or jit with --jit)."""
     parser = argparse.ArgumentParser(description=__doc__)
     # No choices= here: with nargs='*', argparse before Python 3.12 checks the empty default list against the choices
     # and rejects a call without targets.
@@ -29,9 +31,16 @@ def parse_args() -> tuple[list[str], str | None]:
         help='Version to build (the release workflow passes the one it tags). '
         'Default: <Version> of Directory.Build.props.',
     )
+    parser.add_argument(
+        '--jit',
+        action='store_true',
+        help='Build the regular JIT build (self-contained trimmed single file, buildable for any target) instead of '
+        'native AOT (built for this machine only).',
+    )
     args = parser.parse_args()
     chosen: list[str] = args.targets
     version: str | None = args.version
+    variant = VARIANTS[1] if args.jit else VARIANTS[0]
     # ASCII digits only (\d alone takes other scripts' digits, which MSBuild's version would not).
     if version is not None and re.fullmatch(r'\d+\.\d+\.\d+', version, re.ASCII) is None:
         parser.error(f'invalid version {version} (expected MAJOR.MINOR.PATCH)')
@@ -39,13 +48,24 @@ def parse_args() -> tuple[list[str], str | None]:
     if unknown:
         parser.error(f'invalid target {", ".join(unknown)} (choose from {", ".join([*TARGETS, "all"])})')
     if 'all' in chosen:
-        return list(TARGETS), version
-    if chosen:
-        return list(dict.fromkeys(chosen)), version
-    host = host_target()
-    if host is None:
-        sys.exit(f'This machine is not a supported target, specify one of: {", ".join(TARGETS)}')
-    return [host], version
+        targets = list(TARGETS)
+    elif chosen:
+        targets = list(dict.fromkeys(chosen))
+    else:
+        host = host_target()
+        if host is None:
+            sys.exit(f'This machine is not a supported target, specify one of: {", ".join(TARGETS)}')
+        targets = [host]
+    if variant == VARIANTS[0]:
+        host = host_target()
+        foreign = [t for t in targets if t != host]
+        if foreign:
+            sys.exit(
+                f'Native AOT does not cross-compile: the AOT build of {", ".join(foreign)} is made on that machine '
+                f'(this one is {host or "not a supported target"}). Add --jit for the regular build, which any machine '
+                'can make.'
+            )
+    return targets, version, variant
 
 
 def parse_targets() -> list[str]:
@@ -83,22 +103,22 @@ def build_native_helper(target: str) -> None:
 
 
 def main() -> None:
-    targets, version = parse_args()
-    # A global property on the command line wins over <Version> of Directory.Build.props.
+    targets, version, variant = parse_args()
+    # Global properties on the command line: Hider.csproj switches to the JIT build on HiderJit, and Version wins over
+    # <Version> of Directory.Build.props.
+    variant_args = ['-p:HiderJit=true'] if variant == VARIANTS[1] else []
     version_args = [f'-p:Version={version}'] if version else []
     if shutil.which('dotnet') is None:
         sys.exit('dotnet was not found in PATH, install the .NET 10 SDK first.')
     for target in targets:
-        out_dir = publish_dir(target)
-        print(f'Building {target} -> {out_dir}')
+        out_dir = publish_dir(target, variant)
+        print(f'Building {target} ({variant}) -> {out_dir}')
         if out_dir.exists():
             shutil.rmtree(out_dir)
         if target.startswith('linux'):
             build_native_helper(target)
-        subprocess.run(
-            ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir), *version_args],
-            check=True,
-        )
+        command = ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir)]
+        subprocess.run([*command, *variant_args, *version_args], check=True)
     print('Done.')
 
 

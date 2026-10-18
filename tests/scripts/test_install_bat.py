@@ -1,11 +1,11 @@
 """The Windows installer install.bat (scripts/release/install.bat.in as make_release.py renders it), run by cmd.exe.
 
 Windows only (proposal P-11: skipped elsewhere with the reason; CI runs it in the installer-windows job). Each test
-renders its own install.bat (version, base URL and SHA-256 of its case), runs `install.bat [folder]` through cmd.exe
-with HIDER_NO_LAUNCH=1 and LOCALAPPDATA, TEMP and TMP in a scratch folder, and checks the exit code, the messages, the
-files and the desktop shortcut (which the installer writes to the real desktop: the test puts back what was there). The
-installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. Not covered: the 64-bit check
-([Environment]::Is64BitOperatingSystem), which a 64-bit runner can not fail.
+renders its own install.bat (version, base URL and SHA-256 of its case), runs `install.bat [folder] [--jit]` through
+cmd.exe with HIDER_NO_LAUNCH=1 and LOCALAPPDATA, TEMP and TMP in a scratch folder, and checks the exit code, the
+messages, the files and the desktop shortcut (which the installer writes to the real desktop: the test puts back what
+was there). The installer's work folder (%TEMP%\\hider-install-*) must be gone after every run. Not covered: the 64-bit
+check ([Environment]::Is64BitOperatingSystem), which a 64-bit runner can not fail.
 
 cmd.exe gets the command line the way a double-clicked batch file gets it, every value quoted and the whole quoted once
 more (`cmd.exe /s /c ""<install.bat>" "<folder>""`, /s: cmd strips exactly that outer pair), so that paths with spaces,
@@ -14,7 +14,7 @@ the DelayedExpansion registry value also sets it) start an install.bat that sits
 escape `!` and `^` with a caret, since such a cmd delay-expands its own command line as well (as a user of such a cmd
 types them); the script then gets the paths intact. They check the script's `setlocal ... DisableDelayedExpansion`: with
 a bare `setlocal` the script would keep the caller's delayed expansion, and `set "HIDER_SCRIPT=%~f0"` (and `set
-"HIDER_DEST=%~1"`) would expand the `%~f0` first and then delay-expand the result, dropping a lone `!` (and the text
+"HIDER_ARG1=%~1"`) would expand the `%~f0` first and then delay-expand the result, dropping a lone `!` (and the text
 between two), so PowerShell would read a file that does not exist (a control run with a bare `setlocal` does fail).
 %LOCALAPPDATA% is not one of them: the script hands it to PowerShell only as an environment variable, which no cmd
 expansion touches. Double-clicking an install.bat in such a folder can not work where the registry turns delayed
@@ -52,6 +52,10 @@ from .windows import (
 VERSION = '9.8.7'
 NAME = f'Hider-{VERSION}-win-x64'
 ARCHIVE = f'{NAME}.zip'
+# The regular JIT build's archive (install.bat --jit).
+JIT_NAME = f'{NAME}-jit'
+JIT_ARCHIVE = f'{JIT_NAME}.zip'
+USAGE = '(usage: install.bat [folder] [--jit])'
 BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
 # Folder names as a Downloads folder or a user name may have them: spaces, cmd's `&` / `%` / `!` / `^`, a quote, the
 # `(1)` of a second download and non-ASCII letters.
@@ -83,6 +87,11 @@ def default_files() -> dict[str, bytes]:
         'Assets/x.png': b'png',
         'Assets/sub/y.txt': b'nested',
     }
+
+
+def jit_files() -> dict[str, bytes]:
+    """The JIT build's archive: its own Hider.exe, so that a test sees which archive was installed."""
+    return {**default_files(), 'Hider.exe': b'MZ the JIT build'}
 
 
 @functools.cache
@@ -121,12 +130,14 @@ class InstallBatTest(unittest.TestCase):
         self.link = keep_desktop_shortcut(self)
         self.addCleanup(stop_processes_under, self.root)
         self.digest = self.make_zip(self.release)
+        self.jit_digest = self.make_zip(self.release, jit_files(), JIT_NAME)
         self.bat = self.write_bat(self.release, self.digest)
 
     # Fixtures
 
-    def make_zip(self, folder: Path, files: dict[str, bytes] | None = None) -> str:
-        """Hider-<version>-win-x64.zip in folder, made by make_release.make_archive; return its SHA-256."""
+    def make_zip(self, folder: Path, files: dict[str, bytes] | None = None, name: str = NAME) -> str:
+        """<name>.zip (default Hider-<version>-win-x64.zip) in folder, made by make_release.make_archive; return its
+        SHA-256."""
         src = self.root / 'zip-src'
         if src.exists():
             shutil.rmtree(src)
@@ -135,12 +146,17 @@ class InstallBatTest(unittest.TestCase):
             path = src / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-        out = folder / ARCHIVE
-        make_release.make_archive(src, out, NAME)
+        out = folder / f'{name}.zip'
+        make_release.make_archive(src, out, name)
         return hashlib.sha256(out.read_bytes()).hexdigest()
 
-    def write_bat(self, folder: Path, digest: str, base_url: str = BASE_URL) -> Path:
-        values = {'HIDER_VERSION': VERSION, 'HIDER_BASE_URL': base_url, 'HIDER_SHA256_WIN_X64': digest}
+    def write_bat(self, folder: Path, digest: str, base_url: str = BASE_URL, jit_digest: str | None = None) -> Path:
+        values = {
+            'HIDER_VERSION': VERSION,
+            'HIDER_BASE_URL': base_url,
+            'HIDER_SHA256_WIN_X64': digest,
+            'HIDER_SHA256_WIN_X64_JIT': jit_digest or self.jit_digest,
+        }
         path = folder / 'install.bat'
         with path.open('w', encoding='utf-8', newline='') as f:
             f.write(make_release.render('install.bat.in', values, '\r\n'))
@@ -206,10 +222,10 @@ class InstallBatTest(unittest.TestCase):
         self.assertFalse(self.link.exists(), 'no shortcut after a failure')
         self.assert_cleaned_up()
 
-    def assert_installed(self, dest: Path, result: Result) -> None:
+    def assert_installed(self, dest: Path, result: Result, files: dict[str, bytes] | None = None) -> None:
         self.assertEqual(result.code, 0, f'stdout:\n{result.out}\nstderr:\n{result.err}')
         self.assertEqual(result.errors, [])
-        for name, data in default_files().items():
+        for name, data in (default_files() if files is None else files).items():
             self.assertEqual((dest / name).read_bytes(), data, name)
         target, working_dir = read_shortcut(self.link)
         self.assertTrue(same_path(target, dest / 'Hider.exe'), target)
@@ -442,6 +458,70 @@ class InstallBatTest(unittest.TestCase):
             ],
         )
         self.assertEqual(list(self.local_app_data.iterdir()), [])
+
+    # --jit: the regular JIT build
+
+    def test_st58_jit_installs_the_jit_build(self) -> None:
+        # The folder and --jit in either order; the option, as Windows' own, in any case.
+        for args in [('--jit', str(self.dest)), (str(self.dest), '--jit'), (str(self.dest), '--JIT')]:
+            with self.subTest(args=args):
+                result = self.run_bat(*args)
+                self.assert_installed(self.dest, result, jit_files())
+                self.assertEqual(
+                    result.out.splitlines(),
+                    [
+                        f'Using {self.release / JIT_ARCHIVE}',
+                        f'Copying to {self.dest}',
+                        f'Created shortcut: {self.link}',
+                        f'Installed Hider {VERSION} to {self.dest}',
+                    ],
+                )
+
+    def test_st58_jit_into_the_default_folder(self) -> None:
+        for args in [('--jit',), ('', '--jit'), ('--jit', '')]:
+            with self.subTest(args=args):
+                result = self.run_bat(*args)
+                self.assert_installed(self.local_app_data / 'Programs' / 'Hider', result, jit_files())
+
+    def test_st58_default_is_the_aot_build(self) -> None:
+        result = self.run_bat(str(self.dest))
+        self.assert_installed(self.dest, result)
+        self.assertNotIn('-jit', result.out)
+
+    def test_st58_jit_build_has_its_own_checksum(self) -> None:
+        actual = self.make_zip(self.release, {**jit_files(), 'Hider.exe': b'MZ tampered'}, JIT_NAME)
+        result = self.run_bat('--jit', str(self.dest))
+        self.assert_failed(result, f'SHA-256 mismatch for {JIT_ARCHIVE} (expected {self.jit_digest}, got {actual}).')
+        self.assertFalse(self.dest.exists())
+
+    def test_st58_jit_does_not_take_the_aot_archive(self) -> None:
+        # Only the AOT build's archive next to the installer: --jit asks the server for its own (missing there).
+        (self.release / JIT_ARCHIVE).unlink()
+        empty = self.root / 'empty'
+        empty.mkdir()
+        base_url, requests = self.serve(empty)
+        bat = self.write_bat(self.release, self.digest, base_url)
+        result = self.run_bat('--jit', str(self.dest), bat=bat)
+        self.assertEqual(result.code, 1, result.err)
+        self.assertEqual(requests, [f'/dl/{JIT_ARCHIVE}'])
+        self.assertFalse(self.dest.exists())
+        self.assertFalse(self.link.exists())
+        self.assert_cleaned_up()
+
+    def test_st58_unknown_option_and_a_second_folder_are_refused(self) -> None:
+        other = self.root / 'other'
+        cases = [
+            (('--force',), f'unknown option --force {USAGE}.'),
+            ((str(self.dest), '-jit'), f'unknown option -jit {USAGE}.'),
+            ((str(self.dest), '--jit', str(other)), f'more than one folder: {self.dest} and {other} {USAGE}.'),
+        ]
+        for args, message in cases:
+            with self.subTest(args=args):
+                result = self.run_bat(*args)
+                self.assert_failed(result, message)
+                self.assertFalse(self.dest.exists())
+                self.assertFalse(other.exists())
+                self.assertEqual(list(self.local_app_data.iterdir()), [])
 
     def serve(self, folder: Path) -> tuple[str, list[str]]:
         """Serve folder over HTTP on 127.0.0.1; return the base URL and the list of requested paths."""

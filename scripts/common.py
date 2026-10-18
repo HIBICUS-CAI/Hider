@@ -9,6 +9,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 PROJECT_FILE = ROOT_DIR / 'src' / 'Hider' / 'Hider.csproj'
 NATIVE_HELPER_DIR = ROOT_DIR / 'native' / 'hidercap'
 TARGETS = ['win-x64', 'linux-x64', 'linux-arm64']
+# The builds of each target (proposal P-14): native AOT, the default, and the regular JIT build (option --jit).
+VARIANTS = ['aot', 'jit']
 
 
 def host_target() -> str | None:
@@ -20,6 +22,11 @@ def host_target() -> str | None:
     return target if target in TARGETS else None
 
 
-def publish_dir(target: str) -> Path:
+def variant_suffix(variant: str) -> str:
+    """What follows the target in a build's folder and file names: nothing for the AOT build, -jit for the JIT one."""
+    return '' if variant == VARIANTS[0] else f'-{variant}'
+
+
+def publish_dir(target: str, variant: str = VARIANTS[0]) -> Path:
     """Under bin/ so the SDK's default item globs do not pick the output up as project items."""
-    return ROOT_DIR / 'bin' / 'publish' / target
+    return ROOT_DIR / 'bin' / 'publish' / f'{target}{variant_suffix(variant)}'
