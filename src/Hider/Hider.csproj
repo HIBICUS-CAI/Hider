@@ -10,17 +10,31 @@
     <ApplicationIcon>Assets/hider.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- Self-contained trimmed single file: targets need no .NET runtime. Native libs stay next to the
-       executable instead of being extracted to a temp folder on every launch. -->
+  <!-- Two builds, neither needs a .NET runtime on the target (proposal P-14). The default is native AOT: one native
+       executable, compiled on the target's own OS (scripts/build.py makes it for the machine it runs on only).
+       HiderJit=true (what the jit option of scripts/build.py passes) is the regular build: a self-contained trimmed
+       single file run by the JIT, buildable for any target from any host. In both, native libs stay next to the
+       executable instead of being extracted to a temp folder on every launch, and no separate symbol file is published
+       (the JIT build embeds its PDB; the AOT build's native symbols go to HiderSymbolsDir, below). PublishTrimmed stays
+       unconditional because it adds Microsoft.NET.ILLink.Tasks at restore time and the lock file must not depend on
+       the RID. -->
   <PropertyGroup>
-    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
     <DebugType>embedded</DebugType>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HiderJit)' != 'true'">
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+  <!-- PublishAot adds Microsoft.DotNet.ILCompiler at restore time, so each build has its own lock file (both written by
+       scripts/update_lock_files.py, both checked by CI's format job). -->
+  <PropertyGroup Condition="'$(HiderJit)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <NuGetLockFilePath>packages.jit.lock.json</NuGetLockFilePath>
   </PropertyGroup>
 
   <!-- SelfContained without a RuntimeIdentifier is an error, so it only applies to RID-specific builds and a plain
-       "dotnet build" / "dotnet test" of the solution keeps working. PublishTrimmed stays unconditional because it
-       adds Microsoft.NET.ILLink.Tasks at restore time and the lock file must not depend on the RID. -->
+       "dotnet build" / "dotnet test" of the solution keeps working. -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
   </PropertyGroup>
@@ -56,6 +70,19 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Hider.App.Tests" />
   </ItemGroup>
+
+  <!-- The AOT build's native symbols (Hider.dbg on Linux, Hider.pdb on Windows), kept apart from the published folder
+       for reading crash dumps and stacks of a released build: scripts/build.py passes HiderSymbolsDir
+       (bin/publish/<rid>-symbols), CI keeps it and the release attaches it (Hider-<version>-<rid>-symbols). -->
+  <Target Name="HiderCopyAotSymbols" AfterTargets="Publish"
+          Condition="'$(PublishAot)' == 'true' and '$(HiderSymbolsDir)' != ''">
+    <ItemGroup>
+      <_HiderAotSymbols Include="$(NativeOutputPath)$(TargetName).dbg;$(NativeOutputPath)$(TargetName).pdb" />
+      <_HiderAotSymbols Remove="@(_HiderAotSymbols)" Condition="!Exists('%(FullPath)')" />
+    </ItemGroup>
+    <Error Condition="'@(_HiderAotSymbols)' == ''" Text="No native symbols of the AOT build in $(NativeOutputPath)." />
+    <Copy SourceFiles="@(_HiderAotSymbols)" DestinationFolder="$(HiderSymbolsDir)" />
+  </Target>
 
   <!-- SkiaSharp/HarfBuzzSharp ship ~100MB of native .pdb files for Windows; they are useless to end users. -->
   <Target Name="RemoveNativePdbFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import os
 import sys
+import typing
 import unittest
 from unittest import mock
 
@@ -38,6 +39,38 @@ class PathsTest(unittest.TestCase):
 
     def test_st09_publish_dir_takes_any_name(self) -> None:
         self.assertEqual(common.publish_dir('osx-arm64'), REPO_DIR / 'bin' / 'publish' / 'osx-arm64')
+
+
+class VariantsTest(unittest.TestCase):
+    def test_st54_variants_are_aot_then_jit(self) -> None:
+        # The first is the default build (native AOT); the JIT build is the option --jit of the scripts.
+        self.assertEqual((common.AOT, common.JIT), ('aot', 'jit'))
+        self.assertEqual(common.VARIANTS, [common.AOT, common.JIT])
+        self.assertEqual(typing.get_args(common.Variant), ('aot', 'jit'))
+
+    def test_st54_suffix(self) -> None:
+        self.assertEqual(common.variant_suffix('aot'), '')
+        self.assertEqual(common.variant_suffix('jit'), '-jit')
+
+    def test_st54_publish_dir_of_each_build(self) -> None:
+        for target in common.TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(common.publish_dir(target, 'aot'), REPO_DIR / 'bin' / 'publish' / target)
+                self.assertEqual(common.publish_dir(target, 'jit'), REPO_DIR / 'bin' / 'publish' / f'{target}-jit')
+                # The AOT build is the default.
+                self.assertEqual(common.publish_dir(target), common.publish_dir(target, 'aot'))
+
+
+class SymbolsTest(unittest.TestCase):
+    def test_st61_symbols_dir_is_next_to_the_publish_outputs(self) -> None:
+        for target in common.TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(common.symbols_dir(target), REPO_DIR / 'bin' / 'publish' / f'{target}-symbols')
+
+    def test_st61_symbols_file(self) -> None:
+        self.assertEqual(common.symbols_file('win-x64'), 'Hider.pdb')
+        self.assertEqual(common.symbols_file('linux-x64'), 'Hider.dbg')
+        self.assertEqual(common.symbols_file('linux-arm64'), 'Hider.dbg')
 
 
 HOST_CASES: tuple[tuple[str, str, str | None], ...] = (
@@ -97,7 +130,14 @@ class ScriptFilesTest(unittest.TestCase):
     """The scripts run directly as well as with python (CLAUDE.md): shebang and executable bit."""
 
     def test_st11_entry_points_are_executable(self) -> None:
-        for name in ['build.py', 'install.py', 'make_icons.py', 'check_wayland_list.py', 'make_release.py']:
+        for name in [
+            'build.py',
+            'install.py',
+            'make_icons.py',
+            'check_wayland_list.py',
+            'make_release.py',
+            'update_lock_files.py',
+        ]:
             with self.subTest(name=name):
                 path = SCRIPTS_DIR / name
                 self.assertTrue(path.read_text(encoding='utf-8').startswith('#!/usr/bin/env python3\n'))

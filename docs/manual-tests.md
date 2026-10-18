@@ -7,9 +7,11 @@
 ## 共通の準備
 
 ```sh
-python scripts/build.py            # 実行中のマシン向け（bin/publish/<rid>/）。Ubuntu では python3
+python scripts/build.py            # 実行中のマシン向けの AOT 版（bin/publish/<rid>/）。Ubuntu では python3
 python scripts/install.py          # 既定のフォルダへ（Windows はデスクトップに Hider.lnk、Ubuntu は .desktop）
 ```
+
+- 配布の既定は AOT 版（提案 P-14）。通常版で確かめる場合は両方に `--jit` を付ける（`bin/publish/<rid>-jit/` から入る）。版で挙動が変わる項目はない想定なので、各 PT は AOT 版で行い、NG のときだけ通常版でも試して結果を添える。
 
 - 設定ファイル: Windows `%USERPROFILE%\.hider\areas.json`、Ubuntu `~/.hider/areas.json`。各 PT の前に消すと初期状態から始められる。
 - ログ: `--verbose` で起動すると標準エラーに出る。Windows の Hider.exe は GUI アプリなのでコンソールには出ない: `Hider.exe --verbose 2> hider.log` のようにファイルへリダイレクトする。Ubuntu は端末から `Hider --verbose`。NG の時は添えてほしい。

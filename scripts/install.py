@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common import TARGETS, host_target, publish_dir
+from common import AOT, JIT, TARGETS, host_target, publish_dir
 
 IS_WINDOWS = platform.system() == 'Windows'
 EXE_NAME = 'Hider.exe' if IS_WINDOWS else 'Hider'
@@ -100,14 +100,22 @@ def main() -> None:
         help='Install folder. Default: %%LOCALAPPDATA%%\\Programs\\Hider on Windows, '
         '$XDG_DATA_HOME/Hider (~/.local/share/Hider) on Linux.',
     )
-    dest_arg: str | None = parser.parse_args().dest
+    parser.add_argument(
+        '--jit',
+        action='store_true',
+        help='Install the regular JIT build (build.py --jit) instead of the native AOT build.',
+    )
+    args = parser.parse_args()
+    dest_arg: str | None = args.dest
+    jit: bool = args.jit
 
     target = host_target()
     if target is None:
         sys.exit(f'This machine is not a supported target ({", ".join(TARGETS)}).')
-    src_dir = publish_dir(target)
+    src_dir = publish_dir(target, JIT if jit else AOT)
     if not (src_dir / EXE_NAME).is_file():
-        sys.exit(f'No build found in {src_dir}, run "python scripts/build.py {target}" first.')
+        build_args = f'{target} --jit' if jit else target
+        sys.exit(f'No build found in {src_dir}, run "python scripts/build.py {build_args}" first.')
 
     # --dest '' is the default folder, as an empty argument is for install.bat and install.sh.
     if IS_WINDOWS:

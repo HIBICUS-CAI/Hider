@@ -331,8 +331,8 @@ class MainTest(unittest.TestCase):
         os.environ.pop('XDG_DATA_HOME', None)
         os.environ.pop('LOCALAPPDATA', None)
 
-    def publish_dir(self, target: str) -> Path:
-        return self.root / 'publish' / target
+    def publish_dir(self, target: str, variant: str = 'aot') -> Path:
+        return self.root / 'publish' / (target if variant == 'aot' else f'{target}-{variant}')
 
     def build(self, target: str = 'linux-x64', exe: str = 'Hider') -> Path:
         return make_build(self.root / 'publish' / target, exe)
@@ -475,6 +475,42 @@ class MainTest(unittest.TestCase):
         self.assertIn('Install the published Hider for the current machine', text)
         self.assertIn('Default: %LOCALAPPDATA%\\Programs\\Hider on Windows', text)
         self.assertIn('$XDG_DATA_HOME/Hider (~/.local/share/Hider) on Linux.', text)
+        self.assertIn('--jit Install the regular JIT build (build.py --jit) instead of the native AOT build.', text)
+
+    def test_st55_default_is_the_aot_build(self) -> None:
+        aot = self.build()
+        make_build(self.root / 'publish' / 'linux-x64-jit')
+        _, linux, _ = self.run_main('-d', str(self.root / 'H'))
+        linux.assert_called_once_with(aot, self.root / 'H', self.home / '.local' / 'share')
+
+    def test_st55_jit_installs_the_jit_build(self) -> None:
+        self.build()
+        jit = make_build(self.root / 'publish' / 'linux-x64-jit')
+        output, linux, _ = self.run_main('--jit', '-d', str(self.root / 'H'))
+        linux.assert_called_once_with(jit, self.root / 'H', self.home / '.local' / 'share')
+        self.assertEqual(output.out, f'Installed to {self.root / "H"}\n')
+        self.windows()
+        jit = make_build(self.root / 'publish' / 'win-x64-jit', 'Hider.exe')
+        _, _, windows = self.run_main('-d', str(self.root / 'W'), '--jit')
+        windows.assert_called_once_with(jit, self.root / 'W')
+
+    def test_st55_jit_without_the_jit_build_exits(self) -> None:
+        # The AOT build does not count for --jit, nor the JIT build without it.
+        self.build()
+        src = self.root / 'publish' / 'linux-x64-jit'
+        self.assertEqual(
+            self.exit_message('--jit'), f'No build found in {src}, run "python scripts/build.py linux-x64 --jit" first.'
+        )
+        (self.root / 'publish' / 'linux-x64' / 'Hider').unlink()
+        make_build(src)
+        self.assertEqual(
+            self.exit_message(),
+            f'No build found in {self.root / "publish" / "linux-x64"}, run "python scripts/build.py linux-x64" first.',
+        )
+
+    def test_st55_jit_takes_no_value(self) -> None:
+        make_build(self.root / 'publish' / 'linux-x64-jit')
+        self.assertEqual(self.exit_message('--jit=yes'), 2)
 
 
 class EndToEndTest(unittest.TestCase):

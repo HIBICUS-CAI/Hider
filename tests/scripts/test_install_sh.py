@@ -35,6 +35,9 @@ from .support import temp_dir
 VERSION = '9.8.7'
 BASE_URL = 'https://github.com/owner/repo/releases/download/v9.8.7'
 RIDS = ['linux-x64', 'linux-arm64']
+# The archives of a release: each RID's AOT build, and its JIT build (--jit) whose names end in -jit.
+BUILDS = [*RIDS, *(f'{rid}-jit' for rid in RIDS)]
+USAGE = 'usage: sh install.sh [-d <folder>] [--jit]\n'
 # Real commands the installer (and the stubs) use, linked into the private PATH.
 TOOLS = ['cat', 'chmod', 'cp', 'cut', 'dirname', 'gzip', 'mkdir', 'mktemp', 'rm', 'sed', 'tar', 'sha256sum', 'basename']
 # The stubs' interpreter.
@@ -176,8 +179,8 @@ class InstallerTest(unittest.TestCase):
             folder.mkdir()
         self.log = self.root / 'stub.log'
         self.digests: dict[str, str] = {}
-        for rid in RIDS:
-            self.digests[rid] = self.make_archive(self.store, rid)
+        for build in BUILDS:
+            self.digests[build] = self.make_archive(self.store, build)
         self.script = self.write_installer(self.release)
 
     # Fixtures
@@ -185,7 +188,8 @@ class InstallerTest(unittest.TestCase):
     def make_archive(
         self, folder: Path, rid: str, files: dict[str, tuple[bytes, int]] | None = None, version: str = VERSION
     ) -> str:
-        """Hider-<version>-<rid>.tar.gz in folder, made by make_release.make_archive; return its SHA-256."""
+        """Hider-<version>-<rid>.tar.gz in folder, made by make_release.make_archive; return its SHA-256. rid may end in
+        -jit (the JIT build's archive)."""
         src = self.root / 'archive-src' / f'{folder.name}-{rid}'
         if src.exists():
             shutil.rmtree(src)
@@ -209,9 +213,10 @@ class InstallerTest(unittest.TestCase):
         }
 
     def write_installer(self, folder: Path, digests: dict[str, str] | None = None) -> Path:
+        """install.sh with the checksums of the archives made in setUp, those given in digests replaced."""
         values = {'HIDER_VERSION': VERSION, 'HIDER_BASE_URL': BASE_URL, 'HIDER_SHA256_WIN_X64': '0' * 64}
-        for rid, digest in (digests or self.digests).items():
-            values[f'HIDER_SHA256_{rid.upper().replace("-", "_")}'] = digest
+        for build, digest in {**self.digests, **(digests or {})}.items():
+            values[f'HIDER_SHA256_{build.upper().replace("-", "_")}'] = digest
         path = folder / 'install.sh'
         path.write_text(make_release.render('install.sh.in', values, '\n'), encoding='utf-8')
         path.chmod(0o755)
@@ -252,7 +257,7 @@ class InstallerTest(unittest.TestCase):
         stdin: str | None = None,
         script: Path | None = None,
     ) -> Result:
-        """Run `sh install.sh <args>` (or the script on stdin: `... | sh`); wait for everything it started."""
+        """Run `sh install.sh <args>` (or the script on stdin: `... | sh <args>`); wait for everything it started."""
         variables = {
             'PATH': str(self.make_bin(machine or Machine())),
             'HOME': str(self.home),
@@ -272,7 +277,8 @@ class InstallerTest(unittest.TestCase):
         self.log.write_text('', encoding='utf-8')
         # Piped (curl ... | sh): $0 is the shell's name, as when sh is started from PATH.
         argv0 = self.shell.argv0
-        command = [argv0] if stdin is not None else [argv0, str(script or self.script), *args]
+        # Piped, args go to the shell (sh -s -- <installer args>).
+        command = [argv0, *args] if stdin is not None else [argv0, str(script or self.script), *args]
         read_end, write_end = os.pipe()
         try:
             process = subprocess.Popen(
@@ -318,6 +324,7 @@ class InstallerTest(unittest.TestCase):
         self.assertEqual(list(self.tmp.iterdir()), [], 'the work folder is removed')
 
     def assert_installed(self, dest: Path, rid: str = 'linux-x64', data: Path | None = None) -> None:
+        """The files of the archive of rid (a build name: linux-x64-jit is that RID's JIT build) are in dest."""
         self.assertEqual((dest / 'Hider').read_text(encoding='utf-8'), f'#!/bin/sh\necho "Hider {rid}"\n')
         self.assertEqual(stat.S_IMODE((dest / 'Hider').stat().st_mode), 0o755)
         self.assertEqual((dest / 'libhidercap.so').read_bytes(), rid.encode())
@@ -356,8 +363,8 @@ class OptionsTest(InstallerTest):
                 self.assert_ok(result)
                 self.assertEqual(
                     result.out,
-                    'usage: sh install.sh [-d <folder>]\n'
-                    f'Install Hider {VERSION}. Default folder: $XDG_DATA_HOME/Hider (~/.local/share/Hider).\n',
+                    USAGE + f'Install Hider {VERSION}. Default folder: $XDG_DATA_HOME/Hider (~/.local/share/Hider).\n'
+                    'The native AOT build by default; --jit installs the regular JIT build.\n',
                 )
                 self.assertEqual(result.err, '')
                 self.assertFalse(self.data.exists())
@@ -369,7 +376,7 @@ class OptionsTest(InstallerTest):
                 result = self.run_installer(*args)
                 self.assertEqual(result.code, 2)
                 self.assertEqual(result.out, '')
-                self.assertTrue(result.err.startswith('usage: sh install.sh [-d <folder>]\n'))
+                self.assertTrue(result.err.startswith(USAGE))
                 self.assertFalse(self.data.exists())
 
     def test_st23_dest_needs_a_folder(self) -> None:
@@ -411,7 +418,7 @@ class OptionsTest(InstallerTest):
             with self.subTest(args=args):
                 result = self.run_installer(*args)
                 self.assertEqual((result.code, result.out), (2, ''))
-                self.assertTrue(result.err.startswith('usage: sh install.sh [-d <folder>]\n'))
+                self.assertTrue(result.err.startswith(USAGE))
                 self.assertFalse(self.data.exists())
                 self.assertFalse((self.root / 'x').exists())
 
@@ -419,7 +426,7 @@ class OptionsTest(InstallerTest):
         # The arguments are read in order: -h ends the run before anything is installed.
         result = self.run_installer('-d', str(self.root / 'x'), '-h')
         self.assert_ok(result)
-        self.assertTrue(result.out.startswith('usage: sh install.sh [-d <folder>]\n'))
+        self.assertTrue(result.out.startswith(USAGE))
         self.assertFalse((self.root / 'x').exists())
         self.assertEqual(result.log, [])
 
@@ -883,6 +890,86 @@ class ShellsTest(InstallerTest):
         self.assertEqual(self.calls(result, 'nohup'), [f'nohup {dest}/Hider'])
 
 
+class JitTest(InstallerTest):
+    """--jit: the regular JIT build's archive (Hider-<version>-<rid>-jit.tar.gz) and its own checksum."""
+
+    def test_st57_jit_installs_the_jit_build(self) -> None:
+        for machine, rid in [('x86_64', 'linux-x64'), ('aarch64', 'linux-arm64')]:
+            with self.subTest(machine=machine):
+                dest = self.root / f'dest-{machine}'
+                result = self.run_installer('--jit', '-d', str(dest), env={'FAKE_UNAME_M': machine})
+                self.assert_ok(result)
+                self.assert_installed(dest, f'{rid}-jit')
+                self.assertIn(f'Downloading {BASE_URL}/Hider-{VERSION}-{rid}-jit.tar.gz\n', result.out)
+                self.assertTrue(result.out.endswith(f'Installed Hider {VERSION} to {dest}\n'))
+
+    def test_st57_default_is_the_aot_build(self) -> None:
+        result = self.run_installer()
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider', 'linux-x64')
+        self.assertNotIn('-jit', result.out)
+
+    def test_st57_option_order(self) -> None:
+        for folder, args in [('a', ('--jit', '-d', 'a')), ('b', ('-d', 'b', '--jit')), ('c', ('--jit', '--dest', 'c'))]:
+            with self.subTest(args=args):
+                result = self.run_installer(*args)
+                self.assert_ok(result)
+                self.assert_installed(self.root / folder, 'linux-x64-jit')
+
+    def test_st57_jit_takes_no_value(self) -> None:
+        for args in [('--jit=1',), ('--jit', 'yes')]:
+            with self.subTest(args=args):
+                result = self.run_installer(*args)
+                self.assertEqual((result.code, result.out), (2, ''))
+                self.assertTrue(result.err.startswith(USAGE))
+                self.assertFalse(self.data.exists())
+
+    def test_st57_jit_archive_next_to_the_script(self) -> None:
+        local = self.put_next_to_script('linux-x64-jit')
+        result = self.run_installer('--jit')
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider', 'linux-x64-jit')
+        self.assertIn(f'Using {local}\n', result.out)
+        self.assertEqual(self.calls(result, 'curl'), [])
+
+    def test_st57_the_other_build_next_to_the_script_is_not_used(self) -> None:
+        # The AOT archive does not do for --jit, nor the JIT archive without it.
+        self.put_next_to_script('linux-x64')
+        result = self.run_installer('--jit')
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider', 'linux-x64-jit')
+        self.assertEqual(len(self.calls(result, 'curl')), 1)
+        (self.release / f'Hider-{VERSION}-linux-x64.tar.gz').unlink()
+        self.put_next_to_script('linux-x64-jit')
+        result = self.run_installer()
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider', 'linux-x64')
+        self.assertEqual(len(self.calls(result, 'curl')), 1)
+
+    def test_st57_piped_to_sh(self) -> None:
+        # curl ... | sh -s -- --jit
+        result = self.run_installer('-s', '--', '--jit', stdin=self.script.read_text(encoding='utf-8'), cwd=self.root)
+        self.assert_ok(result)
+        self.assert_installed(self.data / 'Hider', 'linux-x64-jit')
+
+    def test_st57_jit_build_has_its_own_checksum(self) -> None:
+        expected = self.digests['linux-x64-jit']
+        actual = self.make_archive(self.store, 'linux-x64-jit', {'Hider': (b'tampered', 0o755)})
+        result = self.run_installer('--jit')
+        self.assert_error(
+            result, f'SHA-256 mismatch for Hider-{VERSION}-linux-x64-jit.tar.gz (expected {expected}, got {actual})'
+        )
+        # Swapped with the AOT build's checksum, each build fails.
+        swapped = {'linux-arm64': self.digests['linux-arm64-jit'], 'linux-arm64-jit': self.digests['linux-arm64']}
+        script = self.write_installer(self.root, swapped)
+        for args in [(), ('--jit',)]:
+            with self.subTest(args=args):
+                result = self.run_installer(*args, env={'FAKE_UNAME_M': 'aarch64'}, script=script)
+                self.assertEqual(result.code, 1)
+                self.assertIn('SHA-256 mismatch', result.err)
+        self.assertFalse(self.data.exists())
+
+
 class SyntaxTest(unittest.TestCase):
     """`sh -n` on the template and the rendered script, `bash -n` on the Xvfb smoke test (CI runs shellcheck too)."""
 
@@ -896,7 +983,8 @@ class SyntaxTest(unittest.TestCase):
         root = temp_dir(self)
         rendered = root / 'install.sh'
         values = {'HIDER_VERSION': '1.0.0', 'HIDER_BASE_URL': 'https://x/y'}
-        values |= {f'HIDER_SHA256_{k}': '0' * 64 for k in ['WIN_X64', 'LINUX_X64', 'LINUX_ARM64']}
+        keys = ['WIN_X64', 'LINUX_X64', 'LINUX_ARM64', 'WIN_X64_JIT', 'LINUX_X64_JIT', 'LINUX_ARM64_JIT']
+        values |= {f'HIDER_SHA256_{k}': '0' * 64 for k in keys}
         rendered.write_text(make_release.render('install.sh.in', values, '\n'), encoding='utf-8')
         for shell in SHELLS:
             with self.subTest(shell=shell.name):

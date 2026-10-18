@@ -1,14 +1,25 @@
 <Project>
 
-  <!-- The SDK adds Microsoft.NET.ILLink.Tasks (trimming) at the runtime version it bundles, and packages.lock.json records
-       that version: a newer SDK would change the lock files and fail the locked restore of CI. The version is fixed here
-       instead, so any 10.0.x SDK restores the same packages; raise it together with the lock files. -->
+  <!-- The SDK adds Microsoft.NET.ILLink.Tasks (trimming) and, for the AOT build, Microsoft.DotNet.ILCompiler (native
+       AOT) at the runtime version it bundles, and packages.lock.json records that version: a newer SDK would change the
+       lock files and fail the locked restore of CI. The version is fixed here instead, so any 10.0.x SDK restores the
+       same packages; raise it together with both lock files of src/Hider (scripts/update_lock_files.py). It is also
+       the .NET runtime version inside both published builds (below). -->
   <PropertyGroup>
-    <HiderILLinkVersion>10.0.12</HiderILLinkVersion>
+    <HiderPublishPackVersion>10.0.12</HiderPublishPackVersion>
   </PropertyGroup>
   <ItemGroup>
-    <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderILLinkVersion)" />
+    <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderPublishPackVersion)" />
+    <KnownILCompilerPack Update="Microsoft.DotNet.ILCompiler" ILCompilerPackVersion="$(HiderPublishPackVersion)" />
   </ItemGroup>
+  <!-- The runtime pack of a self-contained publish (and the single-file host, which follows it) is that version too,
+       instead of the newest one the SDK bundles: the AOT build's ILCompiler refuses a System.Private.CoreLib newer than
+       its own, ILLink trims the framework of its own version, and both builds of a release carry the same runtime.
+       Hider.Core gets the RID of a publish but is not self-contained; the runtime pack is a PackageDownload, so the
+       lock files do not change. -->
+  <PropertyGroup Condition="'$(SelfContained)' == 'true'">
+    <RuntimeFrameworkVersion>$(HiderPublishPackVersion)</RuntimeFrameworkVersion>
+  </PropertyGroup>
 
   <!-- Avalonia.BuildServices (transitive) sends build statistics to avaloniaui.net from its AvaloniaStats target. The
        documented opt-out is the AVALONIA_TELEMETRY_OPTOUT environment variable, which every machine would have to set;

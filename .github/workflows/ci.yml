@@ -23,6 +23,11 @@ on:
         type: choice
         default: all
         options: [all, win-x64, linux-x64, linux-arm64]
+      builds:
+        description: "Builds to publish (aot: native AOT, the default; jit: the regular build)"
+        type: choice
+        default: all
+        options: [all, aot, jit]
       run_gui_tests:
         description: "Run Avalonia headless GUI tests"
         type: boolean
@@ -54,20 +59,29 @@ jobs:
       matrix: ${{ steps.set.outputs.matrix }}
       linux_matrix: ${{ steps.set.outputs.linux_matrix }}
       has_linux: ${{ steps.set.outputs.has_linux }}
+      publish_matrix: ${{ steps.set.outputs.publish_matrix }}
     steps:
       - id: set
         shell: bash
         env:
-          # Empty on pull_request and workflow_call: every target.
+          # Empty on pull_request and workflow_call: every target, both builds.
           TARGETS: ${{ inputs.targets || 'all' }}
+          BUILDS: ${{ inputs.builds || 'all' }}
         run: |
           all='[{"rid":"win-x64","os":"windows-latest"},{"rid":"linux-x64","os":"ubuntu-24.04"},{"rid":"linux-arm64","os":"ubuntu-24.04-arm"}]'
           t="$TARGETS"
           if [ "$t" = all ]; then m="$all"; else m=$(echo "$all" | jq -c --arg t "$t" '[.[] | select(.rid == $t)]'); fi
           lm=$(echo "$m" | jq -c '[.[] | select(.rid | startswith("linux"))]')
+          # publish: each target once per build (proposal P-14), the AOT build first. suffix names its folder, artifact
+          # and archive (bin/publish/<rid><suffix>, Hider-<rid><suffix>); the first line of its --selftest is
+          # "runtime: <variant>".
+          b='[{"variant":"aot","suffix":""},{"variant":"jit","suffix":"-jit"}]'
+          if [ "$BUILDS" != all ]; then b=$(echo "$b" | jq -c --arg v "$BUILDS" '[.[] | select(.variant == $v)]'); fi
+          pm=$(echo "$m" | jq -c --argjson b "$b" '[.[] as $t | $b[] | $t + .]')
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
           echo "linux_matrix=$lm" >> "$GITHUB_OUTPUT"
           echo "has_linux=$(echo "$lm" | jq 'length > 0')" >> "$GITHUB_OUTPUT"
+          echo "publish_matrix=$pm" >> "$GITHUB_OUTPUT"
 
   test-core:
     needs: plan
@@ -120,6 +134,9 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore --locked-mode
+      # The JIT build's lock file (src/Hider/packages.jit.lock.json), early: otherwise only publish (jit) restores it, after
+      # every test. A mismatch: python scripts/update_lock_files.py.
+      - run: dotnet restore src/Hider/Hider.csproj --locked-mode -p:HiderJit=true
       - run: dotnet format Hider.slnx --verify-no-changes --no-restore
       # tools/fakeportal is not in the solution (a development tool for scripts/xvfb-strip-smoke.sh).
       - run: dotnet format tools/fakeportal/FakePortal.csproj --verify-no-changes
@@ -174,18 +191,28 @@ jobs:
       # sh with fake commands).
       - name: Unit tests of scripts (Python 3.12)
         run: python -m unittest discover -s tests/scripts -t . -v
-      # The release packaging and the Linux installer on dummy publish outputs (release.yml does it on real ones).
+      # The release packaging and the Linux installer on dummy publish outputs of both builds and the AOT build's symbols
+      # (release.yml does it on real ones): install.sh installs the AOT build, and the JIT build with --jit.
       - name: Release packaging on dummy files
         run: |
           d="$RUNNER_TEMP/dummy"
-          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid/Assets"; done
-          touch "$d/in/Hider-win-x64/Hider.exe"
-          for rid in linux-x64 linux-arm64; do printf '#!/bin/sh\necho "Hider 0.0.0"\n' > "$d/in/Hider-$rid/Hider"; done
+          for build in win-x64 linux-x64 linux-arm64 win-x64-jit linux-x64-jit linux-arm64-jit; do
+            mkdir -p "$d/in/Hider-$build/Assets"
+            case "$build" in
+              win-*) touch "$d/in/Hider-$build/Hider.exe" ;;
+              *) printf '#!/bin/sh\necho "Hider 0.0.0%s"\n' "${build#linux-*64}" > "$d/in/Hider-$build/Hider" ;;
+            esac
+          done
+          mkdir -p "$d/in/Hider-win-x64-symbols" "$d/in/Hider-linux-x64-symbols" "$d/in/Hider-linux-arm64-symbols"
+          touch "$d/in/Hider-win-x64-symbols/Hider.pdb" "$d/in/Hider-linux-x64-symbols/Hider.dbg" "$d/in/Hider-linux-arm64-symbols/Hider.dbg"
           python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
           XDG_DATA_HOME="$d/data" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh"
           [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
           test -f "$d/data/applications/Hider.desktop"
+          XDG_DATA_HOME="$d/data-jit" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh" --jit
+          [ "$("$d/data-jit/Hider/Hider")" = "Hider 0.0.0-jit" ]
           (cd "$d/out" && sha256sum -c SHA256SUMS.txt)
+          test "$(wc -l < "$d/out/SHA256SUMS.txt")" -eq 11
       # The oldest Python the scripts support (pyproject.toml): every unit test again (they run the scripts' own code,
       # their command lines included).
       - uses: actions/setup-python@v7
@@ -279,15 +306,22 @@ jobs:
 
   publish:
     # After every check that ran (format and the scripts' lint included: publish runs build.py): a skipped GUI test or
-    # native job (not chosen, no Linux target) does not hold it back.
+    # native job (not chosen, no Linux target) does not hold it back. Each target once per build (proposal P-14): native
+    # AOT (the default, built on its own OS and architecture) and the regular JIT build (build.py --jit); every check
+    # below runs on both.
     if: ${{ format('{0}', inputs.publish) != 'false' && !cancelled() && !failure() }}
     needs: [plan, test-core, test-gui, native, format, python-lint]
+    name: publish (${{ matrix.rid }}, ${{ matrix.variant }})
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+        include: ${{ fromJson(needs.plan.outputs.publish_matrix) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 40
+    env:
+      # build.py's output folder for this build, and its option.
+      OUT: bin/publish/${{ matrix.rid }}${{ matrix.suffix }}
+      JIT_ARG: ${{ matrix.variant == 'jit' && '--jit' || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -297,28 +331,36 @@ jobs:
         with:
           global-json-file: global.json
           cache: true
-          cache-dependency-path: '**/packages.lock.json'
+          cache-dependency-path: '**/packages*.lock.json'
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # Linux: the helper's build packages, clang and zlib for native AOT, and the packages of the Xvfb runs below.
       - if: ${{ startsWith(matrix.rid, 'linux') }}
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libpipewire-0.3-dev clang
+          zlib1g-dev xvfb xcompmgr imagemagick dbus pipewire pipewire-bin wireplumber gstreamer1.0-pipewire
+          gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-tools
       # release.yml passes the version it tags (taken from the tags, not from Directory.Build.props).
       - shell: bash
         env:
           VERSION: ${{ inputs.version }}
-        run: python scripts/build.py ${{ matrix.rid }} ${VERSION:+--version "$VERSION"}
-      - name: Self test on the trimmed binary
+        run: python scripts/build.py ${{ matrix.rid }} ${JIT_ARG:+"$JIT_ARG"} ${VERSION:+--version "$VERSION"}
+      # The first line of --selftest says how the binary runs (runtime: aot / runtime: jit): it must be this build.
+      - name: Self test on the published binary
         shell: bash
         env:
           VERSION: ${{ inputs.version }}
+          VARIANT: ${{ matrix.variant }}
         run: |
-          exe="bin/publish/${{ matrix.rid }}/Hider"
+          exe="$OUT/Hider"
           [[ "${{ matrix.rid }}" == win-* ]] && exe="$exe.exe"
           v="$("$exe" --version | tr -d '\r')"
           echo "$v"
           if [ -n "$VERSION" ] && [ "$v" != "Hider $VERSION" ]; then echo "::error::expected Hider $VERSION"; exit 1; fi
-          "$exe" --selftest
+          out="$("$exe" --selftest | tr -d '\r')"
+          echo "$out"
+          if [ "$(echo "$out" | head -n 1)" != "runtime: $VARIANT" ]; then echo "::error::expected runtime: $VARIANT"; exit 1; fi
       # Windows: the self test started from cmd in a console of its own, the way README says (start /wait). On
       # windows-latest `> out.txt` stays empty: cmd's start seems to hand a GUI program none of its redirections, and
       # Hider then takes neither stream as redirected and tries to attach to that console (Win32Console: AttachConsole,
@@ -328,7 +370,7 @@ jobs:
       - if: ${{ startsWith(matrix.rid, 'win') }}
         name: Self test from cmd on the console
         shell: pwsh
-        working-directory: bin/publish/${{ matrix.rid }}
+        working-directory: ${{ env.OUT }}
         run: |
           foreach ($redirect in '> out.txt', '2> err.txt') {
             Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
@@ -341,18 +383,19 @@ jobs:
             if ($p.ExitCode -ne 0 -or -not $fileOk) { throw "start /wait Hider.exe --selftest ${redirect}: exit code $($p.ExitCode), $file holds: $text" }
           }
           Remove-Item -LiteralPath out.txt, err.txt -ErrorAction Ignore
-      # scripts/install.py on the build for real: the installed binary runs, and the Linux desktop entry / the Windows
-      # shortcut (made through Windows PowerShell, next step) point at it.
+      # scripts/install.py on the build for real (--jit for the JIT build): the installed binary runs, and the Linux
+      # desktop entry / the Windows shortcut (made through Windows PowerShell, next step) point at it.
       - name: Install with scripts/install.py
         shell: bash
         env:
           RID: ${{ matrix.rid }}
         run: |
           dest="$RUNNER_TEMP/hider-install"
-          XDG_DATA_HOME="$RUNNER_TEMP/data" python scripts/install.py --dest "$dest"
+          XDG_DATA_HOME="$RUNNER_TEMP/data" python scripts/install.py --dest "$dest" ${JIT_ARG:+"$JIT_ARG"}
           exe="$dest/Hider"
           [[ "$RID" == win-* ]] && exe="$exe.exe"
           "$exe" --version
+          cmp "$exe" "$OUT/$(basename "$exe")"
           if [[ "$RID" == linux-* ]]; then
             entry="$RUNNER_TEMP/data/applications/Hider.desktop"
             cat "$entry"
@@ -369,10 +412,25 @@ jobs:
           $s = (New-Object -ComObject WScript.Shell).CreateShortcut($link)
           Write-Host "$link -> $($s.TargetPath) in $($s.WorkingDirectory)"
           if ($s.TargetPath -ne (Join-Path $dest 'Hider.exe') -or $s.WorkingDirectory -ne $dest) { throw 'the shortcut does not point at the install' }
-      # Windows: the trimmed binary under capture and drawing load (scripts/windows-stress.ps1).
+      # Linux strip capture end to end on the published binary (scripts/xvfb-strip-smoke.sh, as test-gui runs it on the
+      # build): stage 2 (ScreenCast) with the libhidercap.so it ships, refused and not; then stage 1 (Screenshot) on a
+      # copy without libhidercap.so (the build a machine without PipeWire runs, D-6), refused and not. Each run ends with
+      # SIGTERM: exit code 0 and areas.json written again (FR-06, FR-61).
+      - if: ${{ startsWith(matrix.rid, 'linux') }}
+        name: Xvfb strip capture on the published binary
+        shell: bash
+        run: |
+          scripts/xvfb-strip-smoke.sh --screencast "$OUT/Hider"
+          scripts/xvfb-strip-smoke.sh --screencast --deny "$OUT/Hider"
+          copy="$RUNNER_TEMP/without-helper"
+          cp -R "$OUT" "$copy"
+          rm "$copy/libhidercap.so"
+          scripts/xvfb-strip-smoke.sh "$copy/Hider"
+          scripts/xvfb-strip-smoke.sh --deny "$copy/Hider"
+      # Windows: the published binary under capture and drawing load (scripts/windows-stress.ps1).
       - if: ${{ startsWith(matrix.rid, 'win') }}
         shell: pwsh
-        run: scripts/windows-stress.ps1 -Exe bin/publish/${{ matrix.rid }}/Hider.exe -Seconds 90
+        run: scripts/windows-stress.ps1 -Exe "$env:OUT/Hider.exe" -Seconds 90
       # The stress script's checks fail when they should: a program that exits at once (whoami.exe as Hider.exe), and
       # the real Hider with no areas (alive, nothing captured). After each run, also the 90 s one above: no work folder
       # and no Hider process left behind.
@@ -380,7 +438,7 @@ jobs:
         name: Stress script failure checks
         shell: pwsh
         env:
-          EXE: bin/publish/${{ matrix.rid }}/Hider.exe
+          EXE: ${{ env.OUT }}/Hider.exe
         run: |
           function Invoke-Stress([string[]] $Arguments) {
             $out = & pwsh -NoProfile -File scripts/windows-stress.ps1 @Arguments 2>&1 | Out-String
@@ -412,10 +470,20 @@ jobs:
           Assert-Clean
           # Both runs above exit 1 as they should; a pwsh step otherwise ends with that $LASTEXITCODE.
           exit 0
+      # Artifacts Hider-<rid> (AOT), Hider-<rid>-jit (JIT) and Hider-<rid>-symbols (the AOT build's native symbols, which
+      # build.py writes apart from the published folder): the inputs of release.yml's package job.
       - uses: actions/upload-artifact@v7
         with:
-          name: Hider-${{ matrix.rid }}
-          path: bin/publish/${{ matrix.rid }}/
+          name: Hider-${{ matrix.rid }}${{ matrix.suffix }}
+          path: ${{ env.OUT }}/
+          if-no-files-found: error
+          retention-days: 14
+      - if: ${{ matrix.variant == 'aot' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Hider-${{ matrix.rid }}-symbols
+          path: bin/publish/${{ matrix.rid }}-symbols/
+          if-no-files-found: error
           retention-days: 14
 
   # The Windows installers for real (python-lint covers install.sh): install.bat's failure and success paths and
@@ -444,16 +512,31 @@ jobs:
         shell: bash
         run: |
           d=dummy
-          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid/Assets"; done
-          echo dummy > "$d/in/Hider-win-x64/Hider.exe"
-          for rid in linux-x64 linux-arm64; do echo dummy > "$d/in/Hider-$rid/Hider"; done
+          for build in win-x64 linux-x64 linux-arm64 win-x64-jit linux-x64-jit linux-arm64-jit; do
+            mkdir -p "$d/in/Hider-$build/Assets"
+            exe=Hider
+            [[ "$build" == win-* ]] && exe=Hider.exe
+            echo "dummy $build" > "$d/in/Hider-$build/$exe"
+          done
+          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid-symbols"; done
+          touch "$d/in/Hider-win-x64-symbols/Hider.pdb" "$d/in/Hider-linux-x64-symbols/Hider.dbg" "$d/in/Hider-linux-arm64-symbols/Hider.dbg"
           python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
+      # install.bat installs the AOT build, and the JIT build with --jit.
       - shell: pwsh
         run: |
-          cmd.exe /c dummy\out\install.bat installed
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Test-Path installed\Hider.exe)) { throw 'Hider.exe not installed' }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+          $cases = @(
+            @{ Args = @('installed'); Expect = 'dummy win-x64' },
+            @{ Args = @('installed-jit', '--jit'); Expect = 'dummy win-x64-jit' }
+          )
+          foreach ($case in $cases) {
+            cmd.exe /c dummy\out\install.bat @($case.Args)
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $folder = $case.Args[0]
+            $exe = Join-Path $folder 'Hider.exe'
+            if (-not (Test-Path $exe)) { throw "Hider.exe not installed in $folder" }
+            if ((Get-Content -LiteralPath $exe -Raw).Trim() -ne $case.Expect) { throw "$folder holds another build" }
+            if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
+          }
 
   # The required status check of pull requests to main: red when any job failed or was cancelled (a job not chosen in a
   # manual run is skipped, which passes).
