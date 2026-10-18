@@ -8,9 +8,10 @@ name: Release
 #    workflow pressed twice: the runs queue in one concurrency group and the second would release the same commit).
 # 2. ci: CI on that commit (ci.yml), publishing with that version (build.py --version, a global property over
 #    Directory.Build.props).
-# 3. package: the release assets (scripts/make_release.py). 4. verify: the installers tried on each target.
+# 3. package: the release assets (scripts/make_release.py): each target's AOT build (the default) and JIT build
+#    (proposal P-14). 4. verify: the installers tried on each target, for each build (--jit for the JIT build).
 # 5. release: the tag v<version> on that commit and the GitHub Release (the only job with write access).
-# 6. smoke: the installers downloaded from the published release.
+# 6. smoke: the installers downloaded from the published release, for each build.
 on:
   workflow_dispatch:
     inputs:
@@ -82,7 +83,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      # The publish outputs of the ci job (artifacts Hider-<rid>).
+      # The publish outputs of the ci job (artifacts Hider-<rid> of the AOT builds and Hider-<rid>-jit of the JIT builds),
+      # each into a folder of its name.
       - uses: actions/download-artifact@v8
         with:
           pattern: Hider-*
@@ -98,20 +100,26 @@ jobs:
           retention-days: 14
 
   # Each target runs its installer with the archive next to it (no download: the release does not exist yet), then the
-  # installed binary.
+  # installed binary: once per build (option --jit for the JIT build), whose --selftest names its runtime first.
   verify:
     needs: [prepare, package]
+    name: verify (${{ matrix.rid }}${{ matrix.option && ', jit' || ', aot' }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { rid: win-x64, os: windows-latest }
-          - { rid: linux-x64, os: ubuntu-24.04 }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: win-x64, os: windows-latest, option: "", runtime: native AOT }
+          - { rid: win-x64, os: windows-latest, option: --jit, runtime: JIT }
+          - { rid: linux-x64, os: ubuntu-24.04, option: "", runtime: native AOT }
+          - { rid: linux-x64, os: ubuntu-24.04, option: --jit, runtime: JIT }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: "", runtime: native AOT }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: --jit, runtime: JIT }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      OPTION: ${{ matrix.option }}
+      RUNTIME: ${{ matrix.runtime }}
       # The installers start Hider after installing; not on the runner.
       HIDER_NO_LAUNCH: 1
     steps:
@@ -125,12 +133,12 @@ jobs:
       - if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmd.exe /c release\install.bat installed
+          if ($env:OPTION) { cmd.exe /c release\install.bat installed $env:OPTION } else { cmd.exe /c release\install.bat installed }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hider.lnk'))) { throw 'no desktop shortcut' }
       - if: runner.os == 'Linux'
         run: |
-          sh release/install.sh -d installed
+          sh release/install.sh -d installed ${OPTION:+"$OPTION"}
           test -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/Hider.desktop"
       - name: Installed binary
         shell: bash
@@ -142,7 +150,9 @@ jobs:
           v="$("$exe" --version | tr -d '\r')"
           echo "$v"
           [ "$v" = "Hider $VERSION" ]
-          "$exe" --selftest
+          out="$("$exe" --selftest | tr -d '\r')"
+          echo "$out"
+          [ "$(echo "$out" | head -n 1)" = "runtime: $RUNTIME" ]
 
   # The tag v<version> on the released commit and the GitHub Release. A re-run after a failure here adds the assets to
   # the release made already.
@@ -171,21 +181,27 @@ jobs:
               --notes-file release/release-notes.md --generate-notes
           fi
 
-  # The installers downloaded from the published release, downloading the archive as a user's would.
+  # The installers downloaded from the published release, downloading the archive as a user's would, for each build.
   smoke:
     needs: [prepare, release]
+    name: smoke (${{ matrix.rid }}${{ matrix.option && ', jit' || ', aot' }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { rid: win-x64, os: windows-latest }
-          - { rid: linux-x64, os: ubuntu-24.04 }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: win-x64, os: windows-latest, option: "", runtime: native AOT }
+          - { rid: win-x64, os: windows-latest, option: --jit, runtime: JIT }
+          - { rid: linux-x64, os: ubuntu-24.04, option: "", runtime: native AOT }
+          - { rid: linux-x64, os: ubuntu-24.04, option: --jit, runtime: JIT }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: "", runtime: native AOT }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, option: --jit, runtime: JIT }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}
+      OPTION: ${{ matrix.option }}
+      RUNTIME: ${{ matrix.runtime }}
       HIDER_NO_LAUNCH: 1
     steps:
       # Ubuntu desktops have PipeWire; a bare runner does not, and --selftest requires the shipped libhidercap.so to load.
@@ -196,12 +212,12 @@ jobs:
         run: |
           # Assets of a release made a moment ago can take a few seconds to be served.
           Invoke-WebRequest -UseBasicParsing -Uri "$env:URL/install.bat" -OutFile install.bat -MaximumRetryCount 5 -RetryIntervalSec 10
-          cmd.exe /c install.bat installed
+          if ($env:OPTION) { cmd.exe /c install.bat installed $env:OPTION } else { cmd.exe /c install.bat installed }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - if: runner.os == 'Linux'
         run: |
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o install.sh "$URL/install.sh"
-          sh install.sh -d installed
+          sh install.sh -d installed ${OPTION:+"$OPTION"}
       - name: Installed binary
         shell: bash
         env:
@@ -212,4 +228,6 @@ jobs:
           v="$("$exe" --version | tr -d '\r')"
           echo "$v"
           [ "$v" = "Hider $VERSION" ]
-          "$exe" --selftest
+          out="$("$exe" --selftest | tr -d '\r')"
+          echo "$out"
+          [ "$(echo "$out" | head -n 1)" = "runtime: $RUNTIME" ]
