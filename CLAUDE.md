@@ -39,7 +39,7 @@ dotnet test tests/Hider.Core.Tests
 dotnet test tests/Hider.App.Tests             # Linux では先に make -C native/hidercap（ビルドがテスト出力へ .so をコピー）。CI の Linux では実環境テストを skip しない
 make -C native/hidercap test                  # libhidercap の単体テスト（CT-90 のフレーム時刻、API の検査とエラー経路。libpipewire のクライアントモジュールが要る、デーモンは不要）
 python -m unittest discover -s tests/scripts -t .   # scripts/ の単体テスト（標準ライブラリのみ。install.sh は sh / dash / bash と偽コマンドで実行）
-python scripts/build.py <rid>                 # AOT 版 → bin/publish/<rid>/（そのマシンの RID だけ。Ubuntu では python3。scripts/ は直接実行もできる）
+python scripts/build.py <rid>                 # AOT 版 → bin/publish/<rid>/、ネイティブ記号は <rid>-symbols/（そのマシンの RID だけ。Ubuntu では python3。scripts/ は直接実行もできる）
 python scripts/build.py <rid> --jit           # 通常版 → bin/publish/<rid>-jit/（どのマシンでも全 RID）
 bin/publish/<rid>/Hider --selftest            # 終了コード 0。1 行目が runtime: aot / jit（Windows の cmd では start /wait、README 参照）
 scripts/xvfb-strip-smoke.sh [--screencast]    # Linux: Xvfb + 偽ポータルで帯撮影（第 1 / 第 2 段階）

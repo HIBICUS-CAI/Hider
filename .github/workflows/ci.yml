@@ -191,8 +191,8 @@ jobs:
       # sh with fake commands).
       - name: Unit tests of scripts (Python 3.12)
         run: python -m unittest discover -s tests/scripts -t . -v
-      # The release packaging and the Linux installer on dummy publish outputs of both builds (release.yml does it on
-      # real ones): install.sh installs the AOT build, and the JIT build with --jit.
+      # The release packaging and the Linux installer on dummy publish outputs of both builds and the AOT build's symbols
+      # (release.yml does it on real ones): install.sh installs the AOT build, and the JIT build with --jit.
       - name: Release packaging on dummy files
         run: |
           d="$RUNNER_TEMP/dummy"
@@ -203,6 +203,8 @@ jobs:
               *) printf '#!/bin/sh\necho "Hider 0.0.0%s"\n' "${build#linux-*64}" > "$d/in/Hider-$build/Hider" ;;
             esac
           done
+          mkdir -p "$d/in/Hider-win-x64-symbols" "$d/in/Hider-linux-x64-symbols" "$d/in/Hider-linux-arm64-symbols"
+          touch "$d/in/Hider-win-x64-symbols/Hider.pdb" "$d/in/Hider-linux-x64-symbols/Hider.dbg" "$d/in/Hider-linux-arm64-symbols/Hider.dbg"
           python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
           XDG_DATA_HOME="$d/data" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh"
           [ "$("$d/data/Hider/Hider")" = "Hider 0.0.0" ]
@@ -210,7 +212,7 @@ jobs:
           XDG_DATA_HOME="$d/data-jit" HIDER_NO_LAUNCH=1 sh "$d/out/install.sh" --jit
           [ "$("$d/data-jit/Hider/Hider")" = "Hider 0.0.0-jit" ]
           (cd "$d/out" && sha256sum -c SHA256SUMS.txt)
-          test "$(wc -l < "$d/out/SHA256SUMS.txt")" -eq 8
+          test "$(wc -l < "$d/out/SHA256SUMS.txt")" -eq 11
       # The oldest Python the scripts support (pyproject.toml): every unit test again (they run the scripts' own code,
       # their command lines included).
       - uses: actions/setup-python@v7
@@ -468,11 +470,19 @@ jobs:
           Assert-Clean
           # Both runs above exit 1 as they should; a pwsh step otherwise ends with that $LASTEXITCODE.
           exit 0
-      # Artifacts Hider-<rid> (AOT) and Hider-<rid>-jit (JIT): the inputs of release.yml's package job.
+      # Artifacts Hider-<rid> (AOT), Hider-<rid>-jit (JIT) and Hider-<rid>-symbols (the AOT build's native symbols, which
+      # build.py writes apart from the published folder): the inputs of release.yml's package job.
       - uses: actions/upload-artifact@v7
         with:
           name: Hider-${{ matrix.rid }}${{ matrix.suffix }}
           path: ${{ env.OUT }}/
+          if-no-files-found: error
+          retention-days: 14
+      - if: ${{ matrix.variant == 'aot' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Hider-${{ matrix.rid }}-symbols
+          path: bin/publish/${{ matrix.rid }}-symbols/
           if-no-files-found: error
           retention-days: 14
 
@@ -508,6 +518,8 @@ jobs:
             [[ "$build" == win-* ]] && exe=Hider.exe
             echo "dummy $build" > "$d/in/Hider-$build/$exe"
           done
+          for rid in win-x64 linux-x64 linux-arm64; do mkdir -p "$d/in/Hider-$rid-symbols"; done
+          touch "$d/in/Hider-win-x64-symbols/Hider.pdb" "$d/in/Hider-linux-x64-symbols/Hider.dbg" "$d/in/Hider-linux-arm64-symbols/Hider.dbg"
           python scripts/make_release.py package 0.0.0 --repo "$GITHUB_REPOSITORY" --input-dir "$d/in" --out-dir "$d/out"
       # install.bat installs the AOT build, and the JIT build with --jit.
       - shell: pwsh

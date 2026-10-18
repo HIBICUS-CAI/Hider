@@ -66,7 +66,7 @@ bin/publish/linux-x64/Hider --selftest     # 1 行目に実行形態（AOT 版�
 
 Windows の Hider.exe は GUI アプリなので、cmd は終了を待たずに次のプロンプトを出します（出力は起動元のコンソールに出ます）。終了コードまで見るときは `start /wait bin\publish\win-x64\Hider.exe --selftest` の後に `echo %ERRORLEVEL%`、PowerShell では `(Start-Process bin\publish\win-x64\Hider.exe --selftest -Wait -PassThru -NoNewWindow).ExitCode` を使います。
 
-出力は AOT 版が `bin/publish/<rid>/`、通常版が `bin/publish/<rid>-jit/` です。ネイティブ AOT はクロスコンパイルできないので、AOT 版はその OS・アーキテクチャのマシンでだけビルドできます（ほかの対象を指定すると、何もビルドせずに理由を表示して終了します）。通常版はどのマシンでもすべての対象をビルドできます。別アーキテクチャの Linux 向けに通常版をクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
+出力は AOT 版が `bin/publish/<rid>/`、通常版が `bin/publish/<rid>-jit/` です。AOT 版のネイティブ記号（Linux は Hider.dbg、Windows は Hider.pdb。クラッシュダンプやスタックの解析用で、配布フォルダには入れません）は `bin/publish/<rid>-symbols/` に出します（通常版は PDB を実行ファイルに埋め込んでいます）。ネイティブ AOT はクロスコンパイルできないので、AOT 版はその OS・アーキテクチャのマシンでだけビルドできます（ほかの対象を指定すると、何もビルドせずに理由を表示して終了します）。通常版はどのマシンでもすべての対象をビルドできます。別アーキテクチャの Linux 向けに通常版をクロスビルドする場合、クロスコンパイラが無ければ libhidercap.so 抜き（ScreenCast を使わず Screenshot ポータルで撮る）でビルドされます。
 
 アイコンを作り直す場合は `python scripts/make_icons.py`（生成物はリポジトリに含まれています）。
 
@@ -130,7 +130,7 @@ CI は main への PR ごとに動き（同じ PR に push すると古い実行
    - タグがある: 最新のタグを `bump` で上げる（既定は minor で `2.x.0` → `2.(x+1).0`。patch / major も選べます）。このとき `Directory.Build.props` は見ません（`<Version>` はソースからビルドしたときの版で、更新は任意です）。
    - main の HEAD に既にタグがある（リリース済み。誤って 2 回実行した場合など）は失敗します。
 2. ci: そのコミットで CI（`ci.yml` を呼び出し、テスト・format・python-lint・native・publish と `--selftest`）。publish は RID ごとに AOT 版と通常版を決めた版でビルドし（`build.py --version`、通常版は `--jit` も）、`--version` の表示と `--selftest` の実行形態が一致することを確かめます。
-3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`（AOT 版）と `Hider-<版>-<rid>-jit.zip` / `.tar.gz`（通常版）、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
+3. package: publish 出力から `Hider-<版>-<rid>.zip` / `.tar.gz`（AOT 版）と `Hider-<版>-<rid>-jit.zip` / `.tar.gz`（通常版）、AOT 版のネイティブ記号の `Hider-<版>-<rid>-symbols.zip` / `.tar.gz`、`install.bat`、`install.sh`、`SHA256SUMS.txt` を作る（`scripts/make_release.py`。インストーラにはリリースの URL と各アーカイブの SHA-256 が入ります）。
 4. verify: 3 RID のランナーで、AOT 版・通常版（`--jit`）のそれぞれについてインストーラをアーカイブと並べて実行し、入ったものの `--version` と `--selftest` を確かめる。
 5. release: タグ `v<版>` を付けて GitHub Release を作り、アセットを添付する（書き込み権限を持つのはこのジョブだけ）。
 6. smoke: 公開されたリリースからインストーラをダウンロードして実行し、同じ確認をする（AOT 版・通常版とも）。

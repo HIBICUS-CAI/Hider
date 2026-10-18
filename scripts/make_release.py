@@ -11,10 +11,11 @@ builds from source). bump prints the version after the given one (minor: 2.1.0 -
 major: 2.1.0 -> 3.0.0). next-version prints the version the release workflow releases a commit as: the latest tag
 v<MAJOR.MINOR.PATCH> in the `git ls-remote --tags` listing on standard input, bumped (minor by default); <Version> of
 Directory.Build.props when there is no such tag; an error when the commit has a tag v* already. package turns the
-publish outputs (two folders per target, named Hider-<rid> for the AOT build and Hider-<rid>-jit for the JIT build as
-CI's publish artifacts are, or bin/publish/<rid> and bin/publish/<rid>-jit) into the release assets: one archive per
-target and build, the installers install.bat / install.sh (they download that release's archive of the AOT build, or of
-the JIT build with --jit, and check its SHA-256), SHA256SUMS.txt and release-notes.md.
+publish outputs (three folders per target, named Hider-<rid> for the AOT build, Hider-<rid>-jit for the JIT build and
+Hider-<rid>-symbols for the AOT build's native symbols as CI's publish artifacts are, or the same names under
+bin/publish without Hider-) into the release assets: one archive per target and build, one of the symbols per target,
+the installers install.bat / install.sh (they download that release's archive of the AOT build, or of the JIT build
+with --jit, and check its SHA-256), SHA256SUMS.txt and release-notes.md.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
-from common import AOT, ROOT_DIR, TARGETS, VARIANTS, Variant, publish_dir, variant_suffix
+from common import AOT, ROOT_DIR, TARGETS, VARIANTS, Variant, publish_dir, symbols_dir, symbols_file, variant_suffix
 
 PROPS_FILE = ROOT_DIR / 'Directory.Build.props'
 TEMPLATE_DIR = ROOT_DIR / 'scripts' / 'release'
@@ -51,9 +52,16 @@ def tag_name(version: str) -> str:
     return f'v{version}'
 
 
+def archive_extension(target: str) -> str:
+    return 'zip' if target.startswith('win') else 'tar.gz'
+
+
 def archive_name(version: str, target: str, variant: Variant = AOT) -> str:
-    extension = 'zip' if target.startswith('win') else 'tar.gz'
-    return f'Hider-{version}-{target}{variant_suffix(variant)}.{extension}'
+    return f'Hider-{version}-{target}{variant_suffix(variant)}.{archive_extension(target)}'
+
+
+def symbols_archive_name(version: str, target: str) -> str:
+    return f'Hider-{version}-{target}-symbols.{archive_extension(target)}'
 
 
 def parse_version(version: str) -> tuple[int, int, int]:
@@ -125,6 +133,15 @@ def find_input(input_dir: Path | None, target: str, variant: Variant = AOT) -> P
     return src
 
 
+def find_symbols(input_dir: Path | None, target: str) -> Path:
+    """The folder with the native symbols of the AOT build of target."""
+    src = input_dir / f'Hider-{target}-symbols' if input_dir else symbols_dir(target)
+    name = symbols_file(target)
+    if not (src / name).is_file():
+        sys.exit(f'No {name} in {src}: publish {target} ({AOT}) first.')
+    return src
+
+
 def sha256_placeholder(target: str, variant: Variant) -> str:
     """HIDER_SHA256_LINUX_X64 for the AOT build's archive, HIDER_SHA256_LINUX_X64_JIT for the JIT build's."""
     return f'HIDER_SHA256_{(target + variant_suffix(variant)).upper().replace("-", "_")}'
@@ -184,11 +201,18 @@ def package(version: str, repo: str, input_dir: Path | None, out_dir: Path) -> N
     inputs: list[tuple[str, Variant, Path]] = [
         (target, variant, find_input(input_dir, target, variant)) for target in TARGETS for variant in VARIANTS
     ]
+    symbols = [(target, find_symbols(input_dir, target)) for target in TARGETS]
     for target, variant, src in inputs:
         out = out_dir / archive_name(version, target, variant)
         print(f'Packing {src} -> {out}', flush=True)
         make_archive(src, out, f'Hider-{version}-{target}{variant_suffix(variant)}')
         values[sha256_placeholder(target, variant)] = sha256(out)
+        assets.append(out)
+    # Not for the installers: for reading crash dumps and stacks of the AOT build.
+    for target, src in symbols:
+        out = out_dir / symbols_archive_name(version, target)
+        print(f'Packing {src} -> {out}', flush=True)
+        make_archive(src, out, f'Hider-{version}-{target}-symbols')
         assets.append(out)
     # cmd.exe reads batch files with CRLF line endings reliably; the shell script keeps LF.
     for template, name, newline in [('install.bat.in', 'install.bat', '\r\n'), ('install.sh.in', 'install.sh', '\n')]:
@@ -222,8 +246,8 @@ def main() -> None:
     package_parser.add_argument(
         '--input-dir',
         type=Path,
-        help='Folder with the folders Hider-<rid> (AOT) and Hider-<rid>-jit (JIT) of each target. '
-        'Default: bin/publish/<rid> and bin/publish/<rid>-jit.',
+        help='Folder with the folders Hider-<rid> (AOT), Hider-<rid>-jit (JIT) and Hider-<rid>-symbols (the AOT '
+        "build's native symbols) of each target. Default: bin/publish/<rid>, <rid>-jit and <rid>-symbols.",
     )
     package_parser.add_argument('--out-dir', type=Path, required=True)
     args = parser.parse_args()

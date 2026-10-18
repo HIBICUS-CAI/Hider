@@ -23,12 +23,18 @@ EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 ABC_SHA256 = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 
 
-def make_inputs(root: Path, targets: list[str] | None = None, variants: list[str] | None = None) -> Path:
+def make_inputs(
+    root: Path, targets: list[str] | None = None, variants: list[str] | None = None, symbols: bool = True
+) -> Path:
     """Fake publish outputs as CI's artifacts: <root>/Hider-<rid>/ (AOT) and <root>/Hider-<rid>-jit/ (JIT) with the
-    executable, Assets and a library."""
+    executable, Assets and a library, and <root>/Hider-<rid>-symbols/ with the AOT build's native symbol file."""
     for target in targets if targets is not None else TARGETS:
         for variant in variants if variants is not None else VARIANTS:
             make_input(root, target, variant)
+        if symbols:
+            folder = root / f'Hider-{target}-symbols'
+            folder.mkdir(parents=True)
+            (folder / ('Hider.pdb' if target.startswith('win') else 'Hider.dbg')).write_bytes(target.encode() * 100)
     return root
 
 
@@ -100,6 +106,12 @@ class ArchiveNameTest(unittest.TestCase):
     def test_st40_any_windows_target_is_a_zip(self) -> None:
         self.assertEqual(make_release.archive_name('1.0.0', 'win-arm64'), 'Hider-1.0.0-win-arm64.zip')
         self.assertEqual(make_release.archive_name('1.0.0', 'osx-x64'), 'Hider-1.0.0-osx-x64.tar.gz')
+
+    def test_st61_symbols_archive_names(self) -> None:
+        self.assertEqual(make_release.symbols_archive_name('2.1.0', 'win-x64'), 'Hider-2.1.0-win-x64-symbols.zip')
+        self.assertEqual(
+            make_release.symbols_archive_name('2.1.0', 'linux-arm64'), 'Hider-2.1.0-linux-arm64-symbols.tar.gz'
+        )
 
     def test_st56_jit_archives_end_in_jit(self) -> None:
         self.assertEqual(make_release.archive_name('2.1.0', 'win-x64', 'jit'), 'Hider-2.1.0-win-x64-jit.zip')
@@ -467,6 +479,28 @@ class FindInputTest(unittest.TestCase):
         (self.root / 'Hider-linux-x64' / 'Hider').mkdir(parents=True)
         self.assertIn('No Hider in', str(self.exit_message('linux-x64')))
 
+    def test_st61_symbols_from_the_input_dir_or_bin_publish(self) -> None:
+        make_inputs(self.root, variants=[])
+        for target in TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(make_release.find_symbols(self.root, target), self.root / f'Hider-{target}-symbols')
+        with mock.patch.object(
+            make_release, 'symbols_dir', return_value=self.root / 'Hider-win-x64-symbols'
+        ) as default:
+            self.assertEqual(make_release.find_symbols(None, 'win-x64'), self.root / 'Hider-win-x64-symbols')
+        default.assert_called_once_with('win-x64')
+
+    def test_st61_symbols_need_the_os_symbol_file(self) -> None:
+        # Hider.pdb for Windows, Hider.dbg for Linux, a file.
+        (self.root / 'Hider-win-x64-symbols').mkdir()
+        (self.root / 'Hider-win-x64-symbols' / 'Hider.dbg').write_bytes(b'')
+        (self.root / 'Hider-linux-x64-symbols' / 'Hider.dbg').mkdir(parents=True)
+        for target, name in [('win-x64', 'Hider.pdb'), ('linux-x64', 'Hider.dbg'), ('linux-arm64', 'Hider.dbg')]:
+            with self.subTest(target=target), self.assertRaises(SystemExit) as raised:
+                make_release.find_symbols(self.root, target)
+            folder = self.root / f'Hider-{target}-symbols'
+            self.assertEqual(raised.exception.code, f'No {name} in {folder}: publish {target} (aot) first.')
+
     def test_st56_jit_build_from_the_input_dir(self) -> None:
         make_inputs(self.root)
         for target in TARGETS:
@@ -740,10 +774,13 @@ class PackageTest(unittest.TestCase):
             sorted(p.name for p in self.out.iterdir()),
             [
                 'Hider-1.2.3-linux-arm64-jit.tar.gz',
+                'Hider-1.2.3-linux-arm64-symbols.tar.gz',
                 'Hider-1.2.3-linux-arm64.tar.gz',
                 'Hider-1.2.3-linux-x64-jit.tar.gz',
+                'Hider-1.2.3-linux-x64-symbols.tar.gz',
                 'Hider-1.2.3-linux-x64.tar.gz',
                 'Hider-1.2.3-win-x64-jit.zip',
+                'Hider-1.2.3-win-x64-symbols.zip',
                 'Hider-1.2.3-win-x64.zip',
                 'SHA256SUMS.txt',
                 'install.bat',
@@ -760,6 +797,11 @@ class PackageTest(unittest.TestCase):
                     for t in TARGETS
                     for v in VARIANTS
                 ),
+                *(
+                    f'Packing {self.inputs / f"Hider-{t}-symbols"} -> '
+                    f'{self.out / make_release.symbols_archive_name("1.2.3", t)}'
+                    for t in TARGETS
+                ),
                 f'Release assets for v1.2.3 in {self.out}',
             ],
         )
@@ -768,8 +810,9 @@ class PackageTest(unittest.TestCase):
         self.package()
         lines = (self.out / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines()
         archives = [make_release.archive_name('1.2.3', t, v) for t in TARGETS for v in VARIANTS]
-        names = [*archives, 'install.bat', 'install.sh']
-        # Archives in target order (AOT, then JIT), then the installers; the release notes are not an asset.
+        symbols = [make_release.symbols_archive_name('1.2.3', t) for t in TARGETS]
+        names = [*archives, *symbols, 'install.bat', 'install.sh']
+        # Archives in target order (AOT, then JIT), the symbols, then the installers (the release notes are no asset).
         self.assertEqual(lines, [f'{file_sha256(self.out / n)}  {n}' for n in names])
         self.assertNotIn(b'\r', (self.out / 'SHA256SUMS.txt').read_bytes())
 
@@ -820,9 +863,13 @@ class PackageTest(unittest.TestCase):
     def publish_dir(self, target: str, variant: str) -> Path:
         return self.inputs / f'Hider-{target}{"" if variant == "aot" else "-" + variant}'
 
+    def symbols_dir(self, target: str) -> Path:
+        return self.inputs / f'Hider-{target}-symbols'
+
     def test_st49_default_input_is_bin_publish(self) -> None:
         with (
             mock.patch.object(make_release, 'publish_dir', side_effect=self.publish_dir),
+            mock.patch.object(make_release, 'symbols_dir', side_effect=self.symbols_dir),
             captured(),
         ):
             make_release.package('1.2.3', 'owner/repo', None, self.out)
@@ -848,6 +895,29 @@ class PackageTest(unittest.TestCase):
             raised.exception.code, f'No Hider.exe in {inputs / "Hider-win-x64-jit"}: publish win-x64 (jit) first.'
         )
         self.assertFalse(self.out.exists() and any(self.out.iterdir()))
+
+    def test_st61_symbols_archives_hold_the_symbol_files(self) -> None:
+        self.package()
+        with zipfile.ZipFile(self.out / 'Hider-1.2.3-win-x64-symbols.zip') as archive:
+            self.assertEqual(archive.read('Hider-1.2.3-win-x64-symbols/Hider.pdb'), b'win-x64' * 100)
+        for target in ['linux-x64', 'linux-arm64']:
+            with tarfile.open(self.out / f'Hider-1.2.3-{target}-symbols.tar.gz') as archive:
+                member = archive.getmember(f'Hider-1.2.3-{target}-symbols/Hider.dbg')
+                self.assertEqual(member.mode, 0o644)
+                data = archive.extractfile(member)
+                assert data is not None
+                self.assertEqual(data.read(), target.encode() * 100)
+        # Not for the installers: no checksum placeholder of their own.
+        self.assertNotIn('symbols', (self.out / 'install.sh').read_text(encoding='utf-8'))
+
+    def test_st61_missing_symbols_stop_before_packing(self) -> None:
+        inputs = make_inputs(self.root / 'no-symbols', symbols=False)
+        with self.assertRaises(SystemExit) as raised:
+            self.package(input_dir=inputs)
+        self.assertEqual(
+            raised.exception.code, f'No Hider.pdb in {inputs / "Hider-win-x64-symbols"}: publish win-x64 (aot) first.'
+        )
+        self.assertEqual(list(self.out.iterdir()), [])
 
     def test_st56_installers_choose_the_build(self) -> None:
         self.package()

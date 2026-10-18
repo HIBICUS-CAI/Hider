@@ -35,3 +35,13 @@ def variant_suffix(variant: Variant) -> str:
 def publish_dir(target: str, variant: Variant = AOT) -> Path:
     """Under bin/ so the SDK's default item globs do not pick the output up as project items."""
     return ROOT_DIR / 'bin' / 'publish' / f'{target}{variant_suffix(variant)}'
+
+
+def symbols_dir(target: str) -> Path:
+    """The native symbols of the AOT build of target (Hider.dbg / Hider.pdb), next to the publish outputs."""
+    return ROOT_DIR / 'bin' / 'publish' / f'{target}-symbols'
+
+
+def symbols_file(target: str) -> str:
+    """The name of the AOT build's native symbol file: Hider.pdb on Windows, Hider.dbg on Linux."""
+    return 'Hider.pdb' if target.startswith('win') else 'Hider.dbg'

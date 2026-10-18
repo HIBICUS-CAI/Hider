@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 
-from common import AOT, JIT, NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, Variant, host_target, publish_dir
+from common import AOT, JIT, NATIVE_HELPER_DIR, PROJECT_FILE, TARGETS, Variant, host_target, publish_dir, symbols_dir
 
 
 def parse_args() -> tuple[list[str], str | None, Variant]:
@@ -119,12 +119,16 @@ def main() -> None:
     for target in targets:
         out_dir = publish_dir(target, variant)
         print(f'Building {target} ({variant}) -> {out_dir}')
-        if out_dir.exists():
-            shutil.rmtree(out_dir)
+        # The AOT build also leaves its native symbols in their own folder (Hider.csproj, HiderSymbolsDir).
+        old_dirs = [out_dir, symbols_dir(target)] if variant == AOT else [out_dir]
+        for old in old_dirs:
+            if old.exists():
+                shutil.rmtree(old)
         if target.startswith('linux'):
             build_native_helper(target)
         command = ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', str(out_dir)]
-        subprocess.run([*command, *variant_args, *version_args], check=True)
+        symbols_args = [f'-p:HiderSymbolsDir={symbols_dir(target)}'] if variant == AOT else []
+        subprocess.run([*command, *variant_args, *symbols_args, *version_args], check=True)
     print('Done.')
 
 

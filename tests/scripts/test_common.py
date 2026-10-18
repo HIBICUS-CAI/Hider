@@ -61,6 +61,18 @@ class VariantsTest(unittest.TestCase):
                 self.assertEqual(common.publish_dir(target), common.publish_dir(target, 'aot'))
 
 
+class SymbolsTest(unittest.TestCase):
+    def test_st61_symbols_dir_is_next_to_the_publish_outputs(self) -> None:
+        for target in common.TARGETS:
+            with self.subTest(target=target):
+                self.assertEqual(common.symbols_dir(target), REPO_DIR / 'bin' / 'publish' / f'{target}-symbols')
+
+    def test_st61_symbols_file(self) -> None:
+        self.assertEqual(common.symbols_file('win-x64'), 'Hider.pdb')
+        self.assertEqual(common.symbols_file('linux-x64'), 'Hider.dbg')
+        self.assertEqual(common.symbols_file('linux-arm64'), 'Hider.dbg')
+
+
 HOST_CASES: tuple[tuple[str, str, str | None], ...] = (
     ('Windows', 'AMD64', 'win-x64'),
     ('Windows', 'amd64', 'win-x64'),

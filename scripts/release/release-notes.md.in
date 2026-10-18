@@ -11,4 +11,5 @@
 - 更新も同じ操作です（既存のファイルを上書きします）。インストール先は `install.bat <フォルダ>` / `sh install.sh -d <フォルダ>` で変えられます。
 - Windows では、ダウンロードした install.bat の実行時にセキュリティの警告（SmartScreen など）が出ることがあります（署名していないため）。「詳細情報」→「実行」または「実行」で続けます。
 - アーカイブ（AOT 版は Hider-@HIDER_VERSION@-<rid>.zip / .tar.gz、通常版は Hider-@HIDER_VERSION@-<rid>-jit.zip / .tar.gz）をインストーラと同じフォルダ（`curl … | sh` の場合は実行したディレクトリ）に置くと、ダウンロードせずにそれを使います。
+- Hider-@HIDER_VERSION@-<rid>-symbols.zip / .tar.gz は AOT 版のネイティブ記号（クラッシュダンプやスタックの解析用）です。インストールには使いません。
 - アンインストールはインストール先のフォルダと、ショートカット（Hider.lnk）またはデスクトップエントリ（Hider.desktop）を削除します。設定は `~/.hider` に残ります。

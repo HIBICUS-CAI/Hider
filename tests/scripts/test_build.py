@@ -344,12 +344,16 @@ class MainTest(unittest.TestCase):
         enter(
             self,
             mock.patch.object(build, 'publish_dir', side_effect=self.publish_dir),
+            mock.patch.object(build, 'symbols_dir', side_effect=self.symbols_dir),
             mock.patch.object(build, 'build_native_helper', side_effect=self.native_helper),
             mock.patch.object(build, 'host_target', return_value='linux-x64'),
         )
 
     def publish_dir(self, target: str, variant: str = 'aot') -> Path:
         return self.publish_root / f'{target}-{variant}'
+
+    def symbols_dir(self, target: str) -> Path:
+        return self.publish_root / f'{target}-symbols'
 
     def native_helper(self, target: str) -> None:
         self.events.append(f'helper {target}')
@@ -363,8 +367,11 @@ class MainTest(unittest.TestCase):
         def run(command: list[str], check: bool) -> subprocess.CompletedProcess[bytes]:
             self.assertTrue(check)
             target = command[command.index('-r') + 1]
-            # The old output was removed before publishing.
+            # The old output (and the AOT build's old symbols) was removed before publishing.
             self.assertFalse(Path(command[command.index('-o') + 1]).exists())
+            for arg in command:
+                if arg.startswith('-p:HiderSymbolsDir='):
+                    self.assertFalse(Path(arg.split('=', 1)[1]).exists())
             self.events.append(f'publish {target}')
             if target == fail:
                 raise subprocess.CalledProcessError(1, command)
@@ -381,7 +388,8 @@ class MainTest(unittest.TestCase):
 
     def publish_command(self, target: str, *extra: str, variant: str = 'jit') -> list[str]:
         out_dir = str(self.publish_dir(target, variant))
-        return ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', out_dir, *extra]
+        symbols = [f'-p:HiderSymbolsDir={self.symbols_dir(target)}'] if variant == 'aot' else []
+        return ['dotnet', 'publish', str(PROJECT_FILE), '-c', 'Release', '-r', target, '-o', out_dir, *symbols, *extra]
 
     def jit_command(self, target: str, *extra: str) -> list[str]:
         return self.publish_command(target, '-p:HiderJit=true', *extra)
@@ -458,6 +466,22 @@ class MainTest(unittest.TestCase):
             self.run_main('win-x64')
         self.assertEqual(raised.exception.code, aot_elsewhere('win-x64', 'this one is linux-x64'))
         self.assertEqual(self.events, [])
+
+    def test_st61_aot_build_writes_its_symbols_apart(self) -> None:
+        _, run = self.run_main('linux-x64')
+        self.assertIn(f'-p:HiderSymbolsDir={self.symbols_dir("linux-x64")}', run.call_args.args[0])
+        _, run = self.run_main('linux-x64', '--jit')
+        self.assertFalse(any(arg.startswith('-p:HiderSymbolsDir=') for arg in run.call_args.args[0]))
+
+    def test_st61_old_symbols_go_with_an_aot_build_only(self) -> None:
+        old = self.symbols_dir('linux-x64')
+        old.mkdir(parents=True)
+        (old / 'Hider.dbg').write_bytes(b'old')
+        # The JIT build leaves the AOT build's symbols alone; the next AOT build replaces them (run() checks the order).
+        self.run_main('linux-x64', '--jit')
+        self.assertEqual((old / 'Hider.dbg').read_bytes(), b'old')
+        self.run_main('linux-x64')
+        self.assertFalse(old.exists())
 
     def test_st59_aot_on_linux_needs_clang(self) -> None:
         with self.assertRaises(SystemExit) as raised:
