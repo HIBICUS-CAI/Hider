@@ -9,7 +9,8 @@ name: Release
 # 2. ci: CI on that commit (ci.yml), publishing with that version (build.py --version, a global property over
 #    Directory.Build.props).
 # 3. package: the release assets (scripts/make_release.py): each target's AOT build (the default) and JIT build
-#    (proposal P-14), and the AOT build's native symbols (Hider-<version>-<rid>-symbols, for crash analysis). 4. verify: the installers tried on each target, for each build (--jit for the JIT build).
+#    (proposal P-14), and the AOT build's native symbols (Hider-<version>-<rid>-symbols, for crash analysis).
+# 4. verify: the installers tried on each target, for each build (--jit for the JIT build).
 # 5. release: the tag v<version> on that commit and the GitHub Release (the only job with write access).
 # 6. smoke: the installers downloaded from the published release, for each build.
 on:
