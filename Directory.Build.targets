@@ -13,6 +13,11 @@
     <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks" ILLinkPackVersion="$(HiderPublishPackVersion)" />
     <KnownILCompilerPack Update="Microsoft.DotNet.ILCompiler" ILCompilerPackVersion="$(HiderPublishPackVersion)" />
   </ItemGroup>
+  <!-- The AOT build's runtime pack (the framework of a self-contained publish) must be ILCompiler's version: a newer
+       SDK would take its own newer one, and ILCompiler refuses a System.Private.CoreLib newer than its own. -->
+  <PropertyGroup Condition="'$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' != ''">
+    <RuntimeFrameworkVersion>$(HiderPublishPackVersion)</RuntimeFrameworkVersion>
+  </PropertyGroup>
 
   <!-- Avalonia.BuildServices (transitive) sends build statistics to avaloniaui.net from its AvaloniaStats target. The
        documented opt-out is the AVALONIA_TELEMETRY_OPTOUT environment variable, which every machine would have to set;
